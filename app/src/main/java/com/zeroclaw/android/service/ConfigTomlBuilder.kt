@@ -6,6 +6,9 @@
 
 package com.zeroclaw.android.service
 
+import com.zeroclaw.android.model.ConnectedChannel
+import com.zeroclaw.android.model.FieldInputType
+
 /**
  * Builds a valid TOML configuration string for the ZeroClaw daemon.
  *
@@ -20,6 +23,7 @@ package com.zeroclaw.android.service
  * - Custom OpenAI-compatible: `"custom:http://host/v1"` (URL in name)
  * - Custom Anthropic-compatible: `"anthropic-custom:http://host"` (URL in name)
  */
+@Suppress("TooManyFunctions")
 object ConfigTomlBuilder {
 
     private const val DEFAULT_TEMPERATURE = "0.7"
@@ -71,6 +75,62 @@ object ConfigTomlBuilder {
     }
 
     /**
+     * Builds the `[channels_config]` TOML section from enabled channels.
+     *
+     * The CLI channel is disabled (`cli = false`) because the Android app
+     * uses the FFI bridge for direct messaging instead of stdin/stdout.
+     *
+     * @param channelsWithSecrets List of pairs: (channel, all config values including secrets).
+     * @return TOML string for the channels_config section, or empty if no channels.
+     */
+    fun buildChannelsToml(
+        channelsWithSecrets: List<Pair<ConnectedChannel, Map<String, String>>>,
+    ): String {
+        if (channelsWithSecrets.isEmpty()) return ""
+        return buildString {
+            appendLine()
+            appendLine("[channels_config]")
+            appendLine("cli = false")
+
+            for ((channel, values) in channelsWithSecrets) {
+                appendLine()
+                appendLine("[channels_config.${channel.type.tomlKey}]")
+                for (spec in channel.type.fields) {
+                    val value = values[spec.key] ?: ""
+                    if (value.isBlank() && !spec.isRequired) continue
+                    appendTomlField(spec.key, value, spec.inputType)
+                }
+            }
+        }
+    }
+
+    /**
+     * Appends a single TOML field with the appropriate value format.
+     *
+     * @param key TOML field key.
+     * @param value Raw string value from the UI.
+     * @param inputType Field input type determining the TOML format.
+     */
+    private fun StringBuilder.appendTomlField(
+        key: String,
+        value: String,
+        inputType: FieldInputType,
+    ) {
+        when (inputType) {
+            FieldInputType.NUMBER -> appendLine("$key = ${value.ifBlank { "0" }}")
+            FieldInputType.BOOLEAN -> appendLine("$key = ${value.lowercase()}")
+            FieldInputType.LIST -> {
+                val items = value.split(",")
+                    .map { it.trim() }
+                    .filter { it.isNotEmpty() }
+                    .joinToString(", ") { tomlString(it) }
+                appendLine("$key = [$items]")
+            }
+            else -> appendLine("$key = ${tomlString(value)}")
+        }
+    }
+
+    /**
      * Maps an Android provider ID and optional base URL to the upstream
      * Rust factory provider name.
      *
@@ -106,7 +166,7 @@ object ConfigTomlBuilder {
      * (newline, carriage return, tab, backspace, form feed) as required
      * by the [TOML specification](https://toml.io/en/v1.0.0#string).
      */
-    private fun tomlString(value: String): String = buildString {
+    internal fun tomlString(value: String): String = buildString {
         append('"')
         for (ch in value) {
             when (ch) {

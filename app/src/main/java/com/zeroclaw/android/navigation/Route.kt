@@ -83,6 +83,32 @@ data class ApiKeyDetailRoute(
 @Serializable
 data object LogViewerRoute
 
+/** Connected channels management sub-screen. */
+@Serializable
+data object ConnectedChannelsRoute
+
+/**
+ * Channel detail sub-screen.
+ *
+ * @property channelId Identifier of the channel to edit, or null for adding a new channel.
+ * @property channelType Channel type name for new channel creation (used when channelId is null).
+ */
+@Serializable
+data class ChannelDetailRoute(
+    val channelId: String? = null,
+    val channelType: String? = null,
+)
+
+/**
+ * Agent chat screen.
+ *
+ * @property agentId Unique identifier of the agent to chat with.
+ */
+@Serializable
+data class AgentChatRoute(
+    val agentId: String,
+)
+
 /** First-run onboarding wizard. */
 @Serializable
 data object OnboardingRoute

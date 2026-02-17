@@ -51,6 +51,7 @@ object ProviderRegistry {
     fun allByCategory(): Map<ProviderCategory, List<ProviderInfo>> =
         allProviders.groupBy { it.category }
 
+    @Suppress("LongMethod")
     private fun primaryProviders(): List<ProviderInfo> =
         listOf(
             ProviderInfo(

@@ -14,6 +14,7 @@ import android.os.PowerManager
 import android.util.Log
 import com.zeroclaw.android.ZeroClawApplication
 import com.zeroclaw.android.data.repository.ApiKeyRepository
+import com.zeroclaw.android.data.repository.ChannelConfigRepository
 import com.zeroclaw.android.data.repository.LogRepository
 import com.zeroclaw.android.data.repository.SettingsRepository
 import com.zeroclaw.android.model.LogSeverity
@@ -64,6 +65,7 @@ class ZeroClawDaemonService : Service() {
     private lateinit var logRepository: LogRepository
     private lateinit var settingsRepository: SettingsRepository
     private lateinit var apiKeyRepository: ApiKeyRepository
+    private lateinit var channelConfigRepository: ChannelConfigRepository
     private val retryPolicy = RetryPolicy()
 
     private var statusPollJob: Job? = null
@@ -77,6 +79,7 @@ class ZeroClawDaemonService : Service() {
         logRepository = app.logRepository
         settingsRepository = app.settingsRepository
         apiKeyRepository = app.apiKeyRepository
+        channelConfigRepository = app.channelConfigRepository
         notificationManager = DaemonNotificationManager(this)
         networkMonitor = NetworkMonitor(this)
         persistence = DaemonPersistence(this)
@@ -142,12 +145,16 @@ class ZeroClawDaemonService : Service() {
             val settings = settingsRepository.settings.first()
             val apiKey = apiKeyRepository.getByProviderFresh(settings.defaultProvider)
 
-            val configToml = ConfigTomlBuilder.build(
+            val baseToml = ConfigTomlBuilder.build(
                 provider = settings.defaultProvider,
                 model = settings.defaultModel,
                 apiKey = apiKey?.key.orEmpty(),
                 baseUrl = apiKey?.baseUrl.orEmpty(),
             )
+            val channelsToml = ConfigTomlBuilder.buildChannelsToml(
+                channelConfigRepository.getEnabledWithSecrets(),
+            )
+            val configToml = baseToml + channelsToml
 
             retryPolicy.reset()
             attemptStart(

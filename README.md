@@ -2,10 +2,7 @@
 
 <img width="1024" height="335" alt="image hero banner" src="https://github.com/user-attachments/assets/03b919d9-428b-4372-a2f7-d2b9876b2fec" />
 
-
 > Your old phone in a drawer is a better AI server than you think.
-
-
 
 [![CI](https://github.com/Natfii/ZeroClaw-Android/actions/workflows/ci.yml/badge.svg)](https://github.com/Natfii/ZeroClaw-Android/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -28,7 +25,7 @@ Got an old phone? Give it a new job.
 
 The onboarding wizard walks you through all of this on first launch.
 
-***Note this app is still a WIP and some features might break***
+***Disclaimer: This app is a personal project. It might break.***
 
 ## Features
 
@@ -158,11 +155,11 @@ Kotlin/Compose UI on top, Rust engine underneath, connected through Mozilla UniF
 <details>
 <summary>Ecosystem / Related Projects</summary>
 
-| Project                                              | Description                        | Relationship                                                   |
-| ---------------------------------------------------- | ---------------------------------- | -------------------------------------------------------------- |
-| [ZeroClaw](https://github.com/theonlyhenrygod/zeroclaw) | Rust-native AI agent framework     | Upstream core (git submodule)                                  |
-| OpenClaw                                             | TypeScript-based AI agent platform | ZeroClaw is a Rust-native rewrite of the OpenClaw architecture |
-| ZeroClaw-Android                                     | This project                       | Android wrapper with native FFI                                |
+| Project                                            | Description                        | Relationship                                                   |
+| -------------------------------------------------- | ---------------------------------- | -------------------------------------------------------------- |
+| [ZeroClaw](https://github.com/zeroclaw-labs/zeroclaw) | Rust-native AI agent framework     | Upstream core (git submodule)                                  |
+| OpenClaw                                           | TypeScript-based AI agent platform | ZeroClaw is a Rust-native rewrite of the OpenClaw architecture |
+| ZeroClaw-Android                                   | This project                       | Android wrapper with native FFI                                |
 
 ZeroClaw-Android wraps the upstream ZeroClaw engine without modification. Nader Dabit has called ZeroClaw "insanely fast" -- this project brings that speed to Android as an always-on service.
 

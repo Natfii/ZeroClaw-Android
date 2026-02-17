@@ -16,6 +16,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.BatteryAlert
+import androidx.compose.material.icons.outlined.Forum
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.Refresh
@@ -50,6 +51,7 @@ import com.zeroclaw.android.ui.component.SectionHeader
  * @param onNavigateToServiceConfig Navigate to service configuration.
  * @param onNavigateToBattery Navigate to battery settings.
  * @param onNavigateToApiKeys Navigate to API key management.
+ * @param onNavigateToChannels Navigate to connected channels management.
  * @param onNavigateToLogViewer Navigate to log viewer.
  * @param onNavigateToAbout Navigate to about screen.
  * @param onNavigateToUpdates Navigate to updates screen.
@@ -62,6 +64,7 @@ fun SettingsScreen(
     onNavigateToServiceConfig: () -> Unit,
     onNavigateToBattery: () -> Unit,
     onNavigateToApiKeys: () -> Unit,
+    onNavigateToChannels: () -> Unit,
     onNavigateToLogViewer: () -> Unit,
     onNavigateToAbout: () -> Unit,
     onNavigateToUpdates: () -> Unit,
@@ -102,6 +105,12 @@ fun SettingsScreen(
             title = "API Keys",
             subtitle = "Manage provider credentials",
             onClick = onNavigateToApiKeys,
+        )
+        SettingsItem(
+            icon = Icons.Outlined.Forum,
+            title = "Connected Channels",
+            subtitle = "Telegram, Discord, Slack, and more",
+            onClick = onNavigateToChannels,
         )
 
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))

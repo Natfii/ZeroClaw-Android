@@ -29,6 +29,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zeroclaw.android.ui.screen.onboarding.steps.ActivationStep
 import com.zeroclaw.android.ui.screen.onboarding.steps.AgentConfigStep
+import com.zeroclaw.android.ui.screen.onboarding.steps.ChannelSetupStep
 import com.zeroclaw.android.ui.screen.onboarding.steps.PermissionsStep
 import com.zeroclaw.android.ui.screen.onboarding.steps.ProviderStep
 
@@ -41,8 +42,11 @@ private const val STEP_PROVIDER = 1
 /** Step index for the agent configuration step. */
 private const val STEP_AGENT_CONFIG = 2
 
+/** Step index for the channel setup step. */
+private const val STEP_CHANNELS = 3
+
 /** Step index for the final activation step. */
-private const val STEP_ACTIVATION = 3
+private const val STEP_ACTIVATION = 4
 
 /**
  * Onboarding wizard screen with step indicator and navigation buttons.
@@ -91,6 +95,8 @@ fun OnboardingScreen(
         val baseUrlState by onboardingViewModel.baseUrl.collectAsStateWithLifecycle()
         val modelState by onboardingViewModel.selectedModel.collectAsStateWithLifecycle()
         val agentNameState by onboardingViewModel.agentName.collectAsStateWithLifecycle()
+        val channelTypeState by onboardingViewModel.selectedChannelType.collectAsStateWithLifecycle()
+        val channelFieldsState by onboardingViewModel.channelFieldValues.collectAsStateWithLifecycle()
 
         Column(modifier = Modifier.weight(1f)) {
             when (currentStep) {
@@ -110,6 +116,13 @@ fun OnboardingScreen(
                     AgentConfigStep(
                         agentName = agentNameState,
                         onAgentNameChanged = onboardingViewModel::setAgentName,
+                    )
+                STEP_CHANNELS ->
+                    ChannelSetupStep(
+                        selectedType = channelTypeState,
+                        channelFieldValues = channelFieldsState,
+                        onTypeSelected = onboardingViewModel::setChannelType,
+                        onFieldChanged = onboardingViewModel::setChannelField,
                     )
                 STEP_ACTIVATION ->
                     ActivationStep(

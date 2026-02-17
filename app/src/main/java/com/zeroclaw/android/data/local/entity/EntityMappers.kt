@@ -10,6 +10,8 @@ import com.zeroclaw.android.model.ActivityEvent
 import com.zeroclaw.android.model.ActivityType
 import com.zeroclaw.android.model.Agent
 import com.zeroclaw.android.model.ChannelConfig
+import com.zeroclaw.android.model.ChannelType
+import com.zeroclaw.android.model.ConnectedChannel
 import com.zeroclaw.android.model.LogEntry
 import com.zeroclaw.android.model.LogSeverity
 import com.zeroclaw.android.model.Plugin
@@ -203,6 +205,38 @@ private fun deserializeSeverity(name: String): LogSeverity =
         .getOrDefault(LogSeverity.INFO)
 
 /**
+ * Converts a [ConnectedChannelEntity] to its domain [ConnectedChannel] model.
+ *
+ * @receiver The Room entity to convert.
+ * @return The equivalent domain model, or null if the channel type is unknown.
+ */
+fun ConnectedChannelEntity.toModel(): ConnectedChannel? {
+    val channelType = deserializeChannelType(type) ?: return null
+    return ConnectedChannel(
+        id = id,
+        type = channelType,
+        isEnabled = isEnabled,
+        configValues = deserializeConfigMap(configJson),
+        createdAt = createdAt,
+    )
+}
+
+/**
+ * Converts a [ConnectedChannel] domain model to its [ConnectedChannelEntity] for persistence.
+ *
+ * @receiver The domain model to convert.
+ * @return The equivalent Room entity with serialized config values.
+ */
+fun ConnectedChannel.toEntity(): ConnectedChannelEntity =
+    ConnectedChannelEntity(
+        id = id,
+        type = type.name,
+        isEnabled = isEnabled,
+        configJson = mapperJson.encodeToString(configValues),
+        createdAt = createdAt,
+    )
+
+/**
  * Deserializes an activity type name to an [ActivityType] enum value.
  *
  * @param name Activity type name string.
@@ -211,3 +245,12 @@ private fun deserializeSeverity(name: String): LogSeverity =
 private fun deserializeActivityType(name: String): ActivityType =
     runCatching { ActivityType.valueOf(name) }
         .getOrDefault(ActivityType.CONFIG_CHANGE)
+
+/**
+ * Deserializes a channel type name to a [ChannelType] enum value.
+ *
+ * @param name Channel type name string.
+ * @return Matching [ChannelType], or null if unknown.
+ */
+private fun deserializeChannelType(name: String): ChannelType? =
+    runCatching { ChannelType.valueOf(name) }.getOrNull()

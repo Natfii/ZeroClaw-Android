@@ -8,6 +8,7 @@ package com.zeroclaw.android
 
 import android.app.Application
 import android.util.Log
+import com.zeroclaw.android.data.SecurePrefsProvider
 import com.zeroclaw.android.data.StorageHealth
 import com.zeroclaw.android.data.local.ZeroClawDatabase
 import com.zeroclaw.android.data.repository.ActivityRepository
@@ -19,9 +20,11 @@ import com.zeroclaw.android.data.repository.EncryptedApiKeyRepository
 import com.zeroclaw.android.data.repository.InMemoryApiKeyRepository
 import com.zeroclaw.android.data.repository.LogRepository
 import com.zeroclaw.android.data.repository.OnboardingRepository
+import com.zeroclaw.android.data.repository.ChannelConfigRepository
 import com.zeroclaw.android.data.repository.PluginRepository
 import com.zeroclaw.android.data.repository.RoomActivityRepository
 import com.zeroclaw.android.data.repository.RoomAgentRepository
+import com.zeroclaw.android.data.repository.RoomChannelConfigRepository
 import com.zeroclaw.android.data.repository.RoomLogRepository
 import com.zeroclaw.android.data.repository.RoomPluginRepository
 import com.zeroclaw.android.data.repository.SettingsRepository
@@ -85,6 +88,10 @@ class ZeroClawApplication : Application() {
     lateinit var pluginRepository: PluginRepository
         private set
 
+    /** Channel configuration repository backed by Room + EncryptedSharedPreferences. */
+    lateinit var channelConfigRepository: ChannelConfigRepository
+        private set
+
     override fun onCreate() {
         super.onCreate()
         System.loadLibrary("zeroclaw")
@@ -100,6 +107,7 @@ class ZeroClawApplication : Application() {
         onboardingRepository = DataStoreOnboardingRepository(this)
         agentRepository = RoomAgentRepository(database.agentDao())
         pluginRepository = RoomPluginRepository(database.pluginDao())
+        channelConfigRepository = createChannelConfigRepository()
     }
 
     /**
@@ -132,8 +140,31 @@ class ZeroClawApplication : Application() {
             InMemoryApiKeyRepository()
         }
 
+    /**
+     * Creates the channel configuration repository with encrypted secret storage.
+     *
+     * Uses a separate EncryptedSharedPreferences file (`zeroclaw_channel_secrets`)
+     * from the API key storage to isolate channel secrets.
+     *
+     * @return A [ChannelConfigRepository] instance.
+     */
+    @Suppress("TooGenericExceptionCaught")
+    private fun createChannelConfigRepository(): ChannelConfigRepository {
+        val (prefs, health) = SecurePrefsProvider.create(this, CHANNEL_SECRETS_PREFS)
+        when (health) {
+            is StorageHealth.Healthy ->
+                Log.i(TAG, "Channel secret storage: healthy")
+            is StorageHealth.Recovered ->
+                Log.w(TAG, "Channel secret storage: recovered from corruption")
+            is StorageHealth.Degraded ->
+                Log.w(TAG, "Channel secret storage: degraded (in-memory only)")
+        }
+        return RoomChannelConfigRepository(database.connectedChannelDao(), prefs)
+    }
+
     /** Constants for [ZeroClawApplication]. */
     companion object {
         private const val TAG = "ZeroClawApp"
+        private const val CHANNEL_SECRETS_PREFS = "zeroclaw_channel_secrets"
     }
 }

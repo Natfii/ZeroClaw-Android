@@ -24,6 +24,7 @@ import androidx.navigation.toRoute
 import com.zeroclaw.android.ui.screen.agents.AddAgentScreen
 import com.zeroclaw.android.ui.screen.agents.AgentDetailScreen
 import com.zeroclaw.android.ui.screen.agents.AgentsScreen
+import com.zeroclaw.android.ui.screen.agents.ChatScreen
 import com.zeroclaw.android.ui.screen.dashboard.DashboardScreen
 import com.zeroclaw.android.ui.screen.onboarding.OnboardingScreen
 import com.zeroclaw.android.ui.screen.plugins.PluginDetailScreen
@@ -37,6 +38,8 @@ import com.zeroclaw.android.ui.screen.settings.UpdatesScreen
 import com.zeroclaw.android.ui.screen.settings.apikeys.ApiKeyDetailScreen
 import com.zeroclaw.android.ui.screen.settings.apikeys.ApiKeysScreen
 import com.zeroclaw.android.ui.screen.settings.apikeys.ApiKeysViewModel
+import com.zeroclaw.android.ui.screen.settings.channels.ChannelDetailScreen
+import com.zeroclaw.android.ui.screen.settings.channels.ConnectedChannelsScreen
 import com.zeroclaw.android.ui.screen.settings.logs.LogViewerScreen
 
 /**
@@ -65,10 +68,24 @@ fun ZeroClawNavHost(
 
         composable<AgentsRoute> {
             AgentsScreen(
+                onNavigateToChat = { agentId ->
+                    navController.navigate(AgentChatRoute(agentId = agentId))
+                },
                 onNavigateToDetail = { agentId ->
                     navController.navigate(AgentDetailRoute(agentId = agentId))
                 },
                 onNavigateToAdd = { navController.navigate(AddAgentRoute) },
+                edgeMargin = edgeMargin,
+            )
+        }
+
+        composable<AgentChatRoute> { backStackEntry ->
+            val route = backStackEntry.toRoute<AgentChatRoute>()
+            ChatScreen(
+                agentId = route.agentId,
+                onNavigateToEdit = { agentId ->
+                    navController.navigate(AgentDetailRoute(agentId = agentId))
+                },
                 edgeMargin = edgeMargin,
             )
         }
@@ -114,6 +131,7 @@ fun ZeroClawNavHost(
                 onNavigateToServiceConfig = { navController.navigate(ServiceConfigRoute) },
                 onNavigateToBattery = { navController.navigate(BatterySettingsRoute) },
                 onNavigateToApiKeys = { navController.navigate(ApiKeysRoute) },
+                onNavigateToChannels = { navController.navigate(ConnectedChannelsRoute) },
                 onNavigateToLogViewer = { navController.navigate(LogViewerRoute) },
                 onNavigateToAbout = { navController.navigate(AboutRoute) },
                 onNavigateToUpdates = { navController.navigate(UpdatesRoute) },
@@ -200,6 +218,30 @@ fun ZeroClawNavHost(
             val route = backStackEntry.toRoute<ApiKeyDetailRoute>()
             ApiKeyDetailScreen(
                 keyId = route.keyId,
+                onSaved = { navController.popBackStack() },
+                edgeMargin = edgeMargin,
+            )
+        }
+
+        composable<ConnectedChannelsRoute> {
+            ConnectedChannelsScreen(
+                onNavigateToDetail = { channelId, channelType ->
+                    navController.navigate(
+                        ChannelDetailRoute(
+                            channelId = channelId,
+                            channelType = channelType,
+                        ),
+                    )
+                },
+                edgeMargin = edgeMargin,
+            )
+        }
+
+        composable<ChannelDetailRoute> { backStackEntry ->
+            val route = backStackEntry.toRoute<ChannelDetailRoute>()
+            ChannelDetailScreen(
+                channelId = route.channelId,
+                channelTypeName = route.channelType,
                 onSaved = { navController.popBackStack() },
                 edgeMargin = edgeMargin,
             )

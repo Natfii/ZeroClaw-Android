@@ -13,14 +13,16 @@ import com.zeroclaw.android.ZeroClawApplication
 import com.zeroclaw.android.data.ProviderRegistry
 import com.zeroclaw.android.model.Agent
 import com.zeroclaw.android.model.ApiKey
+import com.zeroclaw.android.model.ChannelType
+import com.zeroclaw.android.model.ConnectedChannel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.util.UUID
 
-/** Total number of onboarding steps. */
-private const val TOTAL_STEPS = 4
+/** Total number of onboarding steps (including channel setup). */
+private const val TOTAL_STEPS = 5
 
 /**
  * ViewModel for the onboarding wizard.
@@ -39,6 +41,7 @@ class OnboardingViewModel(
     private val apiKeyRepository = app.apiKeyRepository
     private val settingsRepository = app.settingsRepository
     private val agentRepository = app.agentRepository
+    private val channelConfigRepository = app.channelConfigRepository
 
     private val _currentStep = MutableStateFlow(0)
 
@@ -72,6 +75,16 @@ class OnboardingViewModel(
 
     /** Name for the first agent configured in onboarding. */
     val agentName: StateFlow<String> = _agentName.asStateFlow()
+
+    private val _selectedChannelType = MutableStateFlow<ChannelType?>(null)
+
+    /** Selected channel type for the channel setup step, or null if skipped. */
+    val selectedChannelType: StateFlow<ChannelType?> = _selectedChannelType.asStateFlow()
+
+    private val _channelFieldValues = MutableStateFlow<Map<String, String>>(emptyMap())
+
+    /** Field values entered for the selected channel type. */
+    val channelFieldValues: StateFlow<Map<String, String>> = _channelFieldValues.asStateFlow()
 
     /** Advances to the next step. */
     fun nextStep() {
@@ -136,12 +149,33 @@ class OnboardingViewModel(
     }
 
     /**
+     * Sets the selected channel type, clearing field values when changing types.
+     *
+     * @param type The selected channel type, or null to deselect.
+     */
+    fun setChannelType(type: ChannelType?) {
+        _selectedChannelType.value = type
+        _channelFieldValues.value = emptyMap()
+    }
+
+    /**
+     * Updates a single channel field value.
+     *
+     * @param key The field key.
+     * @param value The field value.
+     */
+    fun setChannelField(key: String, value: String) {
+        _channelFieldValues.value = _channelFieldValues.value + (key to value)
+    }
+
+    /**
      * Marks onboarding as completed and persists provider configuration.
      *
-     * Saves the API key (if non-blank), the first agent, and default
-     * provider/model to their respective repositories before marking
-     * onboarding complete.
+     * Saves the API key (if non-blank), the first agent, a connected
+     * channel (if configured), and default provider/model to their
+     * respective repositories before marking onboarding complete.
      */
+    @Suppress("CognitiveComplexMethod")
     fun complete() {
         viewModelScope.launch {
             val provider = _selectedProvider.value
@@ -172,6 +206,8 @@ class OnboardingViewModel(
                 )
             }
 
+            saveChannelIfConfigured()
+
             if (provider.isNotBlank()) {
                 settingsRepository.setDefaultProvider(provider)
             }
@@ -181,5 +217,32 @@ class OnboardingViewModel(
 
             onboardingRepository.markComplete()
         }
+    }
+
+    /**
+     * Saves the selected channel type with its field values if all
+     * required fields are filled.
+     */
+    private suspend fun saveChannelIfConfigured() {
+        val channelType = _selectedChannelType.value ?: return
+        val fields = _channelFieldValues.value
+        val requiredFilled = channelType.fields
+            .filter { it.isRequired }
+            .all { fields[it.key]?.isNotBlank() == true }
+        if (!requiredFilled) return
+
+        val secretKeys = channelType.fields
+            .filter { it.isSecret }
+            .map { it.key }
+            .toSet()
+        val secrets = fields.filter { it.key in secretKeys }
+        val nonSecrets = fields.filter { it.key !in secretKeys }
+
+        val channel = ConnectedChannel(
+            id = UUID.randomUUID().toString(),
+            type = channelType,
+            configValues = nonSecrets,
+        )
+        channelConfigRepository.save(channel, secrets)
     }
 }

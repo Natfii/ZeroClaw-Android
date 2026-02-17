@@ -135,11 +135,12 @@ class EncryptedApiKeyRepository(
             val obj = array.getJSONObject(i)
             val provider = obj.getString(JSON_KEY_PROVIDER)
             val key = obj.getString(JSON_KEY_KEY)
-            if (provider.length > MAX_PROVIDER_LENGTH || key.length > MAX_KEY_LENGTH) {
-                continue
-            }
             val baseUrl = obj.optString(JSON_KEY_BASE_URL, "")
-            if (baseUrl.length > MAX_BASE_URL_LENGTH) {
+            if (
+                provider.length > MAX_PROVIDER_LENGTH ||
+                key.length > MAX_KEY_LENGTH ||
+                baseUrl.length > MAX_BASE_URL_LENGTH
+            ) {
                 continue
             }
             val apiKey =

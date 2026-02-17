@@ -29,8 +29,10 @@ data class RefreshResult(
 /**
  * Exception thrown when an OAuth token refresh fails.
  *
+ * @param message Human-readable error description.
  * @property httpStatusCode HTTP status code from the refresh endpoint, or 0 for
  *   non-HTTP errors (e.g. network failure, JSON parse error).
+ * @param cause Optional underlying cause.
  */
 class OAuthRefreshException(
     message: String,
