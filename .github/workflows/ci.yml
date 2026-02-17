@@ -1,0 +1,180 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  lint-rust:
+    name: Lint Rust
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: zeroclaw-android
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+          targets: aarch64-linux-android, x86_64-linux-android
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: zeroclaw-android -> target
+
+      - name: Check formatting
+        run: cargo fmt --check
+
+      - name: Run clippy
+        run: cargo clippy -p zeroclaw-ffi --all-targets -- -D warnings
+
+  lint-kotlin:
+    name: Lint Kotlin
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Run spotlessCheck
+        run: ./gradlew spotlessCheck
+
+      - name: Run detekt
+        run: ./gradlew detekt
+
+  cargo-deny:
+    name: Cargo Deny
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          manifest-path: zeroclaw-android/Cargo.toml
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [lint-rust, lint-kotlin, cargo-deny]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install NDK
+        run: sdkmanager "ndk;27.2.12479018"
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android, x86_64-linux-android
+
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: zeroclaw-android -> target
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build debug APK
+        run: ./gradlew :app:assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    needs: [lint-rust, lint-kotlin, cargo-deny]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install NDK
+        run: sdkmanager "ndk;27.2.12479018"
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android, x86_64-linux-android
+
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: zeroclaw-android -> target
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Run Rust tests
+        working-directory: zeroclaw-android
+        run: cargo test -p zeroclaw-ffi
+
+      - name: Run Kotlin unit tests
+        run: ./gradlew :app:testDebugUnitTest :lib:testDebugUnitTest
+
+  version-sync:
+    name: Version Sync Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Check version consistency
+        run: |
+          CARGO_VERSION=$(grep '^version' zeroclaw-android/zeroclaw-ffi/Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          LIB_VERSION=$(grep 'version = ' lib/build.gradle.kts | grep -v 'java\|jvm\|kotlin\|sdk\|Version' | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          echo "Cargo (zeroclaw-ffi) version: $CARGO_VERSION"
+          echo "Lib publication version:      $LIB_VERSION"
+          if [ "$CARGO_VERSION" != "$LIB_VERSION" ]; then
+            echo "::error::Version mismatch: zeroclaw-ffi Cargo.toml=$CARGO_VERSION, lib/build.gradle.kts publication=$LIB_VERSION"
+            exit 1
+          fi
+          echo "Versions match: $CARGO_VERSION"

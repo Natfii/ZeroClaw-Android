@@ -1,0 +1,77 @@
+build:
+  maxIssues: 0
+
+comments:
+  UndocumentedPublicClass:
+    active: true
+    excludes:
+      - "**/*Test.kt"
+  UndocumentedPublicFunction:
+    active: true
+    excludes:
+      - "**/*Test.kt"
+  UndocumentedPublicProperty:
+    active: true
+    excludes:
+      - "**/*Test.kt"
+  OutdatedDocumentation:
+    active: true
+  EndOfSentenceFormat:
+    active: true
+
+complexity:
+  CyclomaticComplexMethod:
+    active: true
+    threshold: 15
+    ignoreAnnotated:
+      - "Composable"
+  LongMethod:
+    active: true
+    threshold: 60
+    ignoreAnnotated:
+      - "Composable"
+  LongParameterList:
+    active: true
+    functionThreshold: 6
+    constructorThreshold: 6
+    ignoreAnnotated:
+      - "Composable"
+  CognitiveComplexMethod:
+    active: true
+    threshold: 15
+    ignoreAnnotated:
+      - "Composable"
+  TooManyFunctions:
+    active: true
+    thresholdInClasses: 16
+    thresholdInFiles: 16
+    thresholdInInterfaces: 16
+
+naming:
+  FunctionNaming:
+    active: true
+    ignoreAnnotated:
+      - "Composable"
+
+style:
+  ForbiddenComment:
+    active: true
+    comments:
+      - "TODO"
+      - "FIXME"
+      - "STOPSHIP"
+  MagicNumber:
+    active: true
+    ignoreNumbers:
+      - "-1"
+      - "0"
+      - "1"
+      - "2"
+    ignoreAnnotation: true
+    ignoreCompanionObjectPropertyDeclaration: true
+    ignorePropertyDeclaration: true
+    ignoreNamedArgument: true
+    ignoreEnums: true
+  ReturnCount:
+    active: true
+    max: 5

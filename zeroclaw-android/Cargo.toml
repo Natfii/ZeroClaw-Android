@@ -1,0 +1,36 @@
+[workspace]
+members = ["zeroclaw-ffi"]
+resolver = "2"
+
+[workspace.package]
+edition = "2024"
+license = "MIT"
+
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+cargo = { level = "warn", priority = -1 }
+undocumented_unsafe_blocks = "deny"
+unwrap_used = "deny"
+dbg_macro = "deny"
+print_stdout = "warn"
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+multiple_crate_versions = "allow"
+doc_markdown = "allow"
+needless_pass_by_value = "allow"
+cargo_common_metadata = "allow"
+
+[profile.release]
+opt-level = "z"
+lto = "thin"
+codegen-units = 8
+strip = true
+panic = "unwind"
+
+[profile.dist]
+inherits = "release"
+opt-level = "z"
+lto = "fat"
+codegen-units = 1
+strip = true
+panic = "unwind"

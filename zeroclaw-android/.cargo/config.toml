@@ -1,0 +1,5 @@
+[target.aarch64-linux-android]
+linker = "C:/Users/Natal/AppData/Local/Android/Sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/windows-x86_64/bin/aarch64-linux-android26-clang.cmd"
+
+[target.x86_64-linux-android]
+linker = "C:/Users/Natal/AppData/Local/Android/Sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/windows-x86_64/bin/x86_64-linux-android26-clang.cmd"

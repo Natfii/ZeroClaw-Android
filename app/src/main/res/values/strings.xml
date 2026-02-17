@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ZeroClaw</string>
+
+    <string name="notification_channel_name">Daemon Status</string>
+    <string name="notification_channel_description">Ongoing notification for the ZeroClaw daemon foreground service</string>
+    <string name="notification_title">ZeroClaw Daemon</string>
+    <string name="notification_action_stop">Stop</string>
+    <string name="notification_action_retry">Retry</string>
+    <string name="notification_status_stopped">Stopped</string>
+    <string name="notification_status_starting">Starting\u2026</string>
+    <string name="notification_status_running">Running</string>
+    <string name="notification_status_stopping">Stopping\u2026</string>
+    <string name="notification_status_error">Error</string>
+</resources>
