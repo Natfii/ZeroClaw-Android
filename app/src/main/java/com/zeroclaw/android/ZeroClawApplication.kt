@@ -7,7 +7,14 @@
 package com.zeroclaw.android
 
 import android.app.Application
+import android.content.Context
 import android.util.Log
+import coil3.ImageLoader
+import coil3.SingletonImageLoader
+import coil3.disk.DiskCache
+import coil3.disk.directory
+import coil3.memory.MemoryCache
+import coil3.request.crossfade
 import com.zeroclaw.android.data.SecurePrefsProvider
 import com.zeroclaw.android.data.StorageHealth
 import com.zeroclaw.android.data.local.ZeroClawDatabase
@@ -45,7 +52,7 @@ import kotlinx.coroutines.SupervisorJob
  * survives process restarts. Settings and API keys remain in DataStore
  * and EncryptedSharedPreferences respectively.
  */
-class ZeroClawApplication : Application() {
+class ZeroClawApplication : Application(), SingletonImageLoader.Factory {
     /**
      * Shared bridge between the Android service layer and the Rust FFI.
      *
@@ -162,9 +169,27 @@ class ZeroClawApplication : Application() {
         return RoomChannelConfigRepository(database.connectedChannelDao(), prefs)
     }
 
+    override fun newImageLoader(context: Context): ImageLoader =
+        ImageLoader.Builder(context)
+            .crossfade(true)
+            .memoryCache {
+                MemoryCache.Builder()
+                    .maxSizePercent(context, MEMORY_CACHE_PERCENT)
+                    .build()
+            }
+            .diskCache {
+                DiskCache.Builder()
+                    .directory(context.cacheDir.resolve("image_cache"))
+                    .maxSizeBytes(DISK_CACHE_MAX_BYTES)
+                    .build()
+            }
+            .build()
+
     /** Constants for [ZeroClawApplication]. */
     companion object {
         private const val TAG = "ZeroClawApp"
         private const val CHANNEL_SECRETS_PREFS = "zeroclaw_channel_secrets"
+        private const val MEMORY_CACHE_PERCENT = 0.15
+        private const val DISK_CACHE_MAX_BYTES = 64L * 1024 * 1024
     }
 }

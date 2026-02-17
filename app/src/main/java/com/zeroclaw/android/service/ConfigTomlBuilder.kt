@@ -10,6 +10,26 @@ import com.zeroclaw.android.model.ConnectedChannel
 import com.zeroclaw.android.model.FieldInputType
 
 /**
+ * Resolved agent data ready for TOML serialization.
+ *
+ * All provider/URL resolution is performed before constructing this class
+ * so that [ConfigTomlBuilder.buildAgentsToml] only needs to emit values.
+ *
+ * @property name Agent name used as the TOML table key (`[agents.<name>]`).
+ * @property provider Resolved upstream factory name (e.g. `"custom:http://host/v1"`).
+ * @property model Model identifier (e.g. `"google/gemma-3-12b"`).
+ * @property apiKey Decrypted API key value; blank if the provider needs none.
+ * @property systemPrompt Agent system prompt; blank if not configured.
+ */
+data class AgentTomlEntry(
+    val name: String,
+    val provider: String,
+    val model: String,
+    val apiKey: String = "",
+    val systemPrompt: String = "",
+)
+
+/**
  * Builds a valid TOML configuration string for the ZeroClaw daemon.
  *
  * The upstream [Config][zeroclaw::config::Config] struct requires at minimum
@@ -99,6 +119,35 @@ object ConfigTomlBuilder {
                     val value = values[spec.key] ?: ""
                     if (value.isBlank() && !spec.isRequired) continue
                     appendTomlField(spec.key, value, spec.inputType)
+                }
+            }
+        }
+    }
+
+    /**
+     * Builds `[agents.<name>]` TOML sections for per-agent provider configuration.
+     *
+     * The upstream [DelegateAgentConfig] struct supports `provider`, `model`,
+     * `system_prompt`, and `api_key` fields per agent. Only non-blank optional
+     * fields are emitted.
+     *
+     * @param agents Resolved agent entries to serialize.
+     * @return TOML string with one `[agents.<name>]` section per entry,
+     *   or empty if [agents] is empty.
+     */
+    fun buildAgentsToml(agents: List<AgentTomlEntry>): String {
+        if (agents.isEmpty()) return ""
+        return buildString {
+            for (entry in agents) {
+                appendLine()
+                appendLine("[agents.${entry.name}]")
+                appendLine("provider = ${tomlString(entry.provider)}")
+                appendLine("model = ${tomlString(entry.model)}")
+                if (entry.systemPrompt.isNotBlank()) {
+                    appendLine("system_prompt = ${tomlString(entry.systemPrompt)}")
+                }
+                if (entry.apiKey.isNotBlank()) {
+                    appendLine("api_key = ${tomlString(entry.apiKey)}")
                 }
             }
         }

@@ -6,6 +6,7 @@
 
 package com.zeroclaw.android.data
 
+import com.zeroclaw.android.model.ModelListFormat
 import com.zeroclaw.android.model.ProviderAuthType
 import com.zeroclaw.android.model.ProviderCategory
 import com.zeroclaw.android.model.ProviderInfo
@@ -19,6 +20,9 @@ import com.zeroclaw.android.model.ProviderInfo
  * (via `upstream-sync.yml`), review this registry for new providers.
  */
 object ProviderRegistry {
+    /** Google Favicon API icon size in pixels. */
+    private const val FAVICON_SIZE = 128
+
     /** All known providers ordered by category then display name. */
     val allProviders: List<ProviderInfo> = buildList {
         addAll(primaryProviders())
@@ -51,6 +55,16 @@ object ProviderRegistry {
     fun allByCategory(): Map<ProviderCategory, List<ProviderInfo>> =
         allProviders.groupBy { it.category }
 
+    /**
+     * Builds a Google Favicon API URL for the given domain.
+     *
+     * @param domain Domain to fetch the favicon for.
+     * @return URL string pointing to the favicon at [FAVICON_SIZE] pixels.
+     */
+    private fun faviconUrl(domain: String): String =
+        "https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON" +
+            "&fallback_opts=TYPE,SIZE,URL&url=https://$domain&size=$FAVICON_SIZE"
+
     @Suppress("LongMethod")
     private fun primaryProviders(): List<ProviderInfo> =
         listOf(
@@ -58,8 +72,15 @@ object ProviderRegistry {
                 id = "openai",
                 displayName = "OpenAI",
                 authType = ProviderAuthType.API_KEY_ONLY,
-                suggestedModels = listOf("gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o1", "o1-mini"),
+                suggestedModels =
+                    listOf(
+                        "gpt-4o", "gpt-4o-mini", "o1", "o1-mini",
+                        "o3-mini", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano",
+                    ),
                 category = ProviderCategory.PRIMARY,
+                iconUrl = "https://cdn.openai.com/API/logo-assets/openai-logomark.png",
+                modelListUrl = "https://api.openai.com/v1/models",
+                modelListFormat = ModelListFormat.OPENAI_COMPATIBLE,
             ),
             ProviderInfo(
                 id = "anthropic",
@@ -72,6 +93,9 @@ object ProviderRegistry {
                         "claude-opus-4-6",
                     ),
                 category = ProviderCategory.PRIMARY,
+                iconUrl = faviconUrl("anthropic.com"),
+                modelListUrl = "https://api.anthropic.com/v1/models",
+                modelListFormat = ModelListFormat.ANTHROPIC,
             ),
             ProviderInfo(
                 id = "openrouter",
@@ -80,50 +104,63 @@ object ProviderRegistry {
                 suggestedModels =
                     listOf(
                         "openai/gpt-4o",
-                        "anthropic/claude-sonnet-4-5-20250929",
-                        "google/gemini-pro-1.5",
+                        "anthropic/claude-sonnet-4-5",
+                        "google/gemini-2.0-flash",
                     ),
                 category = ProviderCategory.PRIMARY,
+                iconUrl = faviconUrl("openrouter.ai"),
+                modelListUrl = "https://openrouter.ai/api/v1/models",
+                modelListFormat = ModelListFormat.OPENROUTER,
             ),
             ProviderInfo(
                 id = "google-gemini",
                 displayName = "Google Gemini",
                 authType = ProviderAuthType.API_KEY_ONLY,
-                suggestedModels = listOf("gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.0-flash"),
+                suggestedModels =
+                    listOf("gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-pro", "gemini-1.5-flash"),
                 aliases = listOf("google", "gemini"),
                 category = ProviderCategory.PRIMARY,
+                iconUrl = faviconUrl("ai.google.dev"),
+                modelListUrl = "https://generativelanguage.googleapis.com/v1beta/models",
+                modelListFormat = ModelListFormat.GOOGLE_GEMINI,
             ),
             ProviderInfo(
                 id = "ollama",
                 displayName = "Ollama",
                 authType = ProviderAuthType.URL_ONLY,
                 defaultBaseUrl = "http://localhost:11434",
-                suggestedModels = listOf("llama3", "mistral", "codellama", "phi3"),
+                suggestedModels = listOf("llama3.3", "qwen2.5", "mistral", "deepseek-r1", "phi4", "gemma3"),
                 category = ProviderCategory.PRIMARY,
+                iconUrl = faviconUrl("ollama.com"),
+                modelListUrl = "http://localhost:11434/api/tags",
+                modelListFormat = ModelListFormat.OLLAMA,
             ),
             ProviderInfo(
                 id = "lmstudio",
                 displayName = "LM Studio",
                 authType = ProviderAuthType.URL_AND_OPTIONAL_KEY,
                 defaultBaseUrl = "http://localhost:1234/v1",
-                suggestedModels = emptyList(),
                 category = ProviderCategory.PRIMARY,
+                iconUrl = faviconUrl("lmstudio.ai"),
+                modelListFormat = ModelListFormat.OPENAI_COMPATIBLE,
             ),
             ProviderInfo(
                 id = "vllm",
                 displayName = "vLLM",
                 authType = ProviderAuthType.URL_AND_OPTIONAL_KEY,
                 defaultBaseUrl = "http://localhost:8000/v1",
-                suggestedModels = emptyList(),
                 category = ProviderCategory.PRIMARY,
+                iconUrl = faviconUrl("docs.vllm.ai"),
+                modelListFormat = ModelListFormat.OPENAI_COMPATIBLE,
             ),
             ProviderInfo(
                 id = "localai",
                 displayName = "LocalAI",
                 authType = ProviderAuthType.URL_AND_OPTIONAL_KEY,
                 defaultBaseUrl = "http://localhost:8080/v1",
-                suggestedModels = emptyList(),
                 category = ProviderCategory.PRIMARY,
+                iconUrl = faviconUrl("localai.io"),
+                modelListFormat = ModelListFormat.OPENAI_COMPATIBLE,
             ),
         )
 
@@ -134,76 +171,103 @@ object ProviderRegistry {
                 id = "groq",
                 displayName = "Groq",
                 authType = ProviderAuthType.API_KEY_ONLY,
-                suggestedModels = listOf("llama-3.1-70b-versatile", "mixtral-8x7b-32768"),
+                suggestedModels =
+                    listOf("llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768", "gemma2-9b-it"),
                 category = ProviderCategory.ECOSYSTEM,
+                iconUrl = faviconUrl("groq.com"),
+                modelListUrl = "https://api.groq.com/openai/v1/models",
+                modelListFormat = ModelListFormat.OPENAI_COMPATIBLE,
             ),
             ProviderInfo(
                 id = "mistral",
                 displayName = "Mistral",
                 authType = ProviderAuthType.API_KEY_ONLY,
-                suggestedModels = listOf("mistral-large-latest", "mistral-small-latest", "codestral-latest"),
+                suggestedModels =
+                    listOf("mistral-large-latest", "mistral-small-latest", "codestral-latest", "pixtral-large-latest"),
                 category = ProviderCategory.ECOSYSTEM,
+                iconUrl = faviconUrl("mistral.ai"),
+                modelListUrl = "https://api.mistral.ai/v1/models",
+                modelListFormat = ModelListFormat.OPENAI_COMPATIBLE,
             ),
             ProviderInfo(
                 id = "xai",
                 displayName = "xAI / Grok",
                 authType = ProviderAuthType.API_KEY_ONLY,
-                suggestedModels = listOf("grok-2", "grok-2-mini"),
+                suggestedModels = listOf("grok-3", "grok-3-mini", "grok-2"),
                 aliases = listOf("grok"),
                 category = ProviderCategory.ECOSYSTEM,
+                iconUrl = faviconUrl("x.ai"),
             ),
             ProviderInfo(
                 id = "deepseek",
                 displayName = "DeepSeek",
                 authType = ProviderAuthType.API_KEY_ONLY,
-                suggestedModels = listOf("deepseek-chat", "deepseek-coder"),
+                suggestedModels = listOf("deepseek-chat", "deepseek-reasoner"),
                 category = ProviderCategory.ECOSYSTEM,
+                iconUrl = faviconUrl("deepseek.com"),
+                modelListUrl = "https://api.deepseek.com/models",
+                modelListFormat = ModelListFormat.OPENAI_COMPATIBLE,
             ),
             ProviderInfo(
                 id = "together",
                 displayName = "Together AI",
                 authType = ProviderAuthType.API_KEY_ONLY,
-                suggestedModels = listOf("meta-llama/Llama-3-70b-chat-hf"),
+                suggestedModels =
+                    listOf(
+                        "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+                        "Qwen/Qwen2.5-72B-Instruct-Turbo",
+                    ),
                 category = ProviderCategory.ECOSYSTEM,
+                iconUrl = faviconUrl("together.ai"),
+                modelListUrl = "https://api.together.xyz/v1/models",
+                modelListFormat = ModelListFormat.TOGETHER,
             ),
             ProviderInfo(
                 id = "fireworks",
                 displayName = "Fireworks AI",
                 authType = ProviderAuthType.API_KEY_ONLY,
-                suggestedModels = listOf("accounts/fireworks/models/llama-v3p1-70b-instruct"),
+                suggestedModels = listOf("accounts/fireworks/models/llama-v3p3-70b-instruct"),
                 category = ProviderCategory.ECOSYSTEM,
+                iconUrl = faviconUrl("fireworks.ai"),
             ),
             ProviderInfo(
                 id = "perplexity",
                 displayName = "Perplexity",
                 authType = ProviderAuthType.API_KEY_ONLY,
-                suggestedModels = listOf("llama-3.1-sonar-large-128k-online"),
+                suggestedModels = listOf("sonar-pro", "sonar", "sonar-reasoning-pro"),
                 category = ProviderCategory.ECOSYSTEM,
+                iconUrl = faviconUrl("perplexity.ai"),
             ),
             ProviderInfo(
                 id = "cohere",
                 displayName = "Cohere",
                 authType = ProviderAuthType.API_KEY_ONLY,
-                suggestedModels = listOf("command-r-plus", "command-r"),
+                suggestedModels = listOf("command-r-plus", "command-r", "command-a-03-2025"),
                 category = ProviderCategory.ECOSYSTEM,
+                iconUrl = faviconUrl("cohere.com"),
+                modelListUrl = "https://api.cohere.com/v1/models",
+                modelListFormat = ModelListFormat.COHERE,
             ),
             ProviderInfo(
                 id = "github-copilot",
                 displayName = "GitHub Copilot",
                 authType = ProviderAuthType.API_KEY_ONLY,
                 category = ProviderCategory.ECOSYSTEM,
+                iconUrl = faviconUrl("github.com"),
             ),
             ProviderInfo(
                 id = "venice",
                 displayName = "Venice",
                 authType = ProviderAuthType.API_KEY_ONLY,
                 category = ProviderCategory.ECOSYSTEM,
+                iconUrl = faviconUrl("venice.ai"),
             ),
             ProviderInfo(
                 id = "vercel",
                 displayName = "Vercel AI",
                 authType = ProviderAuthType.API_KEY_ONLY,
                 category = ProviderCategory.ECOSYSTEM,
+                iconUrl = faviconUrl("vercel.com"),
             ),
             ProviderInfo(
                 id = "moonshot",
@@ -211,12 +275,14 @@ object ProviderRegistry {
                 authType = ProviderAuthType.API_KEY_ONLY,
                 aliases = listOf("kimi"),
                 category = ProviderCategory.ECOSYSTEM,
+                iconUrl = faviconUrl("moonshot.cn"),
             ),
             ProviderInfo(
                 id = "minimax",
                 displayName = "MiniMax",
                 authType = ProviderAuthType.API_KEY_ONLY,
                 category = ProviderCategory.ECOSYSTEM,
+                iconUrl = faviconUrl("minimaxi.com"),
             ),
             ProviderInfo(
                 id = "glm",
@@ -224,6 +290,7 @@ object ProviderRegistry {
                 authType = ProviderAuthType.API_KEY_ONLY,
                 aliases = listOf("zhipu"),
                 category = ProviderCategory.ECOSYSTEM,
+                iconUrl = faviconUrl("zhipuai.cn"),
             ),
             ProviderInfo(
                 id = "qianfan",
@@ -231,12 +298,14 @@ object ProviderRegistry {
                 authType = ProviderAuthType.API_KEY_ONLY,
                 aliases = listOf("baidu"),
                 category = ProviderCategory.ECOSYSTEM,
+                iconUrl = faviconUrl("cloud.baidu.com"),
             ),
             ProviderInfo(
                 id = "cloudflare",
                 displayName = "Cloudflare AI",
                 authType = ProviderAuthType.URL_AND_OPTIONAL_KEY,
                 category = ProviderCategory.ECOSYSTEM,
+                iconUrl = faviconUrl("cloudflare.com"),
             ),
             ProviderInfo(
                 id = "bedrock",
@@ -244,6 +313,7 @@ object ProviderRegistry {
                 authType = ProviderAuthType.URL_AND_OPTIONAL_KEY,
                 aliases = listOf("amazon-bedrock"),
                 category = ProviderCategory.ECOSYSTEM,
+                iconUrl = faviconUrl("aws.amazon.com"),
             ),
             ProviderInfo(
                 id = "synthetic",

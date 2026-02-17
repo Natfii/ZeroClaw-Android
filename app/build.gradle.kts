@@ -83,6 +83,7 @@ dependencies {
     implementation(libs.security.crypto)
     implementation(libs.material)
     implementation(libs.coil.compose)
+    implementation(libs.coil.network.okhttp)
     implementation(libs.datastore.preferences)
     implementation(libs.biometric)
     implementation(libs.kotlinx.serialization.json)

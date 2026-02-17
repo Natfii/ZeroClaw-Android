@@ -14,14 +14,19 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.WifiFind
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -40,6 +45,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zeroclaw.android.data.ProviderRegistry
 import com.zeroclaw.android.model.ProviderAuthType
 import com.zeroclaw.android.ui.component.LoadingIndicator
+import com.zeroclaw.android.ui.component.NetworkScanSheet
 import com.zeroclaw.android.ui.component.ProviderDropdown
 import com.zeroclaw.android.ui.component.SectionHeader
 
@@ -52,12 +58,22 @@ private const val TOP_SPACING_DP = 8
 /** Bottom padding for the form. */
 private const val BOTTOM_SPACING_DP = 16
 
+/** Size of the scan button icon. */
+private const val SCAN_ICON_SIZE_DP = 18
+
+/** Spacing between the scan icon and label. */
+private const val SCAN_ICON_SPACING_DP = 4
+
+/** Spacer width between save button and loading indicator. */
+private const val BUTTON_INDICATOR_SPACING_DP = 12
+
 /**
  * Add or edit API key form screen.
  *
  * When adding a new key, the provider field is a [ProviderDropdown].
  * When editing an existing key, the provider is shown as a read-only dropdown.
- * Dynamically shows a base URL field for providers that require one.
+ * Dynamically shows a base URL field for providers that require one, with
+ * a "Scan Network" option for local providers to discover servers on the LAN.
  *
  * Navigation only occurs after the save operation completes successfully,
  * preventing data loss from optimistic navigation.
@@ -81,14 +97,15 @@ fun ApiKeyDetailScreen(
     val existingKey = remember(keyId, keys) { keys.find { it.id == keyId } }
 
     var providerId by remember(existingKey) {
-        mutableStateOf(existingKey?.provider ?: "")
+        mutableStateOf(existingKey?.provider.orEmpty())
     }
     var key by remember(existingKey) {
-        mutableStateOf(existingKey?.key ?: "")
+        mutableStateOf(existingKey?.key.orEmpty())
     }
     var baseUrl by remember(existingKey) {
-        mutableStateOf(existingKey?.baseUrl ?: "")
+        mutableStateOf(existingKey?.baseUrl.orEmpty())
     }
+    var showScanSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(saveState) {
         if (saveState is SaveState.Saved) {
@@ -109,6 +126,16 @@ fun ApiKeyDetailScreen(
         if (existingKey == null && providerInfo?.defaultBaseUrl?.isNotEmpty() == true) {
             baseUrl = providerInfo.defaultBaseUrl
         }
+    }
+
+    if (showScanSheet) {
+        NetworkScanSheet(
+            onDismiss = { showScanSheet = false },
+            onServerSelected = { server ->
+                baseUrl = server.baseUrl
+                showScanSheet = false
+            },
+        )
     }
 
     Column(
@@ -145,6 +172,19 @@ fun ApiKeyDetailScreen(
                 ),
                 modifier = Modifier.fillMaxWidth(),
             )
+
+            TextButton(
+                onClick = { showScanSheet = true },
+                enabled = !isSaving,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.WifiFind,
+                    contentDescription = null,
+                    modifier = Modifier.size(SCAN_ICON_SIZE_DP.dp),
+                )
+                Spacer(modifier = Modifier.width(SCAN_ICON_SPACING_DP.dp))
+                Text("Scan Network for Servers")
+            }
         }
 
         if (showKeyField || providerId.isBlank()) {
@@ -195,7 +235,7 @@ fun ApiKeyDetailScreen(
                 Text(text = if (keyId != null) "Update" else "Save")
             }
             if (isSaving) {
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(BUTTON_INDICATOR_SPACING_DP.dp))
                 LoadingIndicator()
             }
         }

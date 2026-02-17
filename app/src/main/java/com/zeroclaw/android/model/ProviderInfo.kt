@@ -38,6 +38,35 @@ enum class ProviderCategory {
 }
 
 /**
+ * Format of the provider's model listing API response.
+ */
+enum class ModelListFormat {
+    /** `{"data": [{"id": "..."}]}` with Bearer auth (OpenAI, Groq, Mistral, DeepSeek). */
+    OPENAI_COMPATIBLE,
+
+    /** `{"data": [{"id": "..."}]}` with `X-Api-Key` header (Anthropic). */
+    ANTHROPIC,
+
+    /** `{"models": [{"name": "models/..."}]}` with `?key=` query param (Google Gemini). */
+    GOOGLE_GEMINI,
+
+    /** `{"models": [{"name": "..."}]}` with no auth (Ollama). */
+    OLLAMA,
+
+    /** `{"data": [{"id": "..."}]}` with optional Bearer auth (OpenRouter). */
+    OPENROUTER,
+
+    /** Bare array `[{"id": "..."}]` with Bearer auth (Together AI). */
+    TOGETHER,
+
+    /** `{"models": [{"name": "..."}]}` with Bearer auth (Cohere). */
+    COHERE,
+
+    /** No model listing endpoint available. */
+    NONE,
+}
+
+/**
  * Metadata describing a single AI provider supported by ZeroClaw.
  *
  * @property id Canonical lowercase identifier matching the upstream factory key.
@@ -47,6 +76,9 @@ enum class ProviderCategory {
  * @property suggestedModels Popular model names offered as suggestions.
  * @property aliases Alternative IDs that resolve to this provider (e.g. "grok" for xAI).
  * @property category Grouping for sectioned dropdown display.
+ * @property iconUrl URL to the provider's logo image for display in the UI.
+ * @property modelListUrl URL for fetching available models from this provider's API.
+ * @property modelListFormat Response format of the model listing endpoint.
  */
 data class ProviderInfo(
     val id: String,
@@ -56,4 +88,7 @@ data class ProviderInfo(
     val suggestedModels: List<String> = emptyList(),
     val aliases: List<String> = emptyList(),
     val category: ProviderCategory = ProviderCategory.ECOSYSTEM,
+    val iconUrl: String = "",
+    val modelListUrl: String = "",
+    val modelListFormat: ModelListFormat = ModelListFormat.NONE,
 )

@@ -17,9 +17,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import coil3.compose.SubcomposeAsyncImage
 import com.zeroclaw.android.data.ProviderRegistry
 
 /** Minimum touch target size for accessibility. */
@@ -74,7 +76,9 @@ private const val COLOR_CLOUDFLARE = 0xFFF48120
 private const val COLOR_BEDROCK = 0xFFFF9900
 
 /**
- * Circular icon showing the first letter and brand color of an AI provider.
+ * Circular icon showing the provider's logo fetched via Coil, with a
+ * colored-circle-with-initial fallback when no icon URL is available or
+ * loading fails.
  *
  * Uses [ProviderRegistry] to resolve aliases so that e.g. "google" and
  * "google-gemini" both produce the same icon.
@@ -90,7 +94,38 @@ fun ProviderIcon(
     val resolved = ProviderRegistry.findById(provider)
     val displayName = resolved?.displayName ?: provider
     val resolvedId = resolved?.id ?: provider.lowercase()
-    val (bgColor, fgColor) = providerColors(resolvedId)
+    val iconUrl = resolved?.iconUrl.orEmpty()
+
+    if (iconUrl.isNotEmpty()) {
+        SubcomposeAsyncImage(
+            model = iconUrl,
+            contentDescription = "$displayName provider",
+            contentScale = ContentScale.Crop,
+            modifier = modifier
+                .size(ICON_SIZE_DP.dp)
+                .clip(CircleShape),
+            loading = { InitialCircle(resolvedId, displayName, Modifier) },
+            error = { InitialCircle(resolvedId, displayName, Modifier) },
+        )
+    } else {
+        InitialCircle(resolvedId, displayName, modifier)
+    }
+}
+
+/**
+ * Colored circle fallback showing the first letter of the provider name.
+ *
+ * @param providerId Resolved canonical provider ID for color lookup.
+ * @param displayName Human-readable provider name.
+ * @param modifier Modifier applied to the root layout.
+ */
+@Composable
+private fun InitialCircle(
+    providerId: String,
+    displayName: String,
+    modifier: Modifier,
+) {
+    val (bgColor, fgColor) = providerColors(providerId)
     val initial = displayName.firstOrNull()?.uppercase() ?: "?"
 
     Box(

@@ -170,6 +170,100 @@ class ConfigTomlBuilderTest {
     }
 
     @Nested
+    @DisplayName("buildAgentsToml()")
+    inner class BuildAgentsToml {
+
+        @Test
+        @DisplayName("empty list returns empty string")
+        fun `empty list returns empty string`() {
+            assertEquals("", ConfigTomlBuilder.buildAgentsToml(emptyList()))
+        }
+
+        @Test
+        @DisplayName("single agent emits correct TOML section")
+        fun `single agent emits correct TOML section`() {
+            val entries = listOf(
+                AgentTomlEntry(
+                    name = "researcher",
+                    provider = "custom:http://192.168.1.197:1234/v1",
+                    model = "google/gemma-3-12b",
+                    apiKey = "",
+                    systemPrompt = "You are a research assistant.",
+                ),
+            )
+            val toml = ConfigTomlBuilder.buildAgentsToml(entries)
+
+            assertTrue(toml.contains("[agents.researcher]"))
+            assertTrue(toml.contains("""provider = "custom:http://192.168.1.197:1234/v1""""))
+            assertTrue(toml.contains("""model = "google/gemma-3-12b""""))
+            assertTrue(toml.contains("""system_prompt = "You are a research assistant.""""))
+            assertFalse(toml.contains("api_key"))
+        }
+
+        @Test
+        @DisplayName("agent with API key emits api_key field")
+        fun `agent with api key emits api_key field`() {
+            val entries = listOf(
+                AgentTomlEntry(
+                    name = "coder",
+                    provider = "openai",
+                    model = "gpt-4o",
+                    apiKey = "sk-test-key",
+                    systemPrompt = "",
+                ),
+            )
+            val toml = ConfigTomlBuilder.buildAgentsToml(entries)
+
+            assertTrue(toml.contains("[agents.coder]"))
+            assertTrue(toml.contains("""api_key = "sk-test-key""""))
+            assertFalse(toml.contains("system_prompt"))
+        }
+
+        @Test
+        @DisplayName("multiple agents produce separate sections")
+        fun `multiple agents produce separate sections`() {
+            val entries = listOf(
+                AgentTomlEntry(
+                    name = "agent_a",
+                    provider = "openai",
+                    model = "gpt-4o",
+                ),
+                AgentTomlEntry(
+                    name = "agent_b",
+                    provider = "anthropic",
+                    model = "claude-sonnet-4-5-20250929",
+                    apiKey = "sk-ant-key",
+                    systemPrompt = "Be concise.",
+                ),
+            )
+            val toml = ConfigTomlBuilder.buildAgentsToml(entries)
+
+            assertTrue(toml.contains("[agents.agent_a]"))
+            assertTrue(toml.contains("[agents.agent_b]"))
+            assertTrue(toml.contains("""model = "gpt-4o""""))
+            assertTrue(toml.contains("""model = "claude-sonnet-4-5-20250929""""))
+        }
+
+        @Test
+        @DisplayName("special characters in system prompt are escaped")
+        fun `special characters in system prompt are escaped`() {
+            val entries = listOf(
+                AgentTomlEntry(
+                    name = "escaper",
+                    provider = "openai",
+                    model = "gpt-4o",
+                    systemPrompt = "Line1\nLine2\twith\"quotes",
+                ),
+            )
+            val toml = ConfigTomlBuilder.buildAgentsToml(entries)
+
+            assertTrue(toml.contains("""\n"""))
+            assertTrue(toml.contains("""\t"""))
+            assertTrue(toml.contains("""\""""))
+        }
+    }
+
+    @Nested
     @DisplayName("resolveProvider()")
     inner class ResolveProvider {
 

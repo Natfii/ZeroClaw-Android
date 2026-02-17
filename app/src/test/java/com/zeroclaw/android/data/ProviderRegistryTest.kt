@@ -6,6 +6,7 @@
 
 package com.zeroclaw.android.data
 
+import com.zeroclaw.android.model.ModelListFormat
 import com.zeroclaw.android.model.ProviderAuthType
 import com.zeroclaw.android.model.ProviderCategory
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -134,4 +135,62 @@ class ProviderRegistryTest {
         assertEquals(ProviderAuthType.NONE, synthetic!!.authType)
     }
 
+    @Test
+    @DisplayName("major cloud providers have iconUrl populated")
+    fun `major cloud providers have iconUrl populated`() {
+        val expectedWithIcons =
+            listOf("openai", "anthropic", "openrouter", "google-gemini", "ollama", "groq", "mistral", "deepseek")
+        expectedWithIcons.forEach { id ->
+            val provider = ProviderRegistry.findById(id)
+            assertNotNull(provider, "$id should exist")
+            assertTrue(provider!!.iconUrl.isNotBlank(), "$id should have a non-blank iconUrl")
+        }
+    }
+
+    @Test
+    @DisplayName("major cloud providers have modelListUrl populated")
+    fun `major cloud providers have modelListUrl populated`() {
+        val expectedWithModelList = mapOf(
+            "openai" to ModelListFormat.OPENAI_COMPATIBLE,
+            "anthropic" to ModelListFormat.ANTHROPIC,
+            "openrouter" to ModelListFormat.OPENROUTER,
+            "google-gemini" to ModelListFormat.GOOGLE_GEMINI,
+            "ollama" to ModelListFormat.OLLAMA,
+            "groq" to ModelListFormat.OPENAI_COMPATIBLE,
+            "mistral" to ModelListFormat.OPENAI_COMPATIBLE,
+            "deepseek" to ModelListFormat.OPENAI_COMPATIBLE,
+        )
+        expectedWithModelList.forEach { (id, expectedFormat) ->
+            val provider = ProviderRegistry.findById(id)
+            assertNotNull(provider, "$id should exist")
+            assertTrue(provider!!.modelListUrl.isNotBlank(), "$id should have a modelListUrl")
+            assertEquals(expectedFormat, provider.modelListFormat, "$id should have format $expectedFormat")
+        }
+    }
+
+    @Test
+    @DisplayName("custom providers have no iconUrl")
+    fun `custom providers have no iconUrl`() {
+        val customProviders = ProviderRegistry.allByCategory()[ProviderCategory.CUSTOM]!!
+        customProviders.forEach { provider ->
+            assertTrue(
+                provider.iconUrl.isEmpty(),
+                "${provider.id} custom provider should have empty iconUrl",
+            )
+        }
+    }
+
+    @Test
+    @DisplayName("local providers use OPENAI_COMPATIBLE model list format")
+    fun `local providers use OPENAI_COMPATIBLE model list format`() {
+        listOf("lmstudio", "vllm", "localai").forEach { id ->
+            val provider = ProviderRegistry.findById(id)
+            assertNotNull(provider, "$id should exist")
+            assertEquals(
+                ModelListFormat.OPENAI_COMPATIBLE,
+                provider!!.modelListFormat,
+                "$id should use OPENAI_COMPATIBLE format",
+            )
+        }
+    }
 }

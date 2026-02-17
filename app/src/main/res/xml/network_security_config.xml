@@ -1,8 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Cleartext HTTP is allowed globally because local AI servers (Ollama, vLLM,
+  LM Studio, LocalAI) run plain HTTP on the LAN. All cloud provider APIs
+  use HTTPS exclusively, so this does not weaken remote connections.
+
+  The network scanner feature probes local IPs for AI servers and Android's
+  domain-config element cannot match arbitrary private IP addresses (only
+  DNS hostnames), requiring the permissive base-config approach.
+-->
 <network-security-config>
-    <base-config cleartextTrafficPermitted="false" />
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="false">127.0.0.1</domain>
-        <domain includeSubdomains="false">localhost</domain>
-    </domain-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
 </network-security-config>

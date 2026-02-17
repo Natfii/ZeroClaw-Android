@@ -13,6 +13,7 @@ import android.os.IBinder
 import android.os.PowerManager
 import android.util.Log
 import com.zeroclaw.android.ZeroClawApplication
+import com.zeroclaw.android.data.repository.AgentRepository
 import com.zeroclaw.android.data.repository.ApiKeyRepository
 import com.zeroclaw.android.data.repository.ChannelConfigRepository
 import com.zeroclaw.android.data.repository.LogRepository
@@ -66,6 +67,7 @@ class ZeroClawDaemonService : Service() {
     private lateinit var settingsRepository: SettingsRepository
     private lateinit var apiKeyRepository: ApiKeyRepository
     private lateinit var channelConfigRepository: ChannelConfigRepository
+    private lateinit var agentRepository: AgentRepository
     private val retryPolicy = RetryPolicy()
 
     private var statusPollJob: Job? = null
@@ -80,6 +82,7 @@ class ZeroClawDaemonService : Service() {
         settingsRepository = app.settingsRepository
         apiKeyRepository = app.apiKeyRepository
         channelConfigRepository = app.channelConfigRepository
+        agentRepository = app.agentRepository
         notificationManager = DaemonNotificationManager(this)
         networkMonitor = NetworkMonitor(this)
         persistence = DaemonPersistence(this)
@@ -154,7 +157,8 @@ class ZeroClawDaemonService : Service() {
             val channelsToml = ConfigTomlBuilder.buildChannelsToml(
                 channelConfigRepository.getEnabledWithSecrets(),
             )
-            val configToml = baseToml + channelsToml
+            val agentsToml = buildAgentsToml()
+            val configToml = baseToml + channelsToml + agentsToml
 
             retryPolicy.reset()
             attemptStart(
@@ -163,6 +167,36 @@ class ZeroClawDaemonService : Service() {
                 port = settings.port.toUShort(),
             )
         }
+    }
+
+    /**
+     * Resolves all enabled agents into [AgentTomlEntry] instances and builds
+     * the `[agents.<name>]` TOML sections.
+     *
+     * For each enabled agent, the provider ID is resolved to an upstream
+     * factory name and the corresponding API key is fetched (with OAuth
+     * refresh if needed). Agents without a provider or model are skipped.
+     *
+     * @return TOML string with per-agent sections, or empty if no agents qualify.
+     */
+    private suspend fun buildAgentsToml(): String {
+        val allAgents = agentRepository.agents.first()
+        val entries = allAgents
+            .filter { it.isEnabled && it.provider.isNotBlank() && it.modelName.isNotBlank() }
+            .map { agent ->
+                val agentKey = apiKeyRepository.getByProviderFresh(agent.provider)
+                AgentTomlEntry(
+                    name = agent.name,
+                    provider = ConfigTomlBuilder.resolveProvider(
+                        agent.provider,
+                        agentKey?.baseUrl.orEmpty(),
+                    ),
+                    model = agent.modelName,
+                    apiKey = agentKey?.key.orEmpty(),
+                    systemPrompt = agent.systemPrompt,
+                )
+            }
+        return ConfigTomlBuilder.buildAgentsToml(entries)
     }
 
     /**
