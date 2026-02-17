@@ -90,6 +90,8 @@ class EncryptedApiKeyRepository(
                 put(JSON_KEY_BASE_URL, apiKey.baseUrl)
                 put(JSON_KEY_CREATED_AT, apiKey.createdAt)
                 put(JSON_KEY_STATUS, apiKey.status.name)
+                put(JSON_KEY_REFRESH_TOKEN, apiKey.refreshToken)
+                put(JSON_KEY_EXPIRES_AT, apiKey.expiresAt)
             }
         prefs.edit().putString(apiKey.id, json.toString()).apply()
         _keys.value = loadAll()
@@ -111,6 +113,8 @@ class EncryptedApiKeyRepository(
                     put(JSON_KEY_BASE_URL, key.baseUrl)
                     put(JSON_KEY_CREATED_AT, key.createdAt)
                     put(JSON_KEY_STATUS, key.status.name)
+                    put(JSON_KEY_REFRESH_TOKEN, key.refreshToken)
+                    put(JSON_KEY_EXPIRES_AT, key.expiresAt)
                 },
             )
         }
@@ -146,6 +150,8 @@ class EncryptedApiKeyRepository(
                     baseUrl = baseUrl,
                     createdAt = obj.optLong(JSON_KEY_CREATED_AT, System.currentTimeMillis()),
                     status = parseKeyStatus(obj.optString(JSON_KEY_STATUS, KeyStatus.ACTIVE.name)),
+                    refreshToken = obj.optString(JSON_KEY_REFRESH_TOKEN, ""),
+                    expiresAt = obj.optLong(JSON_KEY_EXPIRES_AT, 0L),
                 )
             save(apiKey)
             count++
@@ -195,6 +201,8 @@ class EncryptedApiKeyRepository(
         private const val JSON_KEY_BASE_URL = "base_url"
         private const val JSON_KEY_CREATED_AT = "created_at"
         private const val JSON_KEY_STATUS = "status"
+        private const val JSON_KEY_REFRESH_TOKEN = "refresh_token"
+        private const val JSON_KEY_EXPIRES_AT = "expires_at"
 
         private fun parseApiKey(json: String): ApiKey {
             val obj = JSONObject(json)
@@ -205,6 +213,8 @@ class EncryptedApiKeyRepository(
                 baseUrl = obj.optString(JSON_KEY_BASE_URL, ""),
                 createdAt = obj.optLong(JSON_KEY_CREATED_AT, 0L),
                 status = parseKeyStatus(obj.optString(JSON_KEY_STATUS, KeyStatus.ACTIVE.name)),
+                refreshToken = obj.optString(JSON_KEY_REFRESH_TOKEN, ""),
+                expiresAt = obj.optLong(JSON_KEY_EXPIRES_AT, 0L),
             )
         }
 

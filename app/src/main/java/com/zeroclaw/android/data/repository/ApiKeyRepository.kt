@@ -6,9 +6,14 @@
 
 package com.zeroclaw.android.data.repository
 
+import android.util.Log
+import com.zeroclaw.android.data.OAuthRefreshException
+import com.zeroclaw.android.data.OAuthTokenRefresher
 import com.zeroclaw.android.data.StorageHealth
 import com.zeroclaw.android.model.ApiKey
 import com.zeroclaw.android.model.KeyStatus
+import com.zeroclaw.android.model.isExpired
+import com.zeroclaw.android.model.isOAuthToken
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -119,5 +124,45 @@ interface ApiKeyRepository {
      */
     suspend fun markKeyStatus(id: String, status: KeyStatus) {
         getById(id)?.copy(status = status)?.let { save(it) }
+    }
+
+    /**
+     * Retrieves the key for [provider], refreshing the access token first
+     * if it is an OAuth token nearing expiry.
+     *
+     * On successful refresh, the updated tokens and expiry are persisted
+     * immediately. On failure, the stale key is returned so the caller
+     * can attempt use anyway (the daemon will receive a 401 which flows
+     * through the existing error pipeline).
+     *
+     * @param provider Provider ID or alias to search for.
+     * @return The matching [ApiKey] (possibly refreshed) or null.
+     */
+    @Suppress("TooGenericExceptionCaught")
+    suspend fun getByProviderFresh(provider: String): ApiKey? {
+        val key = getByProvider(provider) ?: return null
+        if (!key.isOAuthToken || !key.isExpired()) return key
+        return try {
+            val result = OAuthTokenRefresher.refresh(key.refreshToken)
+            val refreshed = key.copy(
+                key = result.accessToken,
+                refreshToken = result.refreshToken,
+                expiresAt = result.expiresAt,
+                status = KeyStatus.ACTIVE,
+            )
+            save(refreshed)
+            refreshed
+        } catch (e: OAuthRefreshException) {
+            Log.w(TAG, "OAuth refresh failed: ${e.message}")
+            key
+        } catch (e: Exception) {
+            Log.w(TAG, "OAuth refresh failed: ${e.message}")
+            key
+        }
+    }
+
+    /** Constants for [ApiKeyRepository]. */
+    companion object {
+        private const val TAG = "ApiKeyRepository"
     }
 }

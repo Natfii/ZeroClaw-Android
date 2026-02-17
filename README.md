@@ -25,6 +25,8 @@ Got an old phone? Give it a new job.
 
 The onboarding wizard walks you through all of this on first launch.
 
+***Note this app is still a WIP and some features might break***
+
 ## Features
 
 - **29 providers** -- OpenAI, Anthropic, Gemini, Groq, DeepSeek, Mistral, Ollama, LM Studio, vLLM, LocalAI, OpenRouter, Together AI, Cohere, Perplexity, xAI, and more. Plus custom OpenAI-compatible endpoints.
@@ -37,7 +39,6 @@ The onboarding wizard walks you through all of this on first launch.
 
 ![on board](https://github.com/user-attachments/assets/b14b403e-ec77-4515-9386-812419db84c2)  ![plugin](https://github.com/user-attachments/assets/ba2471b7-cf01-4b85-be7e-9167f97bd098)
 
-
 ## Why a Phone?
 
 You already carry a computer with a multi-core ARM chip, 8GB RAM, always-on connectivity, and a built-in battery backup. Why buy another one?
@@ -45,28 +46,30 @@ You already carry a computer with a multi-core ARM chip, 8GB RAM, always-on conn
 Phones are designed to stay on. They handle push notifications, background services, and power management better than any Raspberry Pi. Add a cellular fallback and WiFi, and you have an always-connected edge device in your pocket.
 
 **Best for:**
+
 - Routing calls to cloud providers (OpenAI, Claude, Gemini)
 - Running lightweight local models via Ollama on your network
 - IoT agent hubs that need always-on connectivity
 - Personal automation that runs while your laptop sleeps
 
 **Not ideal for:**
+
 - Running large local models on-device (use a desktop GPU or Ollama server)
 - Workloads that need >8GB RAM
 - Latency-critical applications under 100ms
 
 ### Phone vs Mac Mini
 
-| | Old Android Phone | Mac Mini M4 |
-|---|---|---|
-| Cost | $0 (you already own it) | $499+ |
-| Power draw | 2-5W idle | 10-25W idle |
-| Battery backup | Built in | Requires UPS ($50+) |
-| Cellular fallback | Built in | Requires hotspot or dongle |
-| Always-on design | Yes (it's a phone) | Yes (but no battery) |
-| Local inference | Limited (API routing) | Strong (16-32GB unified memory) |
-| Setup time | 5 minutes | 30+ minutes |
-| Also a phone | Yes | No |
+|                   | Old Android Phone               | Mac Mini M4                     |
+| ----------------- | ------------------------------- | ------------------------------- |
+| Cost              | $0 (you already own it) | $499+ |                                 |
+| Power draw        | 2-5W idle                       | 10-25W idle                     |
+| Battery backup    | Built in                        | Requires UPS ($50+)             |
+| Cellular fallback | Built in                        | Requires hotspot or dongle      |
+| Always-on design  | Yes (it's a phone)              | Yes (but no battery)            |
+| Local inference   | Limited (API routing)           | Strong (16-32GB unified memory) |
+| Setup time        | 5 minutes                       | 30+ minutes                     |
+| Also a phone      | Yes                             | No                              |
 
 ## Security
 
@@ -87,38 +90,38 @@ OpenAI, Anthropic (Claude), Google Gemini, Ollama, LM Studio, vLLM, LocalAI, Ope
 <details>
 <summary>Full Provider Matrix</summary>
 
-| Provider | Auth Type | Category |
-|---|---|---|
-| OpenAI | API Key | Primary |
-| Anthropic | API Key | Primary |
-| Google Gemini | API Key | Primary |
-| OpenRouter | API Key | Primary |
-| Ollama | URL only | Primary |
-| LM Studio | URL + optional key | Primary |
-| vLLM | URL + optional key | Primary |
-| LocalAI | URL + optional key | Primary |
-| Groq | API Key | Ecosystem |
-| Mistral | API Key | Ecosystem |
-| xAI / Grok | API Key | Ecosystem |
-| DeepSeek | API Key | Ecosystem |
-| Together AI | API Key | Ecosystem |
-| Fireworks AI | API Key | Ecosystem |
-| Perplexity | API Key | Ecosystem |
-| Cohere | API Key | Ecosystem |
-| GitHub Copilot | API Key | Ecosystem |
-| Venice | API Key | Ecosystem |
-| Vercel AI | API Key | Ecosystem |
-| Moonshot / Kimi | API Key | Ecosystem |
-| MiniMax | API Key | Ecosystem |
-| GLM / Zhipu | API Key | Ecosystem |
-| Qianfan / Baidu | API Key | Ecosystem |
-| Cloudflare AI | URL + optional key | Ecosystem |
-| Amazon Bedrock | URL + optional key | Ecosystem |
-| Synthetic | None | Ecosystem |
-| OpenCode Zen | API Key | Ecosystem |
-| Z.AI | API Key | Ecosystem |
-| Custom OpenAI-compatible | URL + optional key | Custom |
-| Custom Anthropic-compatible | URL + optional key | Custom |
+| Provider                    | Auth Type          | Category  |
+| --------------------------- | ------------------ | --------- |
+| OpenAI                      | API Key            | Primary   |
+| Anthropic                   | API Key            | Primary   |
+| Google Gemini               | API Key            | Primary   |
+| OpenRouter                  | API Key            | Primary   |
+| Ollama                      | URL only           | Primary   |
+| LM Studio                   | URL + optional key | Primary   |
+| vLLM                        | URL + optional key | Primary   |
+| LocalAI                     | URL + optional key | Primary   |
+| Groq                        | API Key            | Ecosystem |
+| Mistral                     | API Key            | Ecosystem |
+| xAI / Grok                  | API Key            | Ecosystem |
+| DeepSeek                    | API Key            | Ecosystem |
+| Together AI                 | API Key            | Ecosystem |
+| Fireworks AI                | API Key            | Ecosystem |
+| Perplexity                  | API Key            | Ecosystem |
+| Cohere                      | API Key            | Ecosystem |
+| GitHub Copilot              | API Key            | Ecosystem |
+| Venice                      | API Key            | Ecosystem |
+| Vercel AI                   | API Key            | Ecosystem |
+| Moonshot / Kimi             | API Key            | Ecosystem |
+| MiniMax                     | API Key            | Ecosystem |
+| GLM / Zhipu                 | API Key            | Ecosystem |
+| Qianfan / Baidu             | API Key            | Ecosystem |
+| Cloudflare AI               | URL + optional key | Ecosystem |
+| Amazon Bedrock              | URL + optional key | Ecosystem |
+| Synthetic                   | None               | Ecosystem |
+| OpenCode Zen                | API Key            | Ecosystem |
+| Z.AI                        | API Key            | Ecosystem |
+| Custom OpenAI-compatible    | URL + optional key | Custom    |
+| Custom Anthropic-compatible | URL + optional key | Custom    |
 
 </details>
 
@@ -131,13 +134,13 @@ Kotlin/Compose UI on top, Rust engine underneath, connected through Mozilla UniF
 
 **FFI surface** -- 5 functions cross the Rust-Kotlin boundary:
 
-| Function | Description |
-|---|---|
-| `start_daemon(config, dataDir, host, port)` | Start the ZeroClaw daemon with TOML config |
-| `stop_daemon()` | Signal shutdown and wait for all components |
-| `get_status()` | Returns JSON health snapshot |
-| `send_message(msg)` | Send a message to the gateway, returns response |
-| `get_version()` | Returns native library version string |
+| Function                                      | Description                                     |
+| --------------------------------------------- | ----------------------------------------------- |
+| `start_daemon(config, dataDir, host, port)` | Start the ZeroClaw daemon with TOML config      |
+| `stop_daemon()`                             | Signal shutdown and wait for all components     |
+| `get_status()`                              | Returns JSON health snapshot                    |
+| `send_message(msg)`                         | Send a message to the gateway, returns response |
+| `get_version()`                             | Returns native library version string           |
 
 **Key implementation details:**
 
@@ -152,11 +155,11 @@ Kotlin/Compose UI on top, Rust engine underneath, connected through Mozilla UniF
 <details>
 <summary>Ecosystem / Related Projects</summary>
 
-| Project | Description | Relationship |
-|---|---|---|
-| [ZeroClaw](https://github.com/theonlyhenrygod/zeroclaw) | Rust-native AI agent framework | Upstream core (git submodule) |
-| OpenClaw | TypeScript-based AI agent platform | ZeroClaw is a Rust-native rewrite of the OpenClaw architecture |
-| ZeroClaw-Android | This project | Android wrapper with native FFI |
+| Project                                              | Description                        | Relationship                                                   |
+| ---------------------------------------------------- | ---------------------------------- | -------------------------------------------------------------- |
+| [ZeroClaw](https://github.com/theonlyhenrygod/zeroclaw) | Rust-native AI agent framework     | Upstream core (git submodule)                                  |
+| OpenClaw                                             | TypeScript-based AI agent platform | ZeroClaw is a Rust-native rewrite of the OpenClaw architecture |
+| ZeroClaw-Android                                     | This project                       | Android wrapper with native FFI                                |
 
 ZeroClaw-Android wraps the upstream ZeroClaw engine without modification. Nader Dabit has called ZeroClaw "insanely fast" -- this project brings that speed to Android as an always-on service.
 
@@ -167,13 +170,13 @@ ZeroClaw-Android wraps the upstream ZeroClaw engine without modification. Nader 
 
 ### Prerequisites
 
-| Tool | Version | Notes |
-|---|---|---|
-| JDK | 17 | [Eclipse Adoptium](https://adoptium.net/) recommended |
-| Android SDK | API 35 | Via Android Studio or `sdkmanager` |
-| Android NDK | r27c | `sdkmanager "ndk;27.2.12479018"` |
-| Rust | stable (1.85+) | [rustup.rs](https://rustup.rs/) |
-| cargo-ndk | 4.x | `cargo install cargo-ndk` |
+| Tool        | Version        | Notes                                              |
+| ----------- | -------------- | -------------------------------------------------- |
+| JDK         | 17             | [Eclipse Adoptium](https://adoptium.net/) recommended |
+| Android SDK | API 35         | Via Android Studio or `sdkmanager`               |
+| Android NDK | r27c           | `sdkmanager "ndk;27.2.12479018"`                 |
+| Rust        | stable (1.85+) | [rustup.rs](https://rustup.rs/)                       |
+| cargo-ndk   | 4.x            | `cargo install cargo-ndk`                        |
 
 ### Setup
 

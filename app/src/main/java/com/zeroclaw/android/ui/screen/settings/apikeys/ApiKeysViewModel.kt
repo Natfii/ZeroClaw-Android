@@ -7,11 +7,14 @@
 package com.zeroclaw.android.ui.screen.settings.apikeys
 
 import android.app.Application
+import android.content.Context
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.zeroclaw.android.BuildConfig
 import com.zeroclaw.android.ZeroClawApplication
+import com.zeroclaw.android.data.CredentialsJsonParser
 import com.zeroclaw.android.data.ProviderRegistry
 import com.zeroclaw.android.data.StorageHealth
 import com.zeroclaw.android.model.ApiKey
@@ -305,6 +308,43 @@ class ApiKeysViewModel(
     /** Clears the pending snackbar message. */
     fun dismissSnackbar() {
         _snackbarMessage.value = null
+    }
+
+    /**
+     * Imports an API key from a Claude Code `.credentials.json` file.
+     *
+     * Reads the file via [android.content.ContentResolver], parses the
+     * OAuth credentials, and saves the resulting [ApiKey] to the
+     * repository. Shows a snackbar with the result.
+     *
+     * @param context Context for resolving the file URI.
+     * @param uri Content URI of the selected `.credentials.json` file.
+     */
+    @Suppress("TooGenericExceptionCaught")
+    fun importCredentialsFile(context: Context, uri: Uri) {
+        viewModelScope.launch {
+            try {
+                val jsonContent = context.contentResolver.openInputStream(uri)
+                    ?.bufferedReader()
+                    ?.readText()
+                if (jsonContent.isNullOrBlank()) {
+                    _snackbarMessage.value = "File is empty"
+                    return@launch
+                }
+                val apiKey = CredentialsJsonParser.parse(jsonContent)
+                if (apiKey == null) {
+                    _snackbarMessage.value = "No valid OAuth credentials found in file"
+                    return@launch
+                }
+                repository.save(apiKey)
+                _snackbarMessage.value = "Anthropic OAuth credentials imported"
+            } catch (e: Exception) {
+                if (BuildConfig.DEBUG) {
+                    Log.w(TAG, "Credentials import failed: ${e.message}", e)
+                }
+                _snackbarMessage.value = "Import failed: ${safeErrorMessage(e)}"
+            }
+        }
     }
 
     /**

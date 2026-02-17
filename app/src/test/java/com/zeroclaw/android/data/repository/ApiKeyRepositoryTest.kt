@@ -186,6 +186,57 @@ class ApiKeyRepositoryTest {
         assertEquals("", repo.getById("1")?.baseUrl)
     }
 
+    @Test
+    @DisplayName("save and retrieve OAuth fields")
+    fun `save and retrieve OAuth fields`() = runTest {
+        val repo = InMemoryApiKeyRepository()
+        val key = ApiKey(
+            id = "1",
+            provider = "Anthropic",
+            key = "sk-ant-oat01-token",
+            refreshToken = "sk-ant-ort01-refresh",
+            expiresAt = 1739836800000L,
+        )
+        repo.save(key)
+        val retrieved = repo.getById("1")
+        assertEquals("sk-ant-ort01-refresh", retrieved?.refreshToken)
+        assertEquals(1739836800000L, retrieved?.expiresAt)
+    }
+
+    @Test
+    @DisplayName("export and import preserves OAuth fields")
+    fun `export and import preserves OAuth fields`() = runTest {
+        val repo = InMemoryApiKeyRepository()
+        repo.save(
+            ApiKey(
+                id = "1",
+                provider = "Anthropic",
+                key = "sk-ant-oat01-token",
+                refreshToken = "sk-ant-ort01-refresh",
+                expiresAt = 1739836800000L,
+            ),
+        )
+
+        val exported = repo.exportAll(TEST_PASSPHRASE)
+        val newRepo = InMemoryApiKeyRepository()
+        newRepo.importFrom(exported, TEST_PASSPHRASE)
+
+        val imported = newRepo.keys.first()
+        assertEquals(1, imported.size)
+        assertEquals("sk-ant-ort01-refresh", imported[0].refreshToken)
+        assertEquals(1739836800000L, imported[0].expiresAt)
+    }
+
+    @Test
+    @DisplayName("default OAuth fields are empty and zero")
+    fun `default OAuth fields are empty and zero`() = runTest {
+        val repo = InMemoryApiKeyRepository()
+        repo.save(ApiKey(id = "1", provider = "OpenAI", key = "sk-test"))
+        val retrieved = repo.getById("1")
+        assertEquals("", retrieved?.refreshToken)
+        assertEquals(0L, retrieved?.expiresAt)
+    }
+
     /** Constants for test fixtures. */
     companion object {
         private const val TEST_PASSPHRASE = "test-passphrase-12345"

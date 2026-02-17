@@ -56,6 +56,8 @@ class InMemoryApiKeyRepository : ApiKeyRepository {
                     put(JSON_KEY_BASE_URL, key.baseUrl)
                     put(JSON_KEY_CREATED_AT, key.createdAt)
                     put(JSON_KEY_STATUS, key.status.name)
+                    put(JSON_KEY_REFRESH_TOKEN, key.refreshToken)
+                    put(JSON_KEY_EXPIRES_AT, key.expiresAt)
                 },
             )
         }
@@ -91,6 +93,8 @@ class InMemoryApiKeyRepository : ApiKeyRepository {
                     baseUrl = baseUrl,
                     createdAt = obj.optLong(JSON_KEY_CREATED_AT, System.currentTimeMillis()),
                     status = parseKeyStatus(obj.optString(JSON_KEY_STATUS, KeyStatus.ACTIVE.name)),
+                    refreshToken = obj.optString(JSON_KEY_REFRESH_TOKEN, ""),
+                    expiresAt = obj.optLong(JSON_KEY_EXPIRES_AT, 0L),
                 ),
             )
             count++
@@ -113,6 +117,8 @@ class InMemoryApiKeyRepository : ApiKeyRepository {
         private const val JSON_KEY_BASE_URL = "base_url"
         private const val JSON_KEY_CREATED_AT = "created_at"
         private const val JSON_KEY_STATUS = "status"
+        private const val JSON_KEY_REFRESH_TOKEN = "refresh_token"
+        private const val JSON_KEY_EXPIRES_AT = "expires_at"
 
         private fun parseKeyStatus(value: String): KeyStatus =
             try {

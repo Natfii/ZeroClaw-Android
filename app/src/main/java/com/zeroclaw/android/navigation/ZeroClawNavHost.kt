@@ -7,6 +7,8 @@
 package com.zeroclaw.android.navigation
 
 import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.biometric.BiometricPrompt
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -136,6 +138,11 @@ fun ZeroClawNavHost(
         composable<ApiKeysRoute> {
             val context = LocalContext.current
             val apiKeysViewModel: ApiKeysViewModel = viewModel()
+            val credentialsLauncher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.OpenDocument(),
+            ) { uri ->
+                uri?.let { apiKeysViewModel.importCredentialsFile(context, it) }
+            }
             ApiKeysScreen(
                 onNavigateToDetail = { keyId ->
                     navController.navigate(ApiKeyDetailRoute(keyId = keyId))
@@ -180,6 +187,9 @@ fun ZeroClawNavHost(
                             "Share encrypted keys",
                         ),
                     )
+                },
+                onImportCredentials = {
+                    credentialsLauncher.launch(arrayOf("application/json", "*/*"))
                 },
                 edgeMargin = edgeMargin,
                 apiKeysViewModel = apiKeysViewModel,

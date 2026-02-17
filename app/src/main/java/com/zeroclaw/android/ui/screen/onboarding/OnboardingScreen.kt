@@ -90,6 +90,7 @@ fun OnboardingScreen(
         val apiKeyState by onboardingViewModel.apiKey.collectAsStateWithLifecycle()
         val baseUrlState by onboardingViewModel.baseUrl.collectAsStateWithLifecycle()
         val modelState by onboardingViewModel.selectedModel.collectAsStateWithLifecycle()
+        val agentNameState by onboardingViewModel.agentName.collectAsStateWithLifecycle()
 
         Column(modifier = Modifier.weight(1f)) {
             when (currentStep) {
@@ -105,7 +106,11 @@ fun OnboardingScreen(
                         onBaseUrlChanged = onboardingViewModel::setBaseUrl,
                         onModelChanged = onboardingViewModel::setModel,
                     )
-                STEP_AGENT_CONFIG -> AgentConfigStep()
+                STEP_AGENT_CONFIG ->
+                    AgentConfigStep(
+                        agentName = agentNameState,
+                        onAgentNameChanged = onboardingViewModel::setAgentName,
+                    )
                 STEP_ACTIVATION ->
                     ActivationStep(
                         onActivate = {

@@ -11,6 +11,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.zeroclaw.android.ZeroClawApplication
 import com.zeroclaw.android.data.ProviderRegistry
+import com.zeroclaw.android.model.Agent
 import com.zeroclaw.android.model.ApiKey
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -37,6 +38,7 @@ class OnboardingViewModel(
     private val onboardingRepository = app.onboardingRepository
     private val apiKeyRepository = app.apiKeyRepository
     private val settingsRepository = app.settingsRepository
+    private val agentRepository = app.agentRepository
 
     private val _currentStep = MutableStateFlow(0)
 
@@ -65,6 +67,11 @@ class OnboardingViewModel(
 
     /** Model name selected or typed in the provider step. */
     val selectedModel: StateFlow<String> = _selectedModel.asStateFlow()
+
+    private val _agentName = MutableStateFlow("My Agent")
+
+    /** Name for the first agent configured in onboarding. */
+    val agentName: StateFlow<String> = _agentName.asStateFlow()
 
     /** Advances to the next step. */
     fun nextStep() {
@@ -120,16 +127,27 @@ class OnboardingViewModel(
     }
 
     /**
+     * Updates the agent name.
+     *
+     * @param name The agent name string.
+     */
+    fun setAgentName(name: String) {
+        _agentName.value = name
+    }
+
+    /**
      * Marks onboarding as completed and persists provider configuration.
      *
-     * Saves the API key (if non-blank) and default provider/model to
-     * their respective repositories before marking onboarding complete.
+     * Saves the API key (if non-blank), the first agent, and default
+     * provider/model to their respective repositories before marking
+     * onboarding complete.
      */
     fun complete() {
         viewModelScope.launch {
             val provider = _selectedProvider.value
             val key = _apiKey.value
             val model = _selectedModel.value
+            val name = _agentName.value
 
             val url = _baseUrl.value
             if (provider.isNotBlank() && (key.isNotBlank() || url.isNotBlank())) {
@@ -139,6 +157,17 @@ class OnboardingViewModel(
                         provider = provider,
                         key = key,
                         baseUrl = url,
+                    ),
+                )
+            }
+
+            if (name.isNotBlank() && provider.isNotBlank()) {
+                agentRepository.save(
+                    Agent(
+                        id = UUID.randomUUID().toString(),
+                        name = name,
+                        provider = provider,
+                        modelName = model.ifBlank { "default" },
                     ),
                 )
             }

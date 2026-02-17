@@ -140,7 +140,7 @@ class ZeroClawDaemonService : Service() {
 
         serviceScope.launch(Dispatchers.IO) {
             val settings = settingsRepository.settings.first()
-            val apiKey = apiKeyRepository.getByProvider(settings.defaultProvider)
+            val apiKey = apiKeyRepository.getByProviderFresh(settings.defaultProvider)
 
             val configToml = ConfigTomlBuilder.build(
                 provider = settings.defaultProvider,
@@ -201,22 +201,12 @@ class ZeroClawDaemonService : Service() {
     }
 
     /**
-     * Resets the retry counter and reattempts startup using the
-     * persisted configuration. Falls back to reading current settings
-     * if no persisted configuration is available.
+     * Resets the retry counter and reattempts startup by re-reading
+     * current settings and refreshing OAuth tokens if needed.
      */
     private fun handleRetry() {
         retryPolicy.reset()
-        val saved = persistence.restoreConfiguration()
-        if (saved != null) {
-            attemptStart(
-                configToml = saved.configToml,
-                host = saved.host,
-                port = saved.port,
-            )
-        } else {
-            handleStartFromSettings()
-        }
+        handleStartFromSettings()
     }
 
     /**

@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.FileUpload
 import androidx.compose.material.icons.outlined.Key
+import androidx.compose.material.icons.outlined.Upload
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -75,23 +76,26 @@ private const val MIN_PASSPHRASE_LENGTH = 8
  * value. Provides reveal, edit, and delete actions per key, plus a
  * FAB for adding new keys. Includes storage health banners, corrupt
  * key warnings, export/import with passphrase-protected encryption,
- * and a confirmation dialog for deletion.
+ * credentials file import, and a confirmation dialog for deletion.
  *
  * @param onNavigateToDetail Navigate to the key detail/add screen.
  * @param onRequestBiometric Callback to request biometric authentication
  *   for revealing a key.
  * @param onExportResult Callback invoked with the encrypted export payload
  *   so the caller can share or save it.
+ * @param onImportCredentials Callback to open the file picker for
+ *   importing a Claude Code `.credentials.json` file.
  * @param edgeMargin Horizontal padding based on window width size class.
  * @param apiKeysViewModel The [ApiKeysViewModel] for key management.
  * @param modifier Modifier applied to the root layout.
  */
-@Suppress("CognitiveComplexMethod", "LongMethod")
+@Suppress("CognitiveComplexMethod", "LongMethod", "LongParameterList")
 @Composable
 fun ApiKeysScreen(
     onNavigateToDetail: (String?) -> Unit,
     onRequestBiometric: (keyId: String) -> Unit,
     onExportResult: (String) -> Unit,
+    onImportCredentials: () -> Unit,
     edgeMargin: Dp,
     apiKeysViewModel: ApiKeysViewModel = viewModel(),
     modifier: Modifier = Modifier,
@@ -229,6 +233,7 @@ fun ApiKeysScreen(
                         hasKeys = keys.isNotEmpty(),
                         onExport = { showExportDialog = true },
                         onImport = { showImportDialog = true },
+                        onImportCredentials = onImportCredentials,
                     )
                 }
 
@@ -254,19 +259,21 @@ fun ApiKeysScreen(
 }
 
 /**
- * Row containing Export and Import action buttons.
+ * Row containing Export, Import, and Import Credentials action buttons.
  *
  * The export button is disabled when there are no keys to export.
  *
  * @param hasKeys Whether the key store contains at least one key.
  * @param onExport Callback when the user taps Export.
  * @param onImport Callback when the user taps Import.
+ * @param onImportCredentials Callback when the user taps Import Credentials.
  */
 @Composable
 private fun ExportImportRow(
     hasKeys: Boolean,
     onExport: () -> Unit,
     onImport: () -> Unit,
+    onImportCredentials: () -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -298,6 +305,19 @@ private fun ExportImportRow(
                 modifier = Modifier.padding(end = 4.dp),
             )
             Text("Import")
+        }
+        TextButton(
+            onClick = onImportCredentials,
+            modifier = Modifier.semantics {
+                contentDescription = "Import credentials file"
+            },
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Upload,
+                contentDescription = null,
+                modifier = Modifier.padding(end = 4.dp),
+            )
+            Text("Credentials")
         }
     }
 }
@@ -555,6 +575,49 @@ private fun ApiKeyItem(
                 text = apiKey.key,
                 revealed = isRevealed,
             )
+            if (apiKey.expiresAt > 0L) {
+                Spacer(modifier = Modifier.height(4.dp))
+                ExpiryLabel(expiresAt = apiKey.expiresAt)
+            }
         }
     }
 }
+
+/**
+ * Displays a human-readable expiry label for an OAuth token.
+ *
+ * Shows "Expired" in error color when past expiry, or a relative
+ * time like "Expires in 3h 15m" in normal text color. Uses both
+ * text and color to satisfy WCAG AA (not color-only).
+ *
+ * @param expiresAt Epoch milliseconds when the token expires.
+ */
+@Composable
+private fun ExpiryLabel(expiresAt: Long) {
+    val now = System.currentTimeMillis()
+    val remainingMs = expiresAt - now
+
+    if (remainingMs <= 0) {
+        Text(
+            text = "Expired",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.error,
+        )
+    } else {
+        val totalMinutes = remainingMs / MILLIS_PER_MINUTE
+        val hours = totalMinutes / MINUTES_PER_HOUR
+        val minutes = totalMinutes % MINUTES_PER_HOUR
+        val label = when {
+            hours > 0 -> "Expires in ${hours}h ${minutes}m"
+            else -> "Expires in ${minutes}m"
+        }
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+private const val MILLIS_PER_MINUTE = 60_000L
+private const val MINUTES_PER_HOUR = 60L

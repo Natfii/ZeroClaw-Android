@@ -224,4 +224,66 @@ class EncryptedApiKeyRepositoryTest {
         val keys = repo.keys.first()
         assertEquals("", keys[0].baseUrl)
     }
+
+    @Test
+    @DisplayName("save persists refreshToken and expiresAt")
+    fun `save persists refreshToken and expiresAt`() = runTest {
+        val prefs = MapSharedPreferences()
+        val repo = EncryptedApiKeyRepository(prefsOverride = prefs)
+        repo.save(
+            com.zeroclaw.android.model.ApiKey(
+                id = "1",
+                provider = "Anthropic",
+                key = "sk-ant-oat01-token",
+                refreshToken = "sk-ant-ort01-refresh",
+                expiresAt = 1739836800000L,
+            ),
+        )
+
+        val stored = JSONObject(prefs.getString("1", "{}") ?: "{}")
+        assertEquals("sk-ant-ort01-refresh", stored.getString("refresh_token"))
+        assertEquals(1739836800000L, stored.getLong("expires_at"))
+    }
+
+    @Test
+    @DisplayName("load parses refreshToken and expiresAt")
+    fun `load parses refreshToken and expiresAt`() = runTest {
+        val prefs = MapSharedPreferences()
+        prefs.edit().putString(
+            "key1",
+            JSONObject().apply {
+                put("id", "key1")
+                put("provider", "Anthropic")
+                put("key", "sk-ant-oat01-token")
+                put("created_at", 1000L)
+                put("refresh_token", "sk-ant-ort01-refresh")
+                put("expires_at", 1739836800000L)
+            }.toString(),
+        ).apply()
+
+        val repo = EncryptedApiKeyRepository(prefsOverride = prefs)
+        val keys = repo.keys.first()
+        assertEquals("sk-ant-ort01-refresh", keys[0].refreshToken)
+        assertEquals(1739836800000L, keys[0].expiresAt)
+    }
+
+    @Test
+    @DisplayName("missing OAuth fields default to empty/zero for backward compat")
+    fun `missing OAuth fields default to empty and zero for backward compat`() = runTest {
+        val prefs = MapSharedPreferences()
+        prefs.edit().putString(
+            "key1",
+            JSONObject().apply {
+                put("id", "key1")
+                put("provider", "OpenAI")
+                put("key", "sk-test")
+                put("created_at", 1000L)
+            }.toString(),
+        ).apply()
+
+        val repo = EncryptedApiKeyRepository(prefsOverride = prefs)
+        val keys = repo.keys.first()
+        assertEquals("", keys[0].refreshToken)
+        assertEquals(0L, keys[0].expiresAt)
+    }
 }

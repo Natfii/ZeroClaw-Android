@@ -14,23 +14,24 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 /**
  * Onboarding step for basic agent configuration.
  *
- * Allows the user to set a name for their first agent and choose
- * a model. Full agent management is available later.
+ * Allows the user to set a name for their first agent. The name is
+ * propagated to [com.zeroclaw.android.ui.screen.onboarding.OnboardingViewModel]
+ * and persisted when onboarding completes.
+ *
+ * @param agentName Current agent name value.
+ * @param onAgentNameChanged Callback when the user edits the name.
  */
 @Composable
-fun AgentConfigStep() {
-    var agentName by remember { mutableStateOf("My Agent") }
-
+fun AgentConfigStep(
+    agentName: String,
+    onAgentNameChanged: (String) -> Unit,
+) {
     Column {
         Text(
             text = "Configure Agent",
@@ -45,7 +46,7 @@ fun AgentConfigStep() {
 
         OutlinedTextField(
             value = agentName,
-            onValueChange = { agentName = it },
+            onValueChange = onAgentNameChanged,
             label = { Text("Agent Name") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
