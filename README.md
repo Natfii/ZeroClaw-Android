@@ -37,7 +37,8 @@ The onboarding wizard walks you through all of this on first launch.
 - **Auto-restart** -- your agents survive reboot, survive task kill, survive sleep. Exponential backoff on failures.
 - **Rust core** -- ZeroClaw's router runs natively via UniFFI, with `catch_unwind` at every FFI boundary. No JNI crashes.
 
-![on board](https://github.com/user-attachments/assets/b14b403e-ec77-4515-9386-812419db84c2)  ![plugin](https://github.com/user-attachments/assets/ba2471b7-cf01-4b85-be7e-9167f97bd098)
+<img src="https://github.com/user-attachments/assets/9712875d-5650-43a4-9646-8aa4d4175291" alt="On Boarding" width="30%" />
+
 
 ## Why a Phone?
 
