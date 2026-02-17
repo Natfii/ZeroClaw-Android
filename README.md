@@ -1,8 +1,11 @@
 # ZeroClaw-Android: Run AI Agents 24/7 on Your Phone
 
+<img width="1024" height="335" alt="image hero banner" src="https://github.com/user-attachments/assets/03b919d9-428b-4372-a2f7-d2b9876b2fec" />
+
+
 > Your old phone in a drawer is a better AI server than you think.
 
-<!-- screenshot placeholder: hero image showing dashboard with running agent -->
+
 
 [![CI](https://github.com/Natfii/ZeroClaw-Android/actions/workflows/ci.yml/badge.svg)](https://github.com/Natfii/ZeroClaw-Android/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
