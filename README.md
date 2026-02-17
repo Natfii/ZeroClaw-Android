@@ -10,9 +10,9 @@
 [![Latest Release](https://img.shields.io/github/v/release/Natfii/ZeroClaw-Android?include_prereleases&label=release)](https://github.com/Natfii/ZeroClaw-Android/releases)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.0-7F52FF.svg?logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Rust](https://img.shields.io/badge/Rust-stable-DEA584.svg?logo=rust&logoColor=white)](https://www.rust-lang.org)
-[![Providers](https://img.shields.io/badge/Providers-26%2B-blue.svg)](https://github.com/Natfii/ZeroClaw-Android#supported-providers)
+[![Providers](https://img.shields.io/badge/Providers-29%2B-blue.svg)](https://github.com/Natfii/ZeroClaw-Android#supported-providers)
 
-ZeroClaw-Android turns your Android phone into an always-on AI agent host. Not a Termux hack. Not a WebView. Native Rust compiled to ARM. Connect to 25+ providers -- OpenAI, Claude, Gemini, Groq, DeepSeek, Ollama, and more -- and run autonomous agents around the clock with encrypted API key storage (AES-256-GCM) and a battery-optimized foreground service. No server required. No cloud bills. Just your phone.
+ZeroClaw-Android turns your Android phone into an always-on AI agent host. Not a Termux hack. Not a WebView. Native Rust compiled to ARM. Connect to 29+ providers -- OpenAI, Claude, Gemini, Groq, DeepSeek, Ollama, LM Studio, vLLM, and more -- and run autonomous agents around the clock with encrypted API key storage (AES-256-GCM) and a battery-optimized foreground service. No server required. No cloud bills. Just your phone.
 
 ## Quick Start
 
@@ -27,7 +27,7 @@ The onboarding wizard walks you through all of this on first launch.
 
 ## Features
 
-- **26 providers** -- OpenAI, Anthropic, Gemini, Groq, DeepSeek, Mistral, Ollama, OpenRouter, Together AI, Cohere, Perplexity, xAI, and more. Plus custom OpenAI-compatible endpoints.
+- **29 providers** -- OpenAI, Anthropic, Gemini, Groq, DeepSeek, Mistral, Ollama, LM Studio, vLLM, LocalAI, OpenRouter, Together AI, Cohere, Perplexity, xAI, and more. Plus custom OpenAI-compatible endpoints.
 - **Plugin browser** -- extend agents with tools for web search, code execution, file access, MQTT, and webhooks
 - **Encrypted key storage** -- AES-256-GCM via Android Keystore, hardware-backed on StrongBox devices, biometric unlock to reveal
 - **Battery-optimized** -- `START_STICKY` foreground service with OEM battery killer detection, auto-restart on boot, network transition handling
@@ -81,7 +81,7 @@ Your API keys never leave your device unencrypted. Not to a cloud. Not to a mark
 
 ## Supported Providers
 
-OpenAI, Anthropic (Claude), Google Gemini, Ollama, OpenRouter, Groq, DeepSeek, Mistral, xAI (Grok), Together AI, Fireworks AI, Perplexity, Cohere, GitHub Copilot, Amazon Bedrock, Cloudflare AI, and more. Any OpenAI-compatible endpoint works via the custom provider option.
+OpenAI, Anthropic (Claude), Google Gemini, Ollama, LM Studio, vLLM, LocalAI, OpenRouter, Groq, DeepSeek, Mistral, xAI (Grok), Together AI, Fireworks AI, Perplexity, Cohere, GitHub Copilot, Amazon Bedrock, Cloudflare AI, and more. Any OpenAI-compatible endpoint works via the custom provider option.
 
 <details>
 <summary>Full Provider Matrix</summary>
@@ -93,6 +93,9 @@ OpenAI, Anthropic (Claude), Google Gemini, Ollama, OpenRouter, Groq, DeepSeek, M
 | Google Gemini | API Key | Primary |
 | OpenRouter | API Key | Primary |
 | Ollama | URL only | Primary |
+| LM Studio | URL + optional key | Primary |
+| vLLM | URL + optional key | Primary |
+| LocalAI | URL + optional key | Primary |
 | Groq | API Key | Ecosystem |
 | Mistral | API Key | Ecosystem |
 | xAI / Grok | API Key | Ecosystem |
@@ -246,6 +249,6 @@ Yes. ZeroClaw's router supports multiple agents with independent configurations,
 This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
 
 <!-- GitHub repo settings (not rendered):
-  About/Description: Run AI agents 24/7 on your Android phone. Native Rust core, 25+ providers (OpenAI, Claude, Gemini, Groq, DeepSeek, Ollama), encrypted key storage, plugin browser, Material You UI. Self-hosted alternative to Mac Mini setups. MIT licensed.
+  About/Description: Run AI agents 24/7 on your Android phone. Native Rust core, 29+ providers (OpenAI, Claude, Gemini, Groq, DeepSeek, Ollama, LM Studio, vLLM), encrypted key storage, plugin browser, Material You UI. Self-hosted alternative to Mac Mini setups. MIT licensed.
   Topics: ai-agent, android, rust, openai, anthropic, self-hosted, llm, foreground-service, kotlin, ai-agent-framework, material-you, ollama, groq, deepseek, gemini, iot, mqtt, encrypted-storage, jetpack-compose, zeroclaw
 -->

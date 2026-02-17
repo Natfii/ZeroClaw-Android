@@ -142,6 +142,50 @@ class ApiKeyRepositoryTest {
         assertEquals("sk-abc", imported[0].key)
     }
 
+    @Test
+    @DisplayName("save and retrieve baseUrl")
+    fun `save and retrieve baseUrl`() = runTest {
+        val repo = InMemoryApiKeyRepository()
+        val key = ApiKey(
+            id = "1",
+            provider = "ollama",
+            key = "",
+            baseUrl = "http://192.168.1.100:11434",
+        )
+        repo.save(key)
+        assertEquals("http://192.168.1.100:11434", repo.getById("1")?.baseUrl)
+    }
+
+    @Test
+    @DisplayName("export and import preserves baseUrl")
+    fun `export and import preserves baseUrl`() = runTest {
+        val repo = InMemoryApiKeyRepository()
+        repo.save(
+            ApiKey(
+                id = "1",
+                provider = "lmstudio",
+                key = "lm-key",
+                baseUrl = "http://localhost:1234/v1",
+            ),
+        )
+
+        val exported = repo.exportAll(TEST_PASSPHRASE)
+        val newRepo = InMemoryApiKeyRepository()
+        newRepo.importFrom(exported, TEST_PASSPHRASE)
+
+        val imported = newRepo.keys.first()
+        assertEquals(1, imported.size)
+        assertEquals("http://localhost:1234/v1", imported[0].baseUrl)
+    }
+
+    @Test
+    @DisplayName("default baseUrl is empty string")
+    fun `default baseUrl is empty string`() = runTest {
+        val repo = InMemoryApiKeyRepository()
+        repo.save(ApiKey(id = "1", provider = "OpenAI", key = "sk-test"))
+        assertEquals("", repo.getById("1")?.baseUrl)
+    }
+
     /** Constants for test fixtures. */
     companion object {
         private const val TEST_PASSPHRASE = "test-passphrase-12345"

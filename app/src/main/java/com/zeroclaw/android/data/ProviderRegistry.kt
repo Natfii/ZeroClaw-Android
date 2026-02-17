@@ -100,6 +100,30 @@ object ProviderRegistry {
                 suggestedModels = listOf("llama3", "mistral", "codellama", "phi3"),
                 category = ProviderCategory.PRIMARY,
             ),
+            ProviderInfo(
+                id = "lmstudio",
+                displayName = "LM Studio",
+                authType = ProviderAuthType.URL_AND_OPTIONAL_KEY,
+                defaultBaseUrl = "http://localhost:1234/v1",
+                suggestedModels = emptyList(),
+                category = ProviderCategory.PRIMARY,
+            ),
+            ProviderInfo(
+                id = "vllm",
+                displayName = "vLLM",
+                authType = ProviderAuthType.URL_AND_OPTIONAL_KEY,
+                defaultBaseUrl = "http://localhost:8000/v1",
+                suggestedModels = emptyList(),
+                category = ProviderCategory.PRIMARY,
+            ),
+            ProviderInfo(
+                id = "localai",
+                displayName = "LocalAI",
+                authType = ProviderAuthType.URL_AND_OPTIONAL_KEY,
+                defaultBaseUrl = "http://localhost:8080/v1",
+                suggestedModels = emptyList(),
+                category = ProviderCategory.PRIMARY,
+            ),
         )
 
     @Suppress("LongMethod")

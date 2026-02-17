@@ -87,6 +87,7 @@ class EncryptedApiKeyRepository(
                 put(JSON_KEY_ID, apiKey.id)
                 put(JSON_KEY_PROVIDER, apiKey.provider)
                 put(JSON_KEY_KEY, apiKey.key)
+                put(JSON_KEY_BASE_URL, apiKey.baseUrl)
                 put(JSON_KEY_CREATED_AT, apiKey.createdAt)
                 put(JSON_KEY_STATUS, apiKey.status.name)
             }
@@ -107,6 +108,7 @@ class EncryptedApiKeyRepository(
                     put(JSON_KEY_ID, key.id)
                     put(JSON_KEY_PROVIDER, key.provider)
                     put(JSON_KEY_KEY, key.key)
+                    put(JSON_KEY_BASE_URL, key.baseUrl)
                     put(JSON_KEY_CREATED_AT, key.createdAt)
                     put(JSON_KEY_STATUS, key.status.name)
                 },
@@ -132,11 +134,16 @@ class EncryptedApiKeyRepository(
             if (provider.length > MAX_PROVIDER_LENGTH || key.length > MAX_KEY_LENGTH) {
                 continue
             }
+            val baseUrl = obj.optString(JSON_KEY_BASE_URL, "")
+            if (baseUrl.length > MAX_BASE_URL_LENGTH) {
+                continue
+            }
             val apiKey =
                 ApiKey(
                     id = java.util.UUID.randomUUID().toString(),
                     provider = provider,
                     key = key,
+                    baseUrl = baseUrl,
                     createdAt = obj.optLong(JSON_KEY_CREATED_AT, System.currentTimeMillis()),
                     status = parseKeyStatus(obj.optString(JSON_KEY_STATUS, KeyStatus.ACTIVE.name)),
                 )
@@ -181,9 +188,11 @@ class EncryptedApiKeyRepository(
         private const val MAX_IMPORT_KEYS = 100
         private const val MAX_PROVIDER_LENGTH = 100
         private const val MAX_KEY_LENGTH = 1000
+        private const val MAX_BASE_URL_LENGTH = 2000
         private const val JSON_KEY_ID = "id"
         private const val JSON_KEY_PROVIDER = "provider"
         private const val JSON_KEY_KEY = "key"
+        private const val JSON_KEY_BASE_URL = "base_url"
         private const val JSON_KEY_CREATED_AT = "created_at"
         private const val JSON_KEY_STATUS = "status"
 
@@ -193,6 +202,7 @@ class EncryptedApiKeyRepository(
                 id = obj.getString(JSON_KEY_ID),
                 provider = obj.getString(JSON_KEY_PROVIDER),
                 key = obj.getString(JSON_KEY_KEY),
+                baseUrl = obj.optString(JSON_KEY_BASE_URL, ""),
                 createdAt = obj.optLong(JSON_KEY_CREATED_AT, 0L),
                 status = parseKeyStatus(obj.optString(JSON_KEY_STATUS, KeyStatus.ACTIVE.name)),
             )

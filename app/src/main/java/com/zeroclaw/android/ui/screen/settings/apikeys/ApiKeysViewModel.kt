@@ -134,11 +134,13 @@ class ApiKeysViewModel(
      *
      * @param provider Provider name (e.g. "OpenAI").
      * @param key The secret key value.
+     * @param baseUrl Provider endpoint URL for self-hosted providers, empty for cloud defaults.
      */
     @Suppress("TooGenericExceptionCaught")
     fun addKey(
         provider: String,
         key: String,
+        baseUrl: String = "",
     ) {
         _saveState.value = SaveState.Saving
         viewModelScope.launch {
@@ -148,6 +150,7 @@ class ApiKeysViewModel(
                         id = UUID.randomUUID().toString(),
                         provider = provider,
                         key = key,
+                        baseUrl = baseUrl,
                     ),
                 )
                 _saveState.value = SaveState.Saved

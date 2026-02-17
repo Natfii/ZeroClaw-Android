@@ -86,6 +86,9 @@ fun ApiKeyDetailScreen(
     var key by remember(existingKey) {
         mutableStateOf(existingKey?.key ?: "")
     }
+    var baseUrl by remember(existingKey) {
+        mutableStateOf(existingKey?.baseUrl ?: "")
+    }
 
     LaunchedEffect(saveState) {
         if (saveState is SaveState.Saved) {
@@ -97,8 +100,15 @@ fun ApiKeyDetailScreen(
     val providerInfo = ProviderRegistry.findById(providerId)
     val authType = providerInfo?.authType
     val needsKey = authType != ProviderAuthType.URL_ONLY && authType != ProviderAuthType.NONE
+    val needsUrl = authType == ProviderAuthType.URL_ONLY || authType == ProviderAuthType.URL_AND_OPTIONAL_KEY
     val isSaving = saveState is SaveState.Saving
     val saveEnabled = providerId.isNotBlank() && (key.isNotBlank() || !needsKey) && !isSaving
+
+    LaunchedEffect(providerId) {
+        if (existingKey == null && providerInfo?.defaultBaseUrl?.isNotEmpty() == true) {
+            baseUrl = providerInfo.defaultBaseUrl
+        }
+    }
 
     Column(
         modifier =
@@ -121,6 +131,21 @@ fun ApiKeyDetailScreen(
             modifier = Modifier.fillMaxWidth(),
         )
 
+        if (needsUrl) {
+            OutlinedTextField(
+                value = baseUrl,
+                onValueChange = { baseUrl = it },
+                label = { Text("Base URL") },
+                singleLine = true,
+                enabled = !isSaving,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Uri,
+                    imeAction = if (needsKey) ImeAction.Next else ImeAction.Done,
+                ),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+
         if (needsKey || providerId.isBlank()) {
             OutlinedTextField(
                 value = key,
@@ -133,6 +158,11 @@ fun ApiKeyDetailScreen(
                     keyboardType = KeyboardType.Password,
                     imeAction = ImeAction.Done,
                 ),
+                supportingText = if (providerId == "anthropic") {
+                    { Text("Accepts API keys (sk-ant-...) or OAuth tokens (sk-ant-oat01-...)") }
+                } else {
+                    null
+                },
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -148,10 +178,15 @@ fun ApiKeyDetailScreen(
                             existingKey.copy(
                                 provider = providerId,
                                 key = key,
+                                baseUrl = baseUrl,
                             ),
                         )
                     } else {
-                        apiKeysViewModel.addKey(provider = providerId, key = key)
+                        apiKeysViewModel.addKey(
+                            provider = providerId,
+                            key = key,
+                            baseUrl = baseUrl,
+                        )
                     }
                 },
                 enabled = saveEnabled,

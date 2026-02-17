@@ -53,6 +53,7 @@ class InMemoryApiKeyRepository : ApiKeyRepository {
                     put(JSON_KEY_ID, key.id)
                     put(JSON_KEY_PROVIDER, key.provider)
                     put(JSON_KEY_KEY, key.key)
+                    put(JSON_KEY_BASE_URL, key.baseUrl)
                     put(JSON_KEY_CREATED_AT, key.createdAt)
                     put(JSON_KEY_STATUS, key.status.name)
                 },
@@ -78,11 +79,16 @@ class InMemoryApiKeyRepository : ApiKeyRepository {
             if (provider.length > MAX_PROVIDER_LENGTH || key.length > MAX_KEY_LENGTH) {
                 continue
             }
+            val baseUrl = obj.optString(JSON_KEY_BASE_URL, "")
+            if (baseUrl.length > MAX_BASE_URL_LENGTH) {
+                continue
+            }
             save(
                 ApiKey(
                     id = java.util.UUID.randomUUID().toString(),
                     provider = provider,
                     key = key,
+                    baseUrl = baseUrl,
                     createdAt = obj.optLong(JSON_KEY_CREATED_AT, System.currentTimeMillis()),
                     status = parseKeyStatus(obj.optString(JSON_KEY_STATUS, KeyStatus.ACTIVE.name)),
                 ),
@@ -100,9 +106,11 @@ class InMemoryApiKeyRepository : ApiKeyRepository {
         private const val MAX_IMPORT_KEYS = 100
         private const val MAX_PROVIDER_LENGTH = 100
         private const val MAX_KEY_LENGTH = 1000
+        private const val MAX_BASE_URL_LENGTH = 2000
         private const val JSON_KEY_ID = "id"
         private const val JSON_KEY_PROVIDER = "provider"
         private const val JSON_KEY_KEY = "key"
+        private const val JSON_KEY_BASE_URL = "base_url"
         private const val JSON_KEY_CREATED_AT = "created_at"
         private const val JSON_KEY_STATUS = "status"
 

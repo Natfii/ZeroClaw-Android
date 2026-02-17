@@ -131,12 +131,14 @@ class OnboardingViewModel(
             val key = _apiKey.value
             val model = _selectedModel.value
 
-            if (provider.isNotBlank() && key.isNotBlank()) {
+            val url = _baseUrl.value
+            if (provider.isNotBlank() && (key.isNotBlank() || url.isNotBlank())) {
                 apiKeyRepository.save(
                     ApiKey(
                         id = UUID.randomUUID().toString(),
                         provider = provider,
                         key = key,
+                        baseUrl = url,
                     ),
                 )
             }

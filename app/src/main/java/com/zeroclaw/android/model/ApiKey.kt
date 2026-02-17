@@ -26,6 +26,7 @@ enum class KeyStatus {
  * @property id Unique identifier (UUID string).
  * @property provider Human-readable provider name (e.g. "OpenAI", "Anthropic").
  * @property key The secret key value.
+ * @property baseUrl Provider endpoint URL for self-hosted or custom providers, empty for cloud defaults.
  * @property createdAt Epoch milliseconds when the key was added.
  * @property status Current validation status of the key.
  */
@@ -33,6 +34,7 @@ data class ApiKey(
     val id: String,
     val provider: String,
     val key: String,
+    val baseUrl: String = "",
     val createdAt: Long = System.currentTimeMillis(),
     val status: KeyStatus = KeyStatus.ACTIVE,
 )
