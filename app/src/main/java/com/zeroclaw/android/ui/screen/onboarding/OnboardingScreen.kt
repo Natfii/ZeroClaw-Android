@@ -1,5 +1,5 @@
 /*
- * Copyright 2026 ZeroClaw Contributors
+ * Copyright 2026 ZeroClaw Community
  *
  * Licensed under the MIT License. See LICENSE in the project root.
  */
@@ -127,8 +127,7 @@ fun OnboardingScreen(
                 STEP_ACTIVATION ->
                     ActivationStep(
                         onActivate = {
-                            onboardingViewModel.complete()
-                            onComplete()
+                            onboardingViewModel.complete(onDone = onComplete)
                         },
                     )
             }

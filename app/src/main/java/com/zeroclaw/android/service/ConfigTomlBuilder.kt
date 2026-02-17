@@ -1,5 +1,5 @@
 /*
- * Copyright 2026 ZeroClaw Contributors
+ * Copyright 2026 ZeroClaw Community
  *
  * Licensed under the MIT License. See LICENSE in the project root.
  */
@@ -48,6 +48,17 @@ object ConfigTomlBuilder {
 
     private const val DEFAULT_TEMPERATURE = "0.7"
 
+    /**
+     * Placeholder API key injected for self-hosted providers (LM Studio,
+     * vLLM, LocalAI, Ollama) that don't require authentication.
+     *
+     * The upstream [OpenAiCompatibleProvider] unconditionally requires
+     * `api_key` to be `Some(...)` and will error before sending any HTTP
+     * request if it is `None`. Local servers ignore the resulting
+     * `Authorization: Bearer not-needed` header.
+     */
+    private const val PLACEHOLDER_API_KEY = "not-needed"
+
     /** Default Ollama endpoint used by the upstream Rust factory. */
     private const val OLLAMA_DEFAULT_URL = "http://localhost:11434"
 
@@ -89,9 +100,16 @@ object ConfigTomlBuilder {
             appendLine("default_model = ${tomlString(model)}")
         }
 
-        if (apiKey.isNotBlank()) {
-            appendLine("api_key = ${tomlString(apiKey)}")
+        val effectiveKey = apiKey.ifBlank {
+            if (needsPlaceholderKey(resolvedProvider)) PLACEHOLDER_API_KEY else ""
         }
+        if (effectiveKey.isNotBlank()) {
+            appendLine("api_key = ${tomlString(effectiveKey)}")
+        }
+
+        appendLine()
+        appendLine("[gateway]")
+        appendLine("require_pairing = false")
     }
 
     /**
@@ -116,7 +134,7 @@ object ConfigTomlBuilder {
                 appendLine()
                 appendLine("[channels_config.${channel.type.tomlKey}]")
                 for (spec in channel.type.fields) {
-                    val value = values[spec.key] ?: ""
+                    val value = values[spec.key].orEmpty()
                     if (value.isBlank() && !spec.isRequired) continue
                     appendTomlField(spec.key, value, spec.inputType)
                 }
@@ -140,14 +158,17 @@ object ConfigTomlBuilder {
         return buildString {
             for (entry in agents) {
                 appendLine()
-                appendLine("[agents.${entry.name}]")
+                appendLine("[agents.${tomlKey(entry.name)}]")
                 appendLine("provider = ${tomlString(entry.provider)}")
                 appendLine("model = ${tomlString(entry.model)}")
                 if (entry.systemPrompt.isNotBlank()) {
                     appendLine("system_prompt = ${tomlString(entry.systemPrompt)}")
                 }
-                if (entry.apiKey.isNotBlank()) {
-                    appendLine("api_key = ${tomlString(entry.apiKey)}")
+                val effectiveKey = entry.apiKey.ifBlank {
+                    if (needsPlaceholderKey(entry.provider)) PLACEHOLDER_API_KEY else ""
+                }
+                if (effectiveKey.isNotBlank()) {
+                    appendLine("api_key = ${tomlString(effectiveKey)}")
                 }
             }
         }
@@ -209,12 +230,33 @@ object ConfigTomlBuilder {
     }
 
     /**
-     * Wraps a value in double quotes with TOML-compliant escaping.
+     * Returns true if the resolved provider requires a placeholder API key.
      *
-     * Escapes backslashes, double quotes, and common control characters
-     * (newline, carriage return, tab, backspace, form feed) as required
-     * by the [TOML specification](https://toml.io/en/v1.0.0#string).
+     * The upstream [OpenAiCompatibleProvider] unconditionally demands
+     * `api_key` to be non-null. Self-hosted servers (LM Studio, vLLM,
+     * LocalAI, Ollama) don't need authentication, but the provider
+     * factory still needs *some* value to avoid a "key not set" error.
+     *
+     * @param resolvedProvider The resolved TOML provider string.
+     * @return True if [PLACEHOLDER_API_KEY] should be injected.
      */
+    private fun needsPlaceholderKey(resolvedProvider: String): Boolean =
+        resolvedProvider.startsWith("custom:") || resolvedProvider == "ollama"
+
+    /**
+     * Formats a value as a quoted TOML key.
+     *
+     * Bare keys may only contain ASCII letters, digits, dashes, and underscores.
+     * Keys containing any other characters (spaces, dots, etc.) must be quoted.
+     *
+     * @param key Raw key value.
+     * @return The key suitable for use in a TOML table header or dotted key.
+     */
+    private fun tomlKey(key: String): String {
+        val isBareKey = key.isNotEmpty() && key.all { it.isLetterOrDigit() || it == '-' || it == '_' }
+        return if (isBareKey) key else tomlString(key)
+    }
+
     internal fun tomlString(value: String): String = buildString {
         append('"')
         for (ch in value) {

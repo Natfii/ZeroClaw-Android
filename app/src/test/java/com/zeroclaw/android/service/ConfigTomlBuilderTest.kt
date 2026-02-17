@@ -1,5 +1,5 @@
 /*
- * Copyright 2026 ZeroClaw Contributors
+ * Copyright 2026 ZeroClaw Community
  *
  * Licensed under the MIT License. See LICENSE in the project root.
  */
@@ -43,7 +43,7 @@ class ConfigTomlBuilderTest {
         }
 
         @Test
-        @DisplayName("self-hosted LM Studio uses custom:URL provider")
+        @DisplayName("self-hosted LM Studio uses custom:URL provider with placeholder key")
         fun `lmstudio with URL maps to custom provider`() {
             val toml = ConfigTomlBuilder.build(
                 provider = "lmstudio",
@@ -53,7 +53,7 @@ class ConfigTomlBuilderTest {
             )
 
             assertTrue(toml.contains("""default_provider = "custom:http://localhost:1234/v1""""))
-            assertFalse(toml.contains("api_key"))
+            assertTrue(toml.contains("""api_key = "not-needed""""))
         }
 
         @Test
@@ -197,7 +197,7 @@ class ConfigTomlBuilderTest {
             assertTrue(toml.contains("""provider = "custom:http://192.168.1.197:1234/v1""""))
             assertTrue(toml.contains("""model = "google/gemma-3-12b""""))
             assertTrue(toml.contains("""system_prompt = "You are a research assistant.""""))
-            assertFalse(toml.contains("api_key"))
+            assertTrue(toml.contains("""api_key = "not-needed""""))
         }
 
         @Test
@@ -242,6 +242,37 @@ class ConfigTomlBuilderTest {
             assertTrue(toml.contains("[agents.agent_b]"))
             assertTrue(toml.contains("""model = "gpt-4o""""))
             assertTrue(toml.contains("""model = "claude-sonnet-4-5-20250929""""))
+        }
+
+        @Test
+        @DisplayName("agent name with spaces is quoted in table header")
+        fun `agent name with spaces is quoted in table header`() {
+            val entries = listOf(
+                AgentTomlEntry(
+                    name = "My Agent",
+                    provider = "custom:http://192.168.1.50:1234/v1",
+                    model = "google/gemma-3-12b",
+                ),
+            )
+            val toml = ConfigTomlBuilder.buildAgentsToml(entries)
+
+            assertTrue(toml.contains("""[agents."My Agent"]"""))
+            assertFalse(toml.contains("[agents.My Agent]"))
+        }
+
+        @Test
+        @DisplayName("agent name without special characters is bare key")
+        fun `agent name without special characters is bare key`() {
+            val entries = listOf(
+                AgentTomlEntry(
+                    name = "my-agent_1",
+                    provider = "openai",
+                    model = "gpt-4o",
+                ),
+            )
+            val toml = ConfigTomlBuilder.buildAgentsToml(entries)
+
+            assertTrue(toml.contains("[agents.my-agent_1]"))
         }
 
         @Test

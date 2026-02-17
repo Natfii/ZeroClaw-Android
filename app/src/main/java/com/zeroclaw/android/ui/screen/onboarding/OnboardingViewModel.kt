@@ -1,5 +1,5 @@
 /*
- * Copyright 2026 ZeroClaw Contributors
+ * Copyright 2026 ZeroClaw Community
  *
  * Licensed under the MIT License. See LICENSE in the project root.
  */
@@ -174,9 +174,14 @@ class OnboardingViewModel(
      * Saves the API key (if non-blank), the first agent, a connected
      * channel (if configured), and default provider/model to their
      * respective repositories before marking onboarding complete.
+     *
+     * @param onDone Callback invoked on the main thread after all data
+     *   has been persisted. Navigation should happen here rather than
+     *   immediately after calling [complete], because the coroutine needs
+     *   to finish before the ViewModel scope is cancelled by a route pop.
      */
     @Suppress("CognitiveComplexMethod")
-    fun complete() {
+    fun complete(onDone: () -> Unit) {
         viewModelScope.launch {
             val provider = _selectedProvider.value
             val key = _apiKey.value
@@ -216,6 +221,7 @@ class OnboardingViewModel(
             }
 
             onboardingRepository.markComplete()
+            onDone()
         }
     }
 

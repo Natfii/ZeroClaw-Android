@@ -1,11 +1,12 @@
 /*
- * Copyright 2026 ZeroClaw Contributors
+ * Copyright 2026 ZeroClaw Community
  *
  * Licensed under the MIT License. See LICENSE in the project root.
  */
 
 package com.zeroclaw.android.data
 
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -47,24 +48,22 @@ class OAuthRefreshException(
  * issues a new (access token, refresh token) pair. Callers must persist
  * both returned tokens immediately.
  */
-object OAuthTokenRefresher {
-    private const val REFRESH_URL = "https://claude.ai/api/oauth/token"
-    private const val CONNECT_TIMEOUT_MS = 10_000
-    private const val READ_TIMEOUT_MS = 15_000
-    private const val MILLIS_PER_SECOND = 1000L
+class OAuthTokenRefresher(
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+) {
 
     /**
      * Exchanges a refresh token for a new access token pair.
      *
-     * Safe to call from the main thread; switches to [Dispatchers.IO]
-     * internally.
+     * Safe to call from the main thread; switches to the injected
+     * IO dispatcher internally.
      *
      * @param refreshToken The current single-use refresh token.
      * @return A [RefreshResult] containing the new tokens and expiry.
      * @throws OAuthRefreshException if the refresh request fails.
      */
     @Suppress("TooGenericExceptionCaught")
-    suspend fun refresh(refreshToken: String): RefreshResult = withContext(Dispatchers.IO) {
+    suspend fun refresh(refreshToken: String): RefreshResult = withContext(ioDispatcher) {
         val body = JSONObject().apply {
             put("grant_type", "refresh_token")
             put("refresh_token", refreshToken)
@@ -82,7 +81,7 @@ object OAuthTokenRefresher {
             conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
 
             val statusCode = conn.responseCode
-            if (statusCode !in HTTP_OK_RANGE) {
+            if (statusCode !in httpOkRange) {
                 val errorBody = try {
                     conn.errorStream?.bufferedReader()?.readText().orEmpty()
                 } catch (_: IOException) {
@@ -112,5 +111,13 @@ object OAuthTokenRefresher {
         }
     }
 
-    private val HTTP_OK_RANGE = 200..299
+    private val httpOkRange = 200..299
+
+    /** Constants for [OAuthTokenRefresher]. */
+    companion object {
+        private const val REFRESH_URL = "https://claude.ai/api/oauth/token"
+        private const val CONNECT_TIMEOUT_MS = 10_000
+        private const val READ_TIMEOUT_MS = 15_000
+        private const val MILLIS_PER_SECOND = 1000L
+    }
 }

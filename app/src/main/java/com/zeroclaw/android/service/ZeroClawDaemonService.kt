@@ -1,5 +1,5 @@
 /*
- * Copyright 2026 ZeroClaw Contributors
+ * Copyright 2026 ZeroClaw Community
  *
  * Licensed under the MIT License. See LICENSE in the project root.
  */
@@ -21,6 +21,7 @@ import com.zeroclaw.android.data.repository.SettingsRepository
 import com.zeroclaw.android.model.LogSeverity
 import com.zeroclaw.android.model.ServiceState
 import com.zeroclaw.ffi.FfiException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -57,6 +58,7 @@ import kotlinx.coroutines.launch
  * - [ACTION_RETRY] to reset the retry counter and attempt startup again.
  */
 class ZeroClawDaemonService : Service() {
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     private lateinit var bridge: DaemonServiceBridge
@@ -144,7 +146,7 @@ class ZeroClawDaemonService : Service() {
         )
         acquireWakeLock()
 
-        serviceScope.launch(Dispatchers.IO) {
+        serviceScope.launch(ioDispatcher) {
             val settings = settingsRepository.settings.first()
             val apiKey = apiKeyRepository.getByProviderFresh(settings.defaultProvider)
 

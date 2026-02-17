@@ -1,5 +1,5 @@
 /*
- * Copyright 2026 ZeroClaw Contributors
+ * Copyright 2026 ZeroClaw Community
  *
  * Licensed under the MIT License. See LICENSE in the project root.
  */
@@ -15,8 +15,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.channels.ProducerScope
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
@@ -72,14 +73,14 @@ object NetworkScanner {
      * @return A cold [Flow] of scan state updates.
      */
     @Suppress("InjectDispatcher")
-    fun scan(context: Context): Flow<ScanState> = flow {
+    fun scan(context: Context): Flow<ScanState> = channelFlow {
         val subnet = getLocalSubnet(context)
         if (subnet == null) {
-            emit(ScanState.Error("Not connected to a local network"))
-            return@flow
+            send(ScanState.Error("Not connected to a local network"))
+            return@channelFlow
         }
 
-        emit(ScanState.Scanning(0f))
+        send(ScanState.Scanning(0f))
 
         val totalProbes = SUBNET_HOST_COUNT * TARGET_PORTS.size
         val completed = AtomicInteger(0)
@@ -96,7 +97,7 @@ object NetworkScanner {
             results
         }
 
-        emit(ScanState.Completed(servers))
+        send(ScanState.Completed(servers))
     }.flowOn(Dispatchers.IO)
 
     /**
@@ -135,12 +136,12 @@ object NetworkScanner {
      * @param completed Atomic counter of completed probes.
      * @param total Total number of probes to run.
      */
-    private suspend fun kotlinx.coroutines.flow.FlowCollector<ScanState>.emitProgress(
+    private suspend fun ProducerScope<ScanState>.emitProgress(
         completed: AtomicInteger,
         total: Int,
     ) {
         while (completed.get() < total) {
-            emit(ScanState.Scanning(completed.get().toFloat() / total))
+            send(ScanState.Scanning(completed.get().toFloat() / total))
             kotlinx.coroutines.delay(PROGRESS_UPDATE_INTERVAL_MS)
         }
     }

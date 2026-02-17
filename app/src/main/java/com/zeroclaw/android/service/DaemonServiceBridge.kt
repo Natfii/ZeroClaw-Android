@@ -1,5 +1,5 @@
 /*
- * Copyright 2026 ZeroClaw Contributors
+ * Copyright 2026 ZeroClaw Community
  *
  * Licensed under the MIT License. See LICENSE in the project root.
  */
@@ -15,6 +15,7 @@ import com.zeroclaw.ffi.getStatus
 import com.zeroclaw.ffi.sendMessage
 import com.zeroclaw.ffi.startDaemon
 import com.zeroclaw.ffi.stopDaemon
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -41,9 +42,12 @@ import org.json.JSONObject
  *
  * @param dataDir Absolute path to the app's internal files directory,
  *   typically [android.content.Context.getFilesDir].
+ * @param ioDispatcher [CoroutineDispatcher] used for blocking FFI calls.
+ *   Defaults to [Dispatchers.IO]; inject a test dispatcher for unit tests.
  */
 class DaemonServiceBridge(
     private val dataDir: String,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     init {
         require(dataDir.isNotEmpty()) { "dataDir must not be empty" }
@@ -119,7 +123,7 @@ class DaemonServiceBridge(
     ) {
         _serviceState.value = ServiceState.STARTING
         try {
-            withContext(Dispatchers.IO) {
+            withContext(ioDispatcher) {
                 startDaemon(configToml, dataDir, host, port)
             }
             _lastError.value = null
@@ -147,7 +151,7 @@ class DaemonServiceBridge(
     suspend fun stop() {
         _serviceState.value = ServiceState.STOPPING
         try {
-            withContext(Dispatchers.IO) { stopDaemon() }
+            withContext(ioDispatcher) { stopDaemon() }
             _lastError.value = null
             _serviceState.value = ServiceState.STOPPED
             _lastStatus.value = null
@@ -170,7 +174,7 @@ class DaemonServiceBridge(
      */
     @Throws(FfiException::class)
     suspend fun pollStatus(): DaemonStatus {
-        val json = withContext(Dispatchers.IO) { getStatus() }
+        val json = withContext(ioDispatcher) { getStatus() }
         val status = parseStatus(json)
         _lastStatus.value = status
         return status
@@ -195,7 +199,7 @@ class DaemonServiceBridge(
     @Throws(FfiException::class)
     suspend fun send(message: String): String =
         try {
-            withContext(Dispatchers.IO) { sendMessage(message) }
+            withContext(ioDispatcher) { sendMessage(message) }
         } catch (e: FfiException) {
             val detail = e.errorDetail()
             val errorType = ApiKeyErrorClassifier.classify(detail)

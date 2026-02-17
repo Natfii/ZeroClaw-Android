@@ -1,5 +1,5 @@
 /*
- * Copyright 2026 ZeroClaw Contributors
+ * Copyright 2026 ZeroClaw Community
  *
  * Licensed under the MIT License. See LICENSE in the project root.
  */
@@ -36,6 +36,7 @@ import com.zeroclaw.android.data.repository.RoomLogRepository
 import com.zeroclaw.android.data.repository.RoomPluginRepository
 import com.zeroclaw.android.data.repository.SettingsRepository
 import com.zeroclaw.android.service.DaemonServiceBridge
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -103,7 +104,8 @@ class ZeroClawApplication : Application(), SingletonImageLoader.Factory {
         super.onCreate()
         System.loadLibrary("zeroclaw")
 
-        val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+        val ioScope = CoroutineScope(SupervisorJob() + ioDispatcher)
 
         daemonBridge = DaemonServiceBridge(filesDir.absolutePath)
         database = ZeroClawDatabase.build(this, ioScope)

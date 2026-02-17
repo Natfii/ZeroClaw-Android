@@ -1,5 +1,5 @@
 /*
- * Copyright 2026 ZeroClaw Contributors
+ * Copyright 2026 ZeroClaw Community
  *
  * Licensed under the MIT License. See LICENSE in the project root.
  */
@@ -11,6 +11,7 @@ import com.zeroclaw.ffi.FfiException
 import io.mockk.every
 import io.mockk.mockkStatic
 import io.mockk.unmockkAll
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -33,7 +34,7 @@ class DaemonServiceBridgeTest {
     @BeforeEach
     fun setUp() {
         mockkStatic("com.zeroclaw.ffi.Zeroclaw_androidKt")
-        bridge = DaemonServiceBridge("/tmp/test")
+        bridge = DaemonServiceBridge("/tmp/test", ioDispatcher = UnconfinedTestDispatcher())
     }
 
     @AfterEach
