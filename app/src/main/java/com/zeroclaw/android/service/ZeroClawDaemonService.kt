@@ -13,7 +13,9 @@ import android.os.IBinder
 import android.os.PowerManager
 import android.util.Log
 import com.zeroclaw.android.ZeroClawApplication
+import com.zeroclaw.android.data.repository.ApiKeyRepository
 import com.zeroclaw.android.data.repository.LogRepository
+import com.zeroclaw.android.data.repository.SettingsRepository
 import com.zeroclaw.android.model.LogSeverity
 import com.zeroclaw.android.model.ServiceState
 import com.zeroclaw.ffi.FfiException
@@ -23,6 +25,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
@@ -59,6 +62,8 @@ class ZeroClawDaemonService : Service() {
     private lateinit var networkMonitor: NetworkMonitor
     private lateinit var persistence: DaemonPersistence
     private lateinit var logRepository: LogRepository
+    private lateinit var settingsRepository: SettingsRepository
+    private lateinit var apiKeyRepository: ApiKeyRepository
     private val retryPolicy = RetryPolicy()
 
     private var statusPollJob: Job? = null
@@ -70,6 +75,8 @@ class ZeroClawDaemonService : Service() {
         val app = application as ZeroClawApplication
         bridge = app.daemonBridge
         logRepository = app.logRepository
+        settingsRepository = app.settingsRepository
+        apiKeyRepository = app.apiKeyRepository
         notificationManager = DaemonNotificationManager(this)
         networkMonitor = NetworkMonitor(this)
         persistence = DaemonPersistence(this)
@@ -86,12 +93,7 @@ class ZeroClawDaemonService : Service() {
         startId: Int,
     ): Int {
         when (intent?.action) {
-            ACTION_START ->
-                handleStart(
-                    DEFAULT_CONFIG_TOML,
-                    DEFAULT_HOST,
-                    DEFAULT_PORT,
-                )
+            ACTION_START -> handleStartFromSettings()
             ACTION_STOP -> handleStop()
             ACTION_RETRY -> handleRetry()
             null -> handleStickyRestart()
@@ -116,6 +118,44 @@ class ZeroClawDaemonService : Service() {
         networkMonitor.unregister()
         serviceScope.cancel()
         super.onDestroy()
+    }
+
+    /**
+     * Reads the current user settings and API key, builds a TOML config,
+     * then enters the foreground and starts the daemon.
+     *
+     * Settings are read inside a coroutine because the repositories are
+     * flow-based. The foreground notification is posted immediately so the
+     * system does not kill the service while waiting for I/O.
+     */
+    private fun handleStartFromSettings() {
+        val notification =
+            notificationManager.buildNotification(ServiceState.STARTING)
+        startForeground(
+            DaemonNotificationManager.NOTIFICATION_ID,
+            notification,
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
+        )
+        acquireWakeLock()
+
+        serviceScope.launch(Dispatchers.IO) {
+            val settings = settingsRepository.settings.first()
+            val apiKey = apiKeyRepository.getByProvider(settings.defaultProvider)
+
+            val configToml = ConfigTomlBuilder.build(
+                provider = settings.defaultProvider,
+                model = settings.defaultModel,
+                apiKey = apiKey?.key.orEmpty(),
+                baseUrl = apiKey?.baseUrl.orEmpty(),
+            )
+
+            retryPolicy.reset()
+            attemptStart(
+                configToml = configToml,
+                host = settings.host,
+                port = settings.port.toUShort(),
+            )
+        }
     }
 
     /**
@@ -162,16 +202,21 @@ class ZeroClawDaemonService : Service() {
 
     /**
      * Resets the retry counter and reattempts startup using the
-     * persisted configuration, or the defaults if nothing is saved.
+     * persisted configuration. Falls back to reading current settings
+     * if no persisted configuration is available.
      */
     private fun handleRetry() {
         retryPolicy.reset()
         val saved = persistence.restoreConfiguration()
-        attemptStart(
-            configToml = saved?.configToml ?: DEFAULT_CONFIG_TOML,
-            host = saved?.host ?: DEFAULT_HOST,
-            port = saved?.port ?: DEFAULT_PORT,
-        )
+        if (saved != null) {
+            attemptStart(
+                configToml = saved.configToml,
+                host = saved.host,
+                port = saved.port,
+            )
+        } else {
+            handleStartFromSettings()
+        }
     }
 
     /**
@@ -322,9 +367,6 @@ class ZeroClawDaemonService : Service() {
         const val ACTION_RETRY = "com.zeroclaw.android.action.RETRY_DAEMON"
 
         private const val TAG = "ZeroClawDaemonService"
-        private const val DEFAULT_CONFIG_TOML = ""
-        private const val DEFAULT_HOST = "127.0.0.1"
-        private const val DEFAULT_PORT: UShort = 8080u
         private const val STATUS_POLL_INTERVAL_MS = 5_000L
         private const val WAKE_LOCK_TAG = "zeroclaw:daemon"
         private const val WAKE_LOCK_TIMEOUT_MS = 4L * 60 * 60 * 1000
