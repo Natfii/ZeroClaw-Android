@@ -99,7 +99,8 @@ fun ApiKeyDetailScreen(
 
     val providerInfo = ProviderRegistry.findById(providerId)
     val authType = providerInfo?.authType
-    val needsKey = authType != ProviderAuthType.URL_ONLY && authType != ProviderAuthType.NONE
+    val needsKey = authType == ProviderAuthType.API_KEY_ONLY
+    val showKeyField = authType != ProviderAuthType.URL_ONLY && authType != ProviderAuthType.NONE
     val needsUrl = authType == ProviderAuthType.URL_ONLY || authType == ProviderAuthType.URL_AND_OPTIONAL_KEY
     val isSaving = saveState is SaveState.Saving
     val saveEnabled = providerId.isNotBlank() && (key.isNotBlank() || !needsKey) && !isSaving
@@ -146,11 +147,11 @@ fun ApiKeyDetailScreen(
             )
         }
 
-        if (needsKey || providerId.isBlank()) {
+        if (showKeyField || providerId.isBlank()) {
             OutlinedTextField(
                 value = key,
                 onValueChange = { key = it },
-                label = { Text("API Key") },
+                label = { Text(if (needsKey) "API Key" else "API Key (optional)") },
                 singleLine = true,
                 enabled = !isSaving,
                 visualTransformation = PasswordVisualTransformation(),
