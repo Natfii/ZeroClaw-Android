@@ -526,9 +526,13 @@ where
 /// Collects heartbeat tasks at the configured interval and dispatches each
 /// through the agent runner.
 async fn run_heartbeat_worker(config: Config) -> anyhow::Result<()> {
-    let observer: std::sync::Arc<dyn zeroclaw::observability::Observer> = std::sync::Arc::from(
-        zeroclaw::observability::create_observer(&config.observability),
-    );
+    let config_observer = zeroclaw::observability::create_observer(&config.observability);
+    let android_observer = Box::new(crate::events::AndroidObserver);
+    let observer: std::sync::Arc<dyn zeroclaw::observability::Observer> =
+        std::sync::Arc::from(zeroclaw::observability::MultiObserver::new(vec![
+            config_observer,
+            android_observer,
+        ]));
     let engine = zeroclaw::heartbeat::engine::HeartbeatEngine::new(
         config.heartbeat.clone(),
         config.workspace_dir.clone(),

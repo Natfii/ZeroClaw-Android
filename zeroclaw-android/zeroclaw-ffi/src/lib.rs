@@ -12,20 +12,23 @@
 //! exposing `start_daemon`, `stop_daemon`, `get_status`, `send_message`,
 //! `get_version`, `validate_config`, `doctor_channels`,
 //! `scaffold_workspace`, `get_health_detail`, `get_component_health`,
-//! `get_cost_summary`, `get_daily_cost`, `get_monthly_cost`, and
-//! `check_budget` to Kotlin via UniFFI-generated bindings.
+//! `get_cost_summary`, `get_daily_cost`, `get_monthly_cost`,
+//! `check_budget`, `register_event_listener`, `unregister_event_listener`,
+//! and `get_recent_events` to Kotlin via UniFFI-generated bindings.
 
 uniffi::setup_scaffolding!();
 
 mod cost;
 mod error;
+mod events;
 mod health;
 mod runtime;
 #[allow(dead_code)]
 mod types;
 mod workspace;
 
-use std::panic::catch_unwind;
+use std::panic::{AssertUnwindSafe, catch_unwind};
+use std::sync::Arc;
 
 pub use error::FfiError;
 
@@ -326,6 +329,67 @@ pub fn get_monthly_cost(year: i32, month: u32) -> Result<f64, FfiError> {
 #[uniffi::export]
 pub fn check_budget(estimated_cost_usd: f64) -> Result<cost::FfiBudgetStatus, FfiError> {
     catch_unwind(|| cost::check_budget_inner(estimated_cost_usd)).unwrap_or_else(|e| {
+        Err(FfiError::InternalPanic {
+            detail: panic_detail(&e),
+        })
+    })
+}
+
+/// Registers a Kotlin-side event listener to receive live observer events.
+///
+/// Only one listener can be registered at a time. Registering a new
+/// listener replaces the previous one.
+///
+/// # Errors
+///
+/// Returns [`FfiError::StateCorrupted`] if internal state is poisoned, or
+/// [`FfiError::InternalPanic`] if native code panics.
+#[uniffi::export]
+pub fn register_event_listener(
+    listener: Box<dyn events::FfiEventListener>,
+) -> Result<(), FfiError> {
+    let listener: Arc<dyn events::FfiEventListener> = Arc::from(listener);
+    catch_unwind(AssertUnwindSafe(|| {
+        events::register_event_listener_inner(listener)
+    }))
+    .unwrap_or_else(|e| {
+        Err(FfiError::InternalPanic {
+            detail: panic_detail(&e),
+        })
+    })
+}
+
+/// Unregisters the current event listener.
+///
+/// After this call, events are still buffered in the ring buffer but
+/// no longer forwarded to Kotlin.
+///
+/// # Errors
+///
+/// Returns [`FfiError::StateCorrupted`] if internal state is poisoned, or
+/// [`FfiError::InternalPanic`] if native code panics.
+#[uniffi::export]
+pub fn unregister_event_listener() -> Result<(), FfiError> {
+    // Direct function reference preferred over closure by clippy::redundant_closure.
+    catch_unwind(events::unregister_event_listener_inner).unwrap_or_else(|e| {
+        Err(FfiError::InternalPanic {
+            detail: panic_detail(&e),
+        })
+    })
+}
+
+/// Returns the most recent events as a JSON array.
+///
+/// Events are ordered chronologically (oldest first). The `limit`
+/// parameter caps how many events to return.
+///
+/// # Errors
+///
+/// Returns [`FfiError::StateCorrupted`] if internal state is poisoned, or
+/// [`FfiError::InternalPanic`] if native code panics.
+#[uniffi::export]
+pub fn get_recent_events(limit: u32) -> Result<String, FfiError> {
+    catch_unwind(|| events::get_recent_events_inner(limit)).unwrap_or_else(|e| {
         Err(FfiError::InternalPanic {
             detail: panic_detail(&e),
         })
