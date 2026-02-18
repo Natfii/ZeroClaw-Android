@@ -9,14 +9,8 @@
 //! UniFFI-annotated facade for `ZeroClaw` Android bindings.
 //!
 //! This crate provides a thin FFI layer over the `ZeroClaw` daemon,
-//! exposing `start_daemon`, `stop_daemon`, `get_status`, `send_message`,
-//! `get_version`, `validate_config`, `doctor_channels`,
-//! `scaffold_workspace`, `get_health_detail`, `get_component_health`,
-//! `get_cost_summary`, `get_daily_cost`, `get_monthly_cost`,
-//! `check_budget`, `register_event_listener`, `unregister_event_listener`,
-//! `get_recent_events`, `list_cron_jobs`, `get_cron_job`, `add_cron_job`,
-//! `add_one_shot_job`, `remove_cron_job`, `pause_cron_job`,
-//! and `resume_cron_job` to Kotlin via UniFFI-generated bindings.
+//! exposing daemon lifecycle, health, cost, events, cron, skills, tools,
+//! and memory browsing functions to Kotlin via UniFFI-generated bindings.
 
 uniffi::setup_scaffolding!();
 
@@ -25,7 +19,10 @@ mod cron;
 mod error;
 mod events;
 mod health;
+mod memory_browse;
 mod runtime;
+mod skills;
+mod tools_browse;
 mod types;
 mod workspace;
 
@@ -519,6 +516,188 @@ pub fn pause_cron_job(id: String) -> Result<(), FfiError> {
 #[uniffi::export]
 pub fn resume_cron_job(id: String) -> Result<(), FfiError> {
     catch_unwind(AssertUnwindSafe(|| cron::resume_cron_job_inner(id))).unwrap_or_else(|e| {
+        Err(FfiError::InternalPanic {
+            detail: panic_detail(&e),
+        })
+    })
+}
+
+/// Lists all skills loaded from the workspace's `skills/` directory.
+///
+/// Each skill includes its name, description, version, author, tags,
+/// and the names of any tools it provides.
+///
+/// # Errors
+///
+/// Returns [`FfiError::StateError`] if the daemon is not running, or
+/// [`FfiError::InternalPanic`] if native code panics.
+#[uniffi::export]
+pub fn list_skills() -> Result<Vec<skills::FfiSkill>, FfiError> {
+    catch_unwind(skills::list_skills_inner).unwrap_or_else(|e| {
+        Err(FfiError::InternalPanic {
+            detail: panic_detail(&e),
+        })
+    })
+}
+
+/// Lists the tools provided by a specific skill.
+///
+/// Returns an empty list if the skill is not found or has no tools.
+///
+/// # Errors
+///
+/// Returns [`FfiError::StateError`] if the daemon is not running, or
+/// [`FfiError::InternalPanic`] if native code panics.
+#[uniffi::export]
+pub fn get_skill_tools(skill_name: String) -> Result<Vec<skills::FfiSkillTool>, FfiError> {
+    catch_unwind(AssertUnwindSafe(|| {
+        skills::get_skill_tools_inner(skill_name)
+    }))
+    .unwrap_or_else(|e| {
+        Err(FfiError::InternalPanic {
+            detail: panic_detail(&e),
+        })
+    })
+}
+
+/// Installs a skill from a URL or local path.
+///
+/// For URLs, performs a `git clone --depth 1` into the skills directory.
+/// For local paths, creates a symlink (or copies on platforms without
+/// symlink support).
+///
+/// # Errors
+///
+/// Returns [`FfiError::StateError`] if the daemon is not running,
+/// [`FfiError::SpawnError`] on install failure, or
+/// [`FfiError::InternalPanic`] if native code panics.
+#[uniffi::export]
+pub fn install_skill(source: String) -> Result<(), FfiError> {
+    catch_unwind(AssertUnwindSafe(|| skills::install_skill_inner(source))).unwrap_or_else(|e| {
+        Err(FfiError::InternalPanic {
+            detail: panic_detail(&e),
+        })
+    })
+}
+
+/// Removes an installed skill by name.
+///
+/// Deletes the skill directory from the workspace's `skills/` folder.
+/// Path traversal attempts are rejected.
+///
+/// # Errors
+///
+/// Returns [`FfiError::StateError`] if the daemon is not running,
+/// [`FfiError::SpawnError`] if removal fails, or
+/// [`FfiError::InternalPanic`] if native code panics.
+#[uniffi::export]
+pub fn remove_skill(name: String) -> Result<(), FfiError> {
+    catch_unwind(AssertUnwindSafe(|| skills::remove_skill_inner(name))).unwrap_or_else(|e| {
+        Err(FfiError::InternalPanic {
+            detail: panic_detail(&e),
+        })
+    })
+}
+
+/// Lists all available tools based on daemon config and installed skills.
+///
+/// Returns built-in tools (always present), conditional tools (browser,
+/// HTTP, Composio, delegate), and skill-provided tools.
+///
+/// # Errors
+///
+/// Returns [`FfiError::StateError`] if the daemon is not running, or
+/// [`FfiError::InternalPanic`] if native code panics.
+#[uniffi::export]
+pub fn list_tools() -> Result<Vec<tools_browse::FfiToolSpec>, FfiError> {
+    catch_unwind(tools_browse::list_tools_inner).unwrap_or_else(|e| {
+        Err(FfiError::InternalPanic {
+            detail: panic_detail(&e),
+        })
+    })
+}
+
+/// Lists memory entries, optionally filtered by category.
+///
+/// Categories: `"core"`, `"daily"`, `"conversation"`, or any custom
+/// category name. Pass `None` for all categories.
+///
+/// # Errors
+///
+/// Returns [`FfiError::StateError`] if the daemon is not running or
+/// memory is unavailable,
+/// [`FfiError::SpawnError`] on backend failure, or
+/// [`FfiError::InternalPanic`] if native code panics.
+#[uniffi::export]
+pub fn list_memories(
+    category: Option<String>,
+    limit: u32,
+) -> Result<Vec<memory_browse::FfiMemoryEntry>, FfiError> {
+    catch_unwind(AssertUnwindSafe(|| {
+        memory_browse::list_memories_inner(category, limit)
+    }))
+    .unwrap_or_else(|e| {
+        Err(FfiError::InternalPanic {
+            detail: panic_detail(&e),
+        })
+    })
+}
+
+/// Searches memory entries by keyword query.
+///
+/// Returns up to `limit` entries ranked by relevance.
+///
+/// # Errors
+///
+/// Returns [`FfiError::StateError`] if the daemon is not running or
+/// memory is unavailable,
+/// [`FfiError::SpawnError`] on backend failure, or
+/// [`FfiError::InternalPanic`] if native code panics.
+#[uniffi::export]
+pub fn recall_memory(
+    query: String,
+    limit: u32,
+) -> Result<Vec<memory_browse::FfiMemoryEntry>, FfiError> {
+    catch_unwind(AssertUnwindSafe(|| {
+        memory_browse::recall_memory_inner(query, limit)
+    }))
+    .unwrap_or_else(|e| {
+        Err(FfiError::InternalPanic {
+            detail: panic_detail(&e),
+        })
+    })
+}
+
+/// Deletes a memory entry by key.
+///
+/// Returns `true` if the entry was found and deleted, `false` otherwise.
+///
+/// # Errors
+///
+/// Returns [`FfiError::StateError`] if the daemon is not running or
+/// memory is unavailable,
+/// [`FfiError::SpawnError`] on backend failure, or
+/// [`FfiError::InternalPanic`] if native code panics.
+#[uniffi::export]
+pub fn forget_memory(key: String) -> Result<bool, FfiError> {
+    catch_unwind(AssertUnwindSafe(|| memory_browse::forget_memory_inner(key))).unwrap_or_else(|e| {
+        Err(FfiError::InternalPanic {
+            detail: panic_detail(&e),
+        })
+    })
+}
+
+/// Returns the total number of memory entries.
+///
+/// # Errors
+///
+/// Returns [`FfiError::StateError`] if the daemon is not running or
+/// memory is unavailable,
+/// [`FfiError::SpawnError`] on backend failure, or
+/// [`FfiError::InternalPanic`] if native code panics.
+#[uniffi::export]
+pub fn memory_count() -> Result<u32, FfiError> {
+    catch_unwind(memory_browse::memory_count_inner).unwrap_or_else(|e| {
         Err(FfiError::InternalPanic {
             detail: panic_detail(&e),
         })

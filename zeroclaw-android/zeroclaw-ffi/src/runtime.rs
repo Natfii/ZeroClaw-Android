@@ -8,7 +8,7 @@ use crate::error::FfiError;
 use chrono::Utc;
 use std::future::Future;
 use std::path::PathBuf;
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 use tokio::runtime::Runtime;
 use tokio::task::JoinHandle;
 use tokio::time::Duration;
@@ -35,6 +35,11 @@ struct DaemonState {
     ///
     /// Used by [`with_daemon_config`] for cron, skills, and memory modules.
     config: Config,
+    /// Memory backend, created during daemon startup for the memory browser.
+    ///
+    /// Wrapped in `Arc` because `dyn Memory` requires `Send + Sync` and is
+    /// accessed from multiple FFI calls concurrently.
+    memory: Option<Arc<dyn zeroclaw::memory::Memory>>,
 }
 
 /// Returns a reference to the daemon state mutex, initialising it on first access.
@@ -99,6 +104,34 @@ pub(crate) fn with_daemon_config<T>(f: impl FnOnce(&Config) -> T) -> Result<T, F
         detail: "daemon not running".into(),
     })?;
     Ok(f(&state.config))
+}
+
+/// Runs a closure with a reference to the memory backend and the tokio
+/// runtime handle.
+///
+/// The closure receives the `Arc<dyn Memory>` and a `&Runtime` so it
+/// can call async memory methods via `runtime.block_on(...)`. Since FFI
+/// calls originate from Kotlin's IO dispatcher (not from our tokio
+/// runtime), `block_on` is safe and will not deadlock.
+///
+/// Returns [`FfiError::StateError`] if the daemon is not running or the
+/// memory backend was not initialised.
+pub(crate) fn with_memory<T>(
+    f: impl FnOnce(&dyn zeroclaw::memory::Memory, &Runtime) -> Result<T, FfiError>,
+) -> Result<T, FfiError> {
+    let guard = daemon_mutex()
+        .lock()
+        .map_err(|_| FfiError::StateCorrupted {
+            detail: "daemon mutex poisoned".into(),
+        })?;
+    let state = guard.as_ref().ok_or_else(|| FfiError::StateError {
+        detail: "daemon not running".into(),
+    })?;
+    let memory = state.memory.as_ref().ok_or_else(|| FfiError::StateError {
+        detail: "memory backend not available".into(),
+    })?;
+    let runtime = get_or_create_runtime();
+    f(memory.as_ref(), runtime)
 }
 
 /// Returns a reference to the tokio runtime, creating it on first access.
@@ -203,6 +236,21 @@ pub(crate) fn start_daemon_inner(
         None
     };
 
+    let memory: Option<Arc<dyn zeroclaw::memory::Memory>> = match zeroclaw::memory::create_memory(
+        &config.memory,
+        &config.workspace_dir,
+        config.api_key.as_deref(),
+    ) {
+        Ok(mem) => {
+            tracing::info!("Memory backend initialised: {}", mem.name());
+            Some(Arc::from(mem))
+        }
+        Err(e) => {
+            tracing::warn!("Memory backend unavailable: {e}");
+            None
+        }
+    };
+
     let stored_config = config.clone();
 
     let handles = runtime.block_on(async {
@@ -284,6 +332,7 @@ pub(crate) fn start_daemon_inner(
         gateway_port: port,
         cost_tracker,
         config: stored_config,
+        memory,
     });
 
     tracing::info!("ZeroClaw daemon started on {host}:{port}");
