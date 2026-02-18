@@ -13,9 +13,9 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import android.util.Base64
 import com.zeroclaw.android.model.ProcessedImage
+import java.io.ByteArrayOutputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.ByteArrayOutputStream
 
 /**
  * Processes gallery images for transmission to vision APIs via the FFI bridge.
@@ -89,14 +89,15 @@ object ImageProcessor {
         val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
         val name = queryDisplayName(contentResolver, uri)
 
-        val result = ProcessedImage(
-            base64Data = base64,
-            mimeType = OUTPUT_MIME,
-            width = scaled.width,
-            height = scaled.height,
-            originalUri = uri.toString(),
-            displayName = name,
-        )
+        val result =
+            ProcessedImage(
+                base64Data = base64,
+                mimeType = OUTPUT_MIME,
+                width = scaled.width,
+                height = scaled.height,
+                originalUri = uri.toString(),
+                displayName = name,
+            )
         scaled.recycle()
         return result
     }
@@ -182,7 +183,8 @@ object ImageProcessor {
         uri: Uri,
     ): String =
         runCatching {
-            contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+            contentResolver
+                .query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
                 ?.use { cursor ->
                     if (cursor.moveToFirst()) {
                         cursor.getString(cursor.getColumnIndexOrThrow(OpenableColumns.DISPLAY_NAME))

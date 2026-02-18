@@ -13,7 +13,7 @@
 
 use crate::error::FfiError;
 use crate::runtime::{get_or_create_runtime, with_daemon_config};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tokio::time::Duration;
 
 /// Maximum number of images per vision request.
@@ -162,11 +162,7 @@ pub(crate) fn build_openai_body(
 }
 
 /// Builds a Google Gemini `GenerateContent` request body.
-pub(crate) fn build_gemini_body(
-    text: &str,
-    image_data: &[String],
-    mime_types: &[String],
-) -> Value {
+pub(crate) fn build_gemini_body(text: &str, image_data: &[String], mime_types: &[String]) -> Value {
     let mut parts = Vec::with_capacity(image_data.len() + 1);
     for (data, mime) in image_data.iter().zip(mime_types.iter()) {
         parts.push(json!({
@@ -246,28 +242,7 @@ pub(crate) fn send_vision_message_inner(
     image_data: Vec<String>,
     mime_types: Vec<String>,
 ) -> Result<String, FfiError> {
-    if image_data.is_empty() {
-        return Err(FfiError::ConfigError {
-            detail: "at least one image is required".into(),
-        });
-    }
-    if image_data.len() > MAX_IMAGES {
-        return Err(FfiError::ConfigError {
-            detail: format!(
-                "too many images ({}, max {MAX_IMAGES})",
-                image_data.len()
-            ),
-        });
-    }
-    if image_data.len() != mime_types.len() {
-        return Err(FfiError::ConfigError {
-            detail: format!(
-                "image_data length ({}) != mime_types length ({})",
-                image_data.len(),
-                mime_types.len()
-            ),
-        });
-    }
+    validate_vision_input(&image_data, &mime_types)?;
 
     let (provider_name, api_key, model) = with_daemon_config(|config| {
         let provider = config
@@ -291,81 +266,115 @@ pub(crate) fn send_vision_message_inner(
         })?;
 
     let runtime = get_or_create_runtime();
+    runtime.block_on(dispatch_vision_request(
+        &vision_provider,
+        &text,
+        &image_data,
+        &mime_types,
+        &model,
+        &api_key,
+    ))
+}
 
-    runtime.block_on(async {
-        let client = reqwest::Client::builder()
-            .timeout(Duration::from_secs(VISION_TIMEOUT_SECS))
-            .build()
-            .map_err(|e| FfiError::SpawnError {
-                detail: format!("failed to build HTTP client: {e}"),
-            })?;
+/// Validates vision request inputs before dispatching.
+fn validate_vision_input(image_data: &[String], mime_types: &[String]) -> Result<(), FfiError> {
+    if image_data.is_empty() {
+        return Err(FfiError::ConfigError {
+            detail: "at least one image is required".into(),
+        });
+    }
+    if image_data.len() > MAX_IMAGES {
+        return Err(FfiError::ConfigError {
+            detail: format!("too many images ({}, max {MAX_IMAGES})", image_data.len()),
+        });
+    }
+    if image_data.len() != mime_types.len() {
+        return Err(FfiError::ConfigError {
+            detail: format!(
+                "image_data length ({}) != mime_types length ({})",
+                image_data.len(),
+                mime_types.len()
+            ),
+        });
+    }
+    Ok(())
+}
 
-        let (url, body) = match &vision_provider {
-            VisionProvider::Anthropic => {
-                let body = build_anthropic_body(&text, &image_data, &mime_types, &model);
-                let url = "https://api.anthropic.com/v1/messages".to_string();
-                (url, body)
-            }
-            VisionProvider::OpenAi { base_url } => {
-                let base = base_url
-                    .as_deref()
-                    .unwrap_or("https://api.openai.com/v1");
-                let body = build_openai_body(&text, &image_data, &mime_types, &model);
-                let url = format!("{base}/chat/completions");
-                (url, body)
-            }
-            VisionProvider::Gemini => {
-                let body = build_gemini_body(&text, &image_data, &mime_types);
-                let url = format!(
-                    "https://generativelanguage.googleapis.com/v1beta/models/\
-                     {model}:generateContent?key={api_key}"
-                );
-                (url, body)
-            }
-        };
-
-        let mut request = client.post(&url).json(&body);
-
-        match &vision_provider {
-            VisionProvider::Anthropic => {
-                request = request
-                    .header("x-api-key", &api_key)
-                    .header("anthropic-version", "2023-06-01");
-            }
-            VisionProvider::OpenAi { .. } => {
-                request = request.header("Authorization", format!("Bearer {api_key}"));
-            }
-            VisionProvider::Gemini => {}
-        }
-
-        let response = request.send().await.map_err(|e| FfiError::SpawnError {
-            detail: format!("vision API request failed: {e}"),
+/// Builds the HTTP request, sends it, and parses the provider response.
+async fn dispatch_vision_request(
+    provider: &VisionProvider,
+    text: &str,
+    image_data: &[String],
+    mime_types: &[String],
+    model: &str,
+    api_key: &str,
+) -> Result<String, FfiError> {
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(VISION_TIMEOUT_SECS))
+        .build()
+        .map_err(|e| FfiError::SpawnError {
+            detail: format!("failed to build HTTP client: {e}"),
         })?;
 
-        let status = response.status();
-        if !status.is_success() {
-            let error_body = response.text().await.unwrap_or_default();
-            let truncated = if error_body.len() > 500 {
-                format!("{}...", &error_body[..500])
-            } else {
-                error_body
-            };
-            return Err(FfiError::SpawnError {
-                detail: format!("vision API returned status {status}: {truncated}"),
-            });
+    let (url, body) = match provider {
+        VisionProvider::Anthropic => {
+            let body = build_anthropic_body(text, image_data, mime_types, model);
+            ("https://api.anthropic.com/v1/messages".to_string(), body)
         }
-
-        let response_body: Value =
-            response.json().await.map_err(|e| FfiError::SpawnError {
-                detail: format!("failed to parse vision API response: {e}"),
-            })?;
-
-        match &vision_provider {
-            VisionProvider::Anthropic => parse_anthropic_response(&response_body),
-            VisionProvider::OpenAi { .. } => parse_openai_response(&response_body),
-            VisionProvider::Gemini => parse_gemini_response(&response_body),
+        VisionProvider::OpenAi { base_url } => {
+            let base = base_url.as_deref().unwrap_or("https://api.openai.com/v1");
+            let body = build_openai_body(text, image_data, mime_types, model);
+            (format!("{base}/chat/completions"), body)
         }
-    })
+        VisionProvider::Gemini => {
+            let body = build_gemini_body(text, image_data, mime_types);
+            let url = format!(
+                "https://generativelanguage.googleapis.com/v1beta/models/\
+                 {model}:generateContent?key={api_key}"
+            );
+            (url, body)
+        }
+    };
+
+    let mut request = client.post(&url).json(&body);
+    match provider {
+        VisionProvider::Anthropic => {
+            request = request
+                .header("x-api-key", api_key)
+                .header("anthropic-version", "2023-06-01");
+        }
+        VisionProvider::OpenAi { .. } => {
+            request = request.header("Authorization", format!("Bearer {api_key}"));
+        }
+        VisionProvider::Gemini => {}
+    }
+
+    let response = request.send().await.map_err(|e| FfiError::SpawnError {
+        detail: format!("vision API request failed: {e}"),
+    })?;
+
+    let status = response.status();
+    if !status.is_success() {
+        let error_body = response.text().await.unwrap_or_default();
+        let truncated = if error_body.len() > 500 {
+            format!("{}...", &error_body[..500])
+        } else {
+            error_body
+        };
+        return Err(FfiError::SpawnError {
+            detail: format!("vision API returned status {status}: {truncated}"),
+        });
+    }
+
+    let response_body: Value = response.json().await.map_err(|e| FfiError::SpawnError {
+        detail: format!("failed to parse vision API response: {e}"),
+    })?;
+
+    match provider {
+        VisionProvider::Anthropic => parse_anthropic_response(&response_body),
+        VisionProvider::OpenAi { .. } => parse_openai_response(&response_body),
+        VisionProvider::Gemini => parse_gemini_response(&response_body),
+    }
 }
 
 #[cfg(test)]
@@ -381,10 +390,7 @@ mod tests {
             classify_provider("anthropic"),
             Some(VisionProvider::Anthropic)
         );
-        assert_eq!(
-            classify_provider("claude"),
-            Some(VisionProvider::Anthropic)
-        );
+        assert_eq!(classify_provider("claude"), Some(VisionProvider::Anthropic));
         assert_eq!(
             classify_provider("Anthropic"),
             Some(VisionProvider::Anthropic)
@@ -444,14 +450,8 @@ mod tests {
 
     #[test]
     fn test_classify_gemini() {
-        assert_eq!(
-            classify_provider("gemini"),
-            Some(VisionProvider::Gemini)
-        );
-        assert_eq!(
-            classify_provider("google"),
-            Some(VisionProvider::Gemini)
-        );
+        assert_eq!(classify_provider("gemini"), Some(VisionProvider::Gemini));
+        assert_eq!(classify_provider("google"), Some(VisionProvider::Gemini));
     }
 
     #[test]
@@ -526,11 +526,7 @@ mod tests {
 
     #[test]
     fn test_build_gemini_body_single_image() {
-        let body = build_gemini_body(
-            "analyze",
-            &["aGVsbG8=".into()],
-            &["image/jpeg".into()],
-        );
+        let body = build_gemini_body("analyze", &["aGVsbG8=".into()], &["image/jpeg".into()]);
         let parts = body["contents"][0]["parts"].as_array().unwrap();
         assert_eq!(parts.len(), 2);
         assert_eq!(parts[0]["inline_data"]["mime_type"], "image/jpeg");
@@ -563,10 +559,7 @@ mod tests {
                 "message": {"content": "A beautiful sunset."}
             }]
         });
-        assert_eq!(
-            parse_openai_response(&body).unwrap(),
-            "A beautiful sunset."
-        );
+        assert_eq!(parse_openai_response(&body).unwrap(), "A beautiful sunset.");
     }
 
     #[test]
@@ -584,10 +577,7 @@ mod tests {
                 }
             }]
         });
-        assert_eq!(
-            parse_gemini_response(&body).unwrap(),
-            "A dog playing."
-        );
+        assert_eq!(parse_gemini_response(&body).unwrap(), "A dog playing.");
     }
 
     #[test]
@@ -600,11 +590,7 @@ mod tests {
 
     #[test]
     fn test_send_vision_empty_images() {
-        let result = send_vision_message_inner(
-            "hello".into(),
-            vec![],
-            vec![],
-        );
+        let result = send_vision_message_inner("hello".into(), vec![], vec![]);
         assert!(result.is_err());
         match result.unwrap_err() {
             FfiError::ConfigError { detail } => {
