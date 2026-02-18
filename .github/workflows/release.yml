@@ -124,7 +124,7 @@ jobs:
             -f tag_name="${{ steps.version.outputs.tag }}" \
             --jq '.body' > /tmp/auto-notes.md
           printf '## ZeroClaw Upstream\n' > /tmp/release-notes.md
-          printf 'Built against [ZeroClaw](https://github.com/theonlyhenrygod/zeroclaw) v%s (`%s`)\n\n' \
+          printf 'Built against [ZeroClaw](https://github.com/zeroclaw-labs/zeroclaw) v%s (`%s`)\n\n' \
             "${{ steps.upstream.outputs.version }}" "${{ steps.upstream.outputs.commit }}" >> /tmp/release-notes.md
           cat /tmp/auto-notes.md >> /tmp/release-notes.md
           gh release create "${{ steps.version.outputs.tag }}" \
