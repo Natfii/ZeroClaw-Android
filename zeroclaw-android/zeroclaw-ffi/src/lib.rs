@@ -10,13 +10,16 @@
 //!
 //! This crate provides a thin FFI layer over the `ZeroClaw` daemon,
 //! exposing `start_daemon`, `stop_daemon`, `get_status`, `send_message`,
-//! `get_version`, `validate_config`, `doctor_channels`, and
-//! `scaffold_workspace` to Kotlin via UniFFI-generated bindings.
+//! `get_version`, `validate_config`, `doctor_channels`,
+//! `scaffold_workspace`, `get_health_detail`, and
+//! `get_component_health` to Kotlin via UniFFI-generated bindings.
 
 uniffi::setup_scaffolding!();
 
 mod error;
+mod health;
 mod runtime;
+#[allow(dead_code)]
 mod types;
 mod workspace;
 
@@ -94,6 +97,40 @@ pub fn stop_daemon() -> Result<(), FfiError> {
 #[uniffi::export]
 pub fn get_status() -> Result<String, FfiError> {
     catch_unwind(runtime::get_status_inner).unwrap_or_else(|e| {
+        Err(FfiError::InternalPanic {
+            detail: panic_detail(&e),
+        })
+    })
+}
+
+/// Returns structured health detail for all daemon components.
+///
+/// Unlike [`get_status`] which returns raw JSON, this function returns
+/// typed component-level data including restart counts and last errors.
+///
+/// # Errors
+///
+/// Returns [`FfiError::StateCorrupted`] if internal state is poisoned, or
+/// [`FfiError::InternalPanic`] if native code panics.
+#[uniffi::export]
+pub fn get_health_detail() -> Result<health::FfiHealthDetail, FfiError> {
+    catch_unwind(health::get_health_detail_inner).unwrap_or_else(|e| {
+        Err(FfiError::InternalPanic {
+            detail: panic_detail(&e),
+        })
+    })
+}
+
+/// Returns health for a single named component.
+///
+/// Returns `None` if no component with the given name exists.
+///
+/// # Errors
+///
+/// Returns [`FfiError::InternalPanic`] if native code panics.
+#[uniffi::export]
+pub fn get_component_health(name: String) -> Result<Option<health::FfiComponentHealth>, FfiError> {
+    catch_unwind(|| Ok(health::get_component_health_inner(name))).unwrap_or_else(|e| {
         Err(FfiError::InternalPanic {
             detail: panic_detail(&e),
         })

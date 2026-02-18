@@ -5,6 +5,9 @@
  */
 
 //! Shared type helpers for FFI boundary conversions.
+//!
+//! These utilities are consumed by the cost and events modules once
+//! they land. The `dead_code` allow keeps the build clean in the interim.
 
 /// Converts a [`chrono::DateTime<Utc>`] to epoch milliseconds.
 ///
@@ -14,8 +17,8 @@ pub(crate) fn to_epoch_ms(dt: &chrono::DateTime<chrono::Utc>) -> i64 {
 }
 
 /// Converts an optional [`chrono::DateTime<Utc>`] to optional epoch milliseconds.
-pub(crate) fn opt_to_epoch_ms(dt: &Option<chrono::DateTime<chrono::Utc>>) -> Option<i64> {
-    dt.as_ref().map(to_epoch_ms)
+pub(crate) fn opt_to_epoch_ms(dt: Option<&chrono::DateTime<chrono::Utc>>) -> Option<i64> {
+    dt.map(to_epoch_ms)
 }
 
 #[cfg(test)]
@@ -32,12 +35,12 @@ mod tests {
 
     #[test]
     fn test_opt_to_epoch_ms_some() {
-        let dt = Some(Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).unwrap());
-        assert!(opt_to_epoch_ms(&dt).is_some());
+        let dt = Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).unwrap();
+        assert!(opt_to_epoch_ms(Some(&dt)).is_some());
     }
 
     #[test]
     fn test_opt_to_epoch_ms_none() {
-        assert!(opt_to_epoch_ms(&None).is_none());
+        assert!(opt_to_epoch_ms(None).is_none());
     }
 }

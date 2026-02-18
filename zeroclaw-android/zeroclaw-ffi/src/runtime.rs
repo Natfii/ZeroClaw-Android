@@ -36,6 +36,24 @@ fn daemon_mutex() -> &'static Mutex<Option<DaemonState>> {
     DAEMON.get_or_init(|| Mutex::new(None))
 }
 
+/// Returns whether the daemon is currently running.
+///
+/// Acquires the daemon mutex briefly to check if state is `Some`.
+/// Crate-visible so that sibling modules (e.g. `health`) can query
+/// daemon liveness without accessing `DaemonState` directly.
+///
+/// # Errors
+///
+/// Returns [`FfiError::StateCorrupted`] if the daemon mutex is poisoned.
+pub(crate) fn is_daemon_running() -> Result<bool, FfiError> {
+    let guard = daemon_mutex()
+        .lock()
+        .map_err(|_| FfiError::StateCorrupted {
+            detail: "daemon mutex poisoned".into(),
+        })?;
+    Ok(guard.is_some())
+}
+
 /// Returns a reference to the tokio runtime, creating it on first access.
 ///
 /// Uses [`OnceLock::get_or_init`] for atomic, race-free initialisation.
