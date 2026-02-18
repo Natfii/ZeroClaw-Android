@@ -24,7 +24,7 @@ import androidx.navigation.toRoute
 import com.zeroclaw.android.ui.screen.agents.AddAgentScreen
 import com.zeroclaw.android.ui.screen.agents.AgentDetailScreen
 import com.zeroclaw.android.ui.screen.agents.AgentsScreen
-import com.zeroclaw.android.ui.screen.agents.ChatScreen
+import com.zeroclaw.android.ui.screen.console.ConsoleScreen
 import com.zeroclaw.android.ui.screen.dashboard.DashboardScreen
 import com.zeroclaw.android.ui.screen.onboarding.OnboardingScreen
 import com.zeroclaw.android.ui.screen.plugins.PluginDetailScreen
@@ -70,24 +70,10 @@ fun ZeroClawNavHost(
 
         composable<AgentsRoute> {
             AgentsScreen(
-                onNavigateToChat = { agentId ->
-                    navController.navigate(AgentChatRoute(agentId = agentId))
-                },
                 onNavigateToDetail = { agentId ->
                     navController.navigate(AgentDetailRoute(agentId = agentId))
                 },
                 onNavigateToAdd = { navController.navigate(AddAgentRoute) },
-                edgeMargin = edgeMargin,
-            )
-        }
-
-        composable<AgentChatRoute> { backStackEntry ->
-            val route = backStackEntry.toRoute<AgentChatRoute>()
-            ChatScreen(
-                agentId = route.agentId,
-                onNavigateToEdit = { agentId ->
-                    navController.navigate(AgentDetailRoute(agentId = agentId))
-                },
                 edgeMargin = edgeMargin,
             )
         }
@@ -98,6 +84,9 @@ fun ZeroClawNavHost(
                 agentId = route.agentId,
                 onSaved = { navController.popBackStack() },
                 onDeleted = { navController.popBackStack() },
+                onNavigateToAddConnection = {
+                    navController.navigate(ApiKeyDetailRoute(keyId = null))
+                },
                 edgeMargin = edgeMargin,
             )
         }
@@ -105,6 +94,9 @@ fun ZeroClawNavHost(
         composable<AddAgentRoute> {
             AddAgentScreen(
                 onSaved = { navController.popBackStack() },
+                onNavigateToAddConnection = {
+                    navController.navigate(ApiKeyDetailRoute(keyId = null))
+                },
                 edgeMargin = edgeMargin,
             )
         }
@@ -125,6 +117,10 @@ fun ZeroClawNavHost(
                 onBack = { navController.popBackStack() },
                 edgeMargin = edgeMargin,
             )
+        }
+
+        composable<ConsoleRoute> {
+            ConsoleScreen(edgeMargin = edgeMargin)
         }
 
         composable<SettingsRoute> {

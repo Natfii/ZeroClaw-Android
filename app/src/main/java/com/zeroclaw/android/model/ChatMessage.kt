@@ -7,18 +7,17 @@
 package com.zeroclaw.android.model
 
 /**
- * A single message in an agent chat conversation.
+ * A single message in the daemon console conversation.
  *
- * Messages are stored in-memory within the ViewModel and are not persisted
- * across process restarts.
+ * Messages are persisted in Room and survive navigation and app restarts.
  *
- * @property id Unique identifier for the message.
+ * @property id Auto-generated primary key from Room (0 for unsaved messages).
  * @property content The message text content.
- * @property isFromUser True if the message was sent by the user, false if from the agent.
+ * @property isFromUser True if the message was sent by the user, false if from the daemon.
  * @property timestamp Epoch milliseconds when the message was created.
  */
 data class ChatMessage(
-    val id: String,
+    val id: Long = 0,
     val content: String,
     val isFromUser: Boolean,
     val timestamp: Long = System.currentTimeMillis(),

@@ -14,11 +14,13 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.zeroclaw.android.data.local.dao.ActivityEventDao
 import com.zeroclaw.android.data.local.dao.AgentDao
+import com.zeroclaw.android.data.local.dao.ChatMessageDao
 import com.zeroclaw.android.data.local.dao.ConnectedChannelDao
 import com.zeroclaw.android.data.local.dao.LogEntryDao
 import com.zeroclaw.android.data.local.dao.PluginDao
 import com.zeroclaw.android.data.local.entity.ActivityEventEntity
 import com.zeroclaw.android.data.local.entity.AgentEntity
+import com.zeroclaw.android.data.local.entity.ChatMessageEntity
 import com.zeroclaw.android.data.local.entity.ConnectedChannelEntity
 import com.zeroclaw.android.data.local.entity.LogEntryEntity
 import com.zeroclaw.android.data.local.entity.PluginEntity
@@ -44,8 +46,9 @@ import kotlinx.coroutines.launch
         LogEntryEntity::class,
         ActivityEventEntity::class,
         ConnectedChannelEntity::class,
+        ChatMessageEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 abstract class ZeroClawDatabase : RoomDatabase() {
@@ -63,6 +66,9 @@ abstract class ZeroClawDatabase : RoomDatabase() {
 
     /** Data access object for connected channel operations. */
     abstract fun connectedChannelDao(): ConnectedChannelDao
+
+    /** Data access object for daemon console chat message operations. */
+    abstract fun chatMessageDao(): ChatMessageDao
 
     /** Factory and constants for [ZeroClawDatabase]. */
     companion object {
@@ -99,13 +105,33 @@ abstract class ZeroClawDatabase : RoomDatabase() {
                 }
             }
 
+        /** Migration from schema version 3 to 4: adds the chat_messages table. */
+        private val MIGRATION_3_4 =
+            object : Migration(3, 4) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL(
+                        """
+                        CREATE TABLE IF NOT EXISTS `chat_messages` (
+                            `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                            `timestamp` INTEGER NOT NULL,
+                            `content` TEXT NOT NULL,
+                            `is_from_user` INTEGER NOT NULL
+                        )
+                        """.trimIndent(),
+                    )
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS `index_chat_messages_timestamp` ON `chat_messages` (`timestamp`)",
+                    )
+                }
+            }
+
         /**
          * Ordered array of schema migrations.
          *
          * Add new [Migration] instances here as the schema evolves.
          * Each migration covers a single version increment (e.g. 1->2).
          */
-        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3)
+        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
 
         /**
          * Builds a [ZeroClawDatabase] instance with seed data inserted on first creation.

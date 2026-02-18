@@ -11,10 +11,12 @@ import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SmartToy
+import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.outlined.Dashboard
 import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SmartToy
+import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.ui.graphics.vector.ImageVector
 
 /**
@@ -56,6 +58,14 @@ enum class TopLevelDestination(
         unselectedIcon = Icons.Outlined.Extension,
         label = "Plugins",
         route = PluginsRoute,
+    ),
+
+    /** Global daemon console for sending messages to the gateway. */
+    CONSOLE(
+        selectedIcon = Icons.Filled.Terminal,
+        unselectedIcon = Icons.Outlined.Terminal,
+        label = "Console",
+        route = ConsoleRoute,
     ),
 
     /** Application settings and configuration. */

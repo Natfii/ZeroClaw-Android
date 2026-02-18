@@ -19,7 +19,11 @@ import java.util.UUID
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonObject
 
 /** Total number of onboarding steps (including channel setup). */
 private const val TOTAL_STEPS = 5
@@ -215,6 +219,7 @@ class OnboardingViewModel(
             }
 
             saveChannelIfConfigured()
+            ensureIdentity(name)
 
             if (provider.isNotBlank()) {
                 settingsRepository.setDefaultProvider(provider)
@@ -226,6 +231,32 @@ class OnboardingViewModel(
             onboardingRepository.markComplete()
             onDone()
         }
+    }
+
+    /**
+     * Generates a minimal AIEOS v1.1 identity JSON from [agentName] if
+     * no identity has been configured yet.
+     *
+     * Only fires once — subsequent onboarding re-runs skip because
+     * [identityJson][com.zeroclaw.android.model.AppSettings.identityJson]
+     * is already populated.
+     *
+     * @param agentName Name entered during the agent config step.
+     */
+    private suspend fun ensureIdentity(agentName: String) {
+        if (agentName.isBlank()) return
+        val current = settingsRepository.settings.first()
+        if (current.identityJson.isNotBlank()) return
+
+        val json =
+            buildJsonObject {
+                putJsonObject("identity") {
+                    putJsonObject("names") {
+                        put("first", agentName)
+                    }
+                }
+            }.toString()
+        settingsRepository.setIdentityJson(json)
     }
 
     /**

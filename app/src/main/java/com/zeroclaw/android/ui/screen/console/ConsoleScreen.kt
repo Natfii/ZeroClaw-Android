@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See LICENSE in the project root.
  */
 
-package com.zeroclaw.android.ui.screen.agents
+package com.zeroclaw.android.ui.screen.console
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,9 +24,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -34,7 +33,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -60,7 +58,7 @@ private const val BUBBLE_PADDING_DP = 12
 /** Message spacing in dp. */
 private const val MESSAGE_SPACING_DP = 8
 
-/** Bottom input bar height in dp. */
+/** Bottom input bar padding in dp. */
 private const val INPUT_BAR_PADDING_DP = 8
 
 /** Max bubble width fraction of screen. */
@@ -72,37 +70,30 @@ private const val LOADING_INDICATOR_DP = 24
 /** Small spacing in dp. */
 private const val SMALL_SPACING_DP = 4
 
+/** Max bubble width multiplier. */
+private const val BUBBLE_WIDTH_MULTIPLIER = 400
+
 /**
- * CLI-style chat interface for an agent.
+ * Global daemon console screen for sending messages to the ZeroClaw gateway.
  *
- * Shows a message list with user messages right-aligned and agent
- * responses left-aligned. Includes a text input bar at the bottom
- * and a settings icon in the top bar for navigating to agent editing.
+ * Displays a chronological message list with user messages right-aligned
+ * and daemon responses left-aligned. Includes a text input bar at the
+ * bottom and a clear history action.
  *
- * @param agentId Unique identifier of the agent.
- * @param onNavigateToEdit Callback to navigate to the agent edit screen.
  * @param edgeMargin Horizontal padding based on window width size class.
- * @param chatViewModel The [ChatViewModel] for message state.
+ * @param consoleViewModel The [ConsoleViewModel] for message state.
  * @param modifier Modifier applied to the root layout.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ChatScreen(
-    agentId: String,
-    onNavigateToEdit: (String) -> Unit,
+fun ConsoleScreen(
     edgeMargin: Dp,
-    chatViewModel: ChatViewModel = viewModel(),
+    consoleViewModel: ConsoleViewModel = viewModel(),
     modifier: Modifier = Modifier,
 ) {
-    val agentName by chatViewModel.agentName.collectAsStateWithLifecycle()
-    val messages by chatViewModel.messages.collectAsStateWithLifecycle()
-    val isLoading by chatViewModel.isLoading.collectAsStateWithLifecycle()
+    val messages by consoleViewModel.messages.collectAsStateWithLifecycle()
+    val isLoading by consoleViewModel.isLoading.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     var inputText by remember { mutableStateOf("") }
-
-    LaunchedEffect(agentId) {
-        chatViewModel.loadAgent(agentId)
-    }
 
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
@@ -110,25 +101,7 @@ fun ChatScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(agentName.ifBlank { "Chat" }) },
-                actions = {
-                    IconButton(
-                        onClick = { onNavigateToEdit(agentId) },
-                        modifier =
-                            Modifier.semantics {
-                                contentDescription = "Edit agent settings"
-                            },
-                    ) {
-                        Icon(Icons.Outlined.Settings, contentDescription = null)
-                    }
-                },
-            )
-        },
-        modifier = modifier,
-    ) { innerPadding ->
+    Scaffold(modifier = modifier) { innerPadding ->
         Column(
             modifier =
                 Modifier
@@ -136,6 +109,12 @@ fun ChatScreen(
                     .padding(innerPadding)
                     .imePadding(),
         ) {
+            ClearHistoryBar(
+                onClear = { consoleViewModel.clearHistory() },
+                hasMessages = messages.isNotEmpty(),
+                modifier = Modifier.padding(horizontal = edgeMargin),
+            )
+
             LazyColumn(
                 state = listState,
                 modifier =
@@ -147,7 +126,7 @@ fun ChatScreen(
                 items(
                     items = messages,
                     key = { it.id },
-                    contentType = { if (it.isFromUser) "user" else "agent" },
+                    contentType = { if (it.isFromUser) "user" else "daemon" },
                 ) { message ->
                     ChatBubble(message = message)
                 }
@@ -163,7 +142,7 @@ fun ChatScreen(
                 value = inputText,
                 onValueChange = { inputText = it },
                 onSend = {
-                    chatViewModel.sendMessage(inputText)
+                    consoleViewModel.sendMessage(inputText)
                     inputText = ""
                 },
                 isLoading = isLoading,
@@ -178,10 +157,49 @@ fun ChatScreen(
 }
 
 /**
+ * Top bar with a clear history button aligned to the end.
+ *
+ * @param onClear Callback when the clear button is tapped.
+ * @param hasMessages Whether there are messages to clear.
+ * @param modifier Modifier applied to the bar.
+ */
+@Composable
+private fun ClearHistoryBar(
+    onClear: () -> Unit,
+    hasMessages: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.End,
+    ) {
+        IconButton(
+            onClick = onClear,
+            enabled = hasMessages,
+            modifier =
+                Modifier.semantics {
+                    contentDescription = "Clear chat history"
+                },
+        ) {
+            Icon(
+                Icons.Outlined.DeleteSweep,
+                contentDescription = null,
+                tint =
+                    if (hasMessages) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                    },
+            )
+        }
+    }
+}
+
+/**
  * Chat bubble displaying a single message.
  *
  * User messages are right-aligned with primary container color.
- * Agent messages are left-aligned with surface variant color.
+ * Daemon messages are left-aligned with surface variant color.
  *
  * @param message The chat message to display.
  */
@@ -206,7 +224,7 @@ private fun ChatBubble(message: ChatMessage) {
                 },
             modifier =
                 Modifier.widthIn(
-                    max = MAX_BUBBLE_WIDTH_FRACTION.dp * 400,
+                    max = MAX_BUBBLE_WIDTH_FRACTION.dp * BUBBLE_WIDTH_MULTIPLIER,
                 ),
         ) {
             Text(
@@ -225,7 +243,7 @@ private fun ChatBubble(message: ChatMessage) {
 }
 
 /**
- * Typing indicator shown while waiting for the agent's response.
+ * Typing indicator shown while waiting for the daemon's response.
  */
 @Composable
 private fun TypingIndicator() {

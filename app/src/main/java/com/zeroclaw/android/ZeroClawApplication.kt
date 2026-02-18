@@ -22,6 +22,7 @@ import com.zeroclaw.android.data.repository.ActivityRepository
 import com.zeroclaw.android.data.repository.AgentRepository
 import com.zeroclaw.android.data.repository.ApiKeyRepository
 import com.zeroclaw.android.data.repository.ChannelConfigRepository
+import com.zeroclaw.android.data.repository.ChatMessageRepository
 import com.zeroclaw.android.data.repository.DataStoreOnboardingRepository
 import com.zeroclaw.android.data.repository.DataStoreSettingsRepository
 import com.zeroclaw.android.data.repository.EncryptedApiKeyRepository
@@ -32,6 +33,7 @@ import com.zeroclaw.android.data.repository.PluginRepository
 import com.zeroclaw.android.data.repository.RoomActivityRepository
 import com.zeroclaw.android.data.repository.RoomAgentRepository
 import com.zeroclaw.android.data.repository.RoomChannelConfigRepository
+import com.zeroclaw.android.data.repository.RoomChatMessageRepository
 import com.zeroclaw.android.data.repository.RoomLogRepository
 import com.zeroclaw.android.data.repository.RoomPluginRepository
 import com.zeroclaw.android.data.repository.SettingsRepository
@@ -102,6 +104,10 @@ class ZeroClawApplication :
     lateinit var channelConfigRepository: ChannelConfigRepository
         private set
 
+    /** Daemon console chat message repository backed by Room. */
+    lateinit var chatMessageRepository: ChatMessageRepository
+        private set
+
     override fun onCreate() {
         super.onCreate()
         System.loadLibrary("zeroclaw")
@@ -119,6 +125,7 @@ class ZeroClawApplication :
         agentRepository = RoomAgentRepository(database.agentDao())
         pluginRepository = RoomPluginRepository(database.pluginDao())
         channelConfigRepository = createChannelConfigRepository()
+        chatMessageRepository = RoomChatMessageRepository(database.chatMessageDao(), ioScope)
     }
 
     /**

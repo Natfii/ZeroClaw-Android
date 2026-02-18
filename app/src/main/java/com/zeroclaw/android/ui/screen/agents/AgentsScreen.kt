@@ -20,12 +20,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.SmartToy
 import androidx.compose.material3.Card
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -48,10 +46,8 @@ import com.zeroclaw.android.ui.component.ProviderIcon
 /**
  * Agent list and management screen with search and FAB for adding agents.
  *
- * Tapping an agent card opens the chat screen. The edit icon on each card
- * navigates to the agent detail (edit) screen.
+ * Tapping an agent card navigates to the agent detail (edit) screen.
  *
- * @param onNavigateToChat Callback to navigate to agent chat.
  * @param onNavigateToDetail Callback to navigate to agent detail for editing.
  * @param onNavigateToAdd Callback to navigate to the add agent screen.
  * @param edgeMargin Horizontal padding based on window width size class.
@@ -60,7 +56,6 @@ import com.zeroclaw.android.ui.component.ProviderIcon
  */
 @Composable
 fun AgentsScreen(
-    onNavigateToChat: (String) -> Unit,
     onNavigateToDetail: (String) -> Unit,
     onNavigateToAdd: () -> Unit,
     edgeMargin: Dp,
@@ -122,8 +117,7 @@ fun AgentsScreen(
                         AgentListItem(
                             agent = agent,
                             onToggle = { agentsViewModel.toggleAgent(agent.id) },
-                            onClick = { onNavigateToChat(agent.id) },
-                            onEdit = { onNavigateToDetail(agent.id) },
+                            onClick = { onNavigateToDetail(agent.id) },
                         )
                     }
                 }
@@ -133,22 +127,19 @@ fun AgentsScreen(
 }
 
 /**
- * Single agent row in the list with provider icon, name, edit button, and enable toggle.
+ * Single agent row in the list with provider icon, name, and enable toggle.
  *
- * Tapping the card opens the chat screen. The edit icon navigates to the
- * agent detail screen for editing.
+ * Tapping the card navigates to the agent detail (edit) screen.
  *
  * @param agent The agent to display.
  * @param onToggle Callback when the enable switch is toggled.
- * @param onClick Callback when the card is tapped (opens chat).
- * @param onEdit Callback when the edit icon is tapped.
+ * @param onClick Callback when the card is tapped (opens detail).
  */
 @Composable
 private fun AgentListItem(
     agent: Agent,
     onToggle: () -> Unit,
     onClick: () -> Unit,
-    onEdit: () -> Unit,
 ) {
     Card(
         onClick = onClick,
@@ -172,19 +163,6 @@ private fun AgentListItem(
                     text = "${agent.provider} \u2022 ${agent.modelName}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            IconButton(
-                onClick = onEdit,
-                modifier =
-                    Modifier.semantics {
-                        contentDescription = "Edit ${agent.name}"
-                    },
-            ) {
-                Icon(
-                    Icons.Outlined.Edit,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             Switch(

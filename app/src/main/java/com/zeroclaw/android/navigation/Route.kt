@@ -103,15 +103,9 @@ data class ChannelDetailRoute(
     val channelType: String? = null,
 )
 
-/**
- * Agent chat screen.
- *
- * @property agentId Unique identifier of the agent to chat with.
- */
+/** Global daemon console screen. */
 @Serializable
-data class AgentChatRoute(
-    val agentId: String,
-)
+data object ConsoleRoute
 
 /** ZeroClaw Doctor diagnostics screen. */
 @Serializable

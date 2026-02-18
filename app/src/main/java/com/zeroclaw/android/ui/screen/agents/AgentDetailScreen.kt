@@ -26,6 +26,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,6 +43,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zeroclaw.android.data.ProviderRegistry
 import com.zeroclaw.android.model.Agent
 import com.zeroclaw.android.ui.component.CollapsibleSection
+import com.zeroclaw.android.ui.component.ConnectionPickerSection
 import com.zeroclaw.android.ui.component.ModelSuggestionField
 import com.zeroclaw.android.ui.component.ProviderDropdown
 
@@ -75,12 +77,13 @@ private const val DEFAULT_DETAIL_TEMPERATURE = 0.7f
 /**
  * Agent detail screen with editable fields and collapsible sections.
  *
- * Uses [ProviderDropdown] for provider selection and [ModelSuggestionField]
- * for model entry with suggestions from the registry.
+ * Uses [ConnectionPickerSection] for connection selection with a
+ * [ProviderDropdown] fallback, and [ModelSuggestionField] for model entry.
  *
  * @param agentId Unique identifier of the agent to display.
  * @param onSaved Callback invoked after saving changes.
  * @param onDeleted Callback invoked after deleting the agent.
+ * @param onNavigateToAddConnection Callback to navigate to the API key add screen.
  * @param edgeMargin Horizontal padding based on window width size class.
  * @param detailViewModel The [AgentDetailViewModel] for agent state.
  * @param modifier Modifier applied to the root layout.
@@ -90,6 +93,7 @@ fun AgentDetailScreen(
     agentId: String,
     onSaved: () -> Unit,
     onDeleted: () -> Unit,
+    onNavigateToAddConnection: () -> Unit,
     edgeMargin: Dp,
     detailViewModel: AgentDetailViewModel = viewModel(),
     modifier: Modifier = Modifier,
@@ -99,6 +103,7 @@ fun AgentDetailScreen(
     }
 
     val agent by detailViewModel.agent.collectAsStateWithLifecycle()
+    val apiKeys by detailViewModel.apiKeys.collectAsStateWithLifecycle()
     val loadedAgent = agent ?: return
 
     var name by remember(loadedAgent) { mutableStateOf(loadedAgent.name) }
@@ -113,6 +118,20 @@ fun AgentDetailScreen(
     }
     var maxDepth by remember(loadedAgent) {
         mutableStateOf(loadedAgent.maxDepth.toString())
+    }
+
+    val initialConnectionId by remember(loadedAgent, apiKeys) {
+        derivedStateOf {
+            val agentProvider = ProviderRegistry.findById(loadedAgent.provider)?.id
+            apiKeys
+                .firstOrNull { key ->
+                    val keyProvider = ProviderRegistry.findById(key.provider)?.id
+                    keyProvider == agentProvider
+                }?.id
+        }
+    }
+    var selectedConnectionId by remember(initialConnectionId) {
+        mutableStateOf(initialConnectionId)
     }
 
     val providerInfo = ProviderRegistry.findById(providerId)
@@ -142,11 +161,28 @@ fun AgentDetailScreen(
         )
         Spacer(modifier = Modifier.height(FIELD_SPACING_DP.dp))
 
-        ProviderDropdown(
-            selectedProviderId = providerId,
-            onProviderSelected = { providerId = it.id },
-            modifier = Modifier.fillMaxWidth(),
+        ConnectionPickerSection(
+            keys = apiKeys,
+            selectedKeyId = selectedConnectionId,
+            onKeySelected = { key ->
+                selectedConnectionId = key.id
+                val resolved = ProviderRegistry.findById(key.provider)
+                providerId = resolved?.id ?: key.provider
+            },
+            onAddNewConnection = onNavigateToAddConnection,
         )
+        Spacer(modifier = Modifier.height(FIELD_SPACING_DP.dp))
+
+        CollapsibleSection(title = "Use a different provider") {
+            ProviderDropdown(
+                selectedProviderId = providerId,
+                onProviderSelected = {
+                    providerId = it.id
+                    selectedConnectionId = null
+                },
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
         Spacer(modifier = Modifier.height(FIELD_SPACING_DP.dp))
 
         ModelSuggestionField(
