@@ -14,6 +14,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 /**
  * Room-backed [ChatMessageRepository] implementation.
@@ -41,13 +43,16 @@ class RoomChatMessageRepository(
     override suspend fun append(
         content: String,
         isFromUser: Boolean,
+        imageUris: List<String>,
     ): ChatMessage {
         val now = System.currentTimeMillis()
+        val imagesJson = if (imageUris.isEmpty()) null else Json.encodeToString(imageUris)
         val entity =
             ChatMessageEntity(
                 timestamp = now,
                 content = content,
                 isFromUser = isFromUser,
+                imagesJson = imagesJson,
             )
         val generatedId = dao.insert(entity)
         pruneIfNeeded()
@@ -56,6 +61,7 @@ class RoomChatMessageRepository(
             content = content,
             isFromUser = isFromUser,
             timestamp = now,
+            imageUris = imageUris,
         )
     }
 

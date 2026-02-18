@@ -138,7 +138,7 @@ pub(crate) fn with_memory<T>(
 ///
 /// Uses [`OnceLock::get_or_init`] for atomic, race-free initialisation.
 /// Panics only if the tokio runtime builder fails, which is unrecoverable.
-fn get_or_create_runtime() -> &'static Runtime {
+pub(crate) fn get_or_create_runtime() -> &'static Runtime {
     RUNTIME.get_or_init(|| {
         tokio::runtime::Builder::new_multi_thread()
             .enable_all()

@@ -167,7 +167,7 @@ fun ActivityEvent.toEntity(): ActivityEventEntity =
  * Converts a [ChatMessageEntity] to its domain [ChatMessage] model.
  *
  * @receiver The Room entity to convert.
- * @return The equivalent domain model.
+ * @return The equivalent domain model with deserialized image URIs.
  */
 fun ChatMessageEntity.toModel(): ChatMessage =
     ChatMessage(
@@ -175,13 +175,14 @@ fun ChatMessageEntity.toModel(): ChatMessage =
         content = content,
         isFromUser = isFromUser,
         timestamp = timestamp,
+        imageUris = deserializeImageUris(imagesJson),
     )
 
 /**
  * Converts a [ChatMessage] domain model to its [ChatMessageEntity] for persistence.
  *
  * @receiver The domain model to convert.
- * @return The equivalent Room entity.
+ * @return The equivalent Room entity with serialized image URIs.
  */
 fun ChatMessage.toEntity(): ChatMessageEntity =
     ChatMessageEntity(
@@ -189,6 +190,7 @@ fun ChatMessage.toEntity(): ChatMessageEntity =
         timestamp = timestamp,
         content = content,
         isFromUser = isFromUser,
+        imagesJson = if (imageUris.isEmpty()) null else mapperJson.encodeToString(imageUris),
     )
 
 /**
@@ -288,3 +290,17 @@ private fun deserializeActivityType(name: String): ActivityType =
  * @return Matching [ChannelType], or null if unknown.
  */
 private fun deserializeChannelType(name: String): ChannelType? = runCatching { ChannelType.valueOf(name) }.getOrNull()
+
+/**
+ * Deserializes a nullable JSON string to a list of image URI strings.
+ *
+ * @param json JSON-encoded list of URI strings, or null.
+ * @return Deserialized list, or empty list if JSON is null, blank, or invalid.
+ */
+private fun deserializeImageUris(json: String?): List<String> =
+    if (json.isNullOrBlank()) {
+        emptyList()
+    } else {
+        runCatching { mapperJson.decodeFromString<List<String>>(json) }
+            .getOrDefault(emptyList())
+    }

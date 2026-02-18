@@ -51,6 +51,7 @@ import com.zeroclaw.android.service.MemoryBridge
 import com.zeroclaw.android.service.PluginSyncWorker
 import com.zeroclaw.android.service.SkillsBridge
 import com.zeroclaw.android.service.ToolsBridge
+import com.zeroclaw.android.service.VisionBridge
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -150,6 +151,9 @@ class ZeroClawApplication :
     /** Bridge for memory browsing and management FFI calls. */
     lateinit var memoryBridge: MemoryBridge
         private set
+
+    /** Bridge for direct-to-provider multimodal vision API calls. */
+    val visionBridge: VisionBridge by lazy { VisionBridge() }
 
     override fun onCreate() {
         super.onCreate()

@@ -9,11 +9,18 @@ package com.zeroclaw.android.ui.screen.console
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,12 +31,17 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.DeleteSweep
+import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Replay
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -49,6 +61,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -56,7 +70,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
 import com.zeroclaw.android.model.ChatMessage
+import com.zeroclaw.android.model.ProcessedImage
 import com.zeroclaw.android.ui.component.LoadingIndicator
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -87,6 +104,30 @@ private const val SMALL_SPACING_DP = 4
 /** Max bubble width multiplier. */
 private const val BUBBLE_WIDTH_MULTIPLIER = 400
 
+/** Pending thumbnail size in dp. */
+private const val THUMBNAIL_SIZE_DP = 56
+
+/** Thumbnail corner radius in dp. */
+private const val THUMBNAIL_CORNER_DP = 8
+
+/** Dismiss badge size in dp. */
+private const val DISMISS_BADGE_DP = 18
+
+/** Message image grid item size in dp. */
+private const val IMAGE_GRID_SIZE_DP = 80
+
+/** Maximum images per picker invocation. */
+private const val MAX_PICKER_IMAGES = 5
+
+/** Counter badge corner radius in dp. */
+private const val COUNTER_BADGE_CORNER_DP = 12
+
+/** Counter badge horizontal padding in dp. */
+private const val COUNTER_BADGE_H_PAD_DP = 8
+
+/** Counter badge vertical padding in dp. */
+private const val COUNTER_BADGE_V_PAD_DP = 2
+
 /** Timestamp format for chat messages. */
 private val chatTimeFormat = SimpleDateFormat("HH:mm", Locale.US)
 
@@ -95,8 +136,9 @@ private val chatTimeFormat = SimpleDateFormat("HH:mm", Locale.US)
  *
  * Displays a chronological message list with user messages right-aligned
  * and daemon responses left-aligned. Includes a text input bar at the
- * bottom, a clear history action, and timestamps on each message.
- * Long-press a message to copy its content to the clipboard.
+ * bottom with an image attach button, a pending thumbnail strip, a clear
+ * history action, and timestamps on each message. Long-press a message
+ * to copy its content to the clipboard.
  *
  * @param edgeMargin Horizontal padding based on window width size class.
  * @param consoleViewModel The [ConsoleViewModel] for message state.
@@ -110,11 +152,22 @@ fun ConsoleScreen(
 ) {
     val messages by consoleViewModel.messages.collectAsStateWithLifecycle()
     val isLoading by consoleViewModel.isLoading.collectAsStateWithLifecycle()
+    val pendingImages by consoleViewModel.pendingImages.collectAsStateWithLifecycle()
+    val isProcessingImages by consoleViewModel.isProcessingImages.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     var inputText by remember { mutableStateOf("") }
+
+    val photoPickerLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.PickMultipleVisualMedia(MAX_PICKER_IMAGES),
+        ) { uris: List<Uri> ->
+            if (uris.isNotEmpty()) {
+                consoleViewModel.attachImages(uris)
+            }
+        }
 
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
@@ -181,6 +234,15 @@ fun ConsoleScreen(
                 }
             }
 
+            if (pendingImages.isNotEmpty() || isProcessingImages) {
+                PendingImageStrip(
+                    images = pendingImages,
+                    isProcessing = isProcessingImages,
+                    onRemove = { consoleViewModel.removeImage(it) },
+                    modifier = Modifier.padding(horizontal = edgeMargin),
+                )
+            }
+
             ChatInputBar(
                 value = inputText,
                 onValueChange = { inputText = it },
@@ -188,12 +250,162 @@ fun ConsoleScreen(
                     consoleViewModel.sendMessage(inputText)
                     inputText = ""
                 },
+                onAttach = {
+                    photoPickerLauncher.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+                    )
+                },
                 isLoading = isLoading,
+                hasImages = pendingImages.isNotEmpty(),
                 modifier =
                     Modifier.padding(
                         horizontal = edgeMargin,
                         vertical = INPUT_BAR_PADDING_DP.dp,
                     ),
+            )
+        }
+    }
+}
+
+/**
+ * Horizontal strip of pending image thumbnails with dismiss buttons.
+ *
+ * Shows a count badge (e.g. "3/5") and a loading indicator while images
+ * are being processed.
+ *
+ * @param images Currently staged images.
+ * @param isProcessing Whether images are still being processed.
+ * @param onRemove Callback to remove an image by index.
+ * @param modifier Modifier applied to the strip.
+ */
+@Composable
+private fun PendingImageStrip(
+    images: List<ProcessedImage>,
+    isProcessing: Boolean,
+    onRemove: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(bottom = SMALL_SPACING_DP.dp),
+        ) {
+            Text(
+                text = "${images.size}/$MAX_PICKER_IMAGES",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier =
+                    Modifier
+                        .background(
+                            MaterialTheme.colorScheme.surfaceVariant,
+                            RoundedCornerShape(COUNTER_BADGE_CORNER_DP.dp),
+                        ).padding(
+                            horizontal = COUNTER_BADGE_H_PAD_DP.dp,
+                            vertical = COUNTER_BADGE_V_PAD_DP.dp,
+                        ),
+            )
+            if (isProcessing) {
+                Spacer(modifier = Modifier.width(MESSAGE_SPACING_DP.dp))
+                LoadingIndicator(modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(SMALL_SPACING_DP.dp))
+                Text(
+                    text = "Processing...",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(MESSAGE_SPACING_DP.dp),
+            contentPadding = PaddingValues(vertical = SMALL_SPACING_DP.dp),
+        ) {
+            itemsIndexed(
+                items = images,
+                key = { _, img -> img.originalUri },
+            ) { index, image ->
+                PendingThumbnail(
+                    image = image,
+                    onRemove = { onRemove(index) },
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Single pending image thumbnail with a dismiss badge.
+ *
+ * @param image The processed image to display.
+ * @param onRemove Callback when the dismiss badge is tapped.
+ */
+@Composable
+private fun PendingThumbnail(
+    image: ProcessedImage,
+    onRemove: () -> Unit,
+) {
+    Box(modifier = Modifier.size(THUMBNAIL_SIZE_DP.dp)) {
+        AsyncImage(
+            model =
+                ImageRequest
+                    .Builder(LocalContext.current)
+                    .data(Uri.parse(image.originalUri))
+                    .build(),
+            contentDescription = image.displayName,
+            contentScale = ContentScale.Crop,
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(THUMBNAIL_CORNER_DP.dp)),
+        )
+        Box(
+            modifier =
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .size(DISMISS_BADGE_DP.dp)
+                    .background(MaterialTheme.colorScheme.error, CircleShape)
+                    .clickable(onClick = onRemove)
+                    .semantics { contentDescription = "Remove ${image.displayName}" },
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Close,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onError,
+                modifier = Modifier.size(12.dp),
+            )
+        }
+    }
+}
+
+/**
+ * Image grid displayed inside a user message bubble.
+ *
+ * Shows thumbnails of attached images in a horizontal row.
+ *
+ * @param imageUris Content URIs of the attached images.
+ */
+@Composable
+private fun MessageImageGrid(imageUris: List<String>) {
+    LazyRow(
+        horizontalArrangement = Arrangement.spacedBy(SMALL_SPACING_DP.dp),
+        contentPadding = PaddingValues(bottom = MESSAGE_SPACING_DP.dp),
+    ) {
+        items(
+            items = imageUris,
+            key = { it },
+        ) { uriString ->
+            AsyncImage(
+                model =
+                    ImageRequest
+                        .Builder(LocalContext.current)
+                        .data(Uri.parse(uriString))
+                        .build(),
+                contentDescription = "Attached image",
+                contentScale = ContentScale.Crop,
+                modifier =
+                    Modifier
+                        .size(IMAGE_GRID_SIZE_DP.dp)
+                        .clip(RoundedCornerShape(THUMBNAIL_CORNER_DP.dp)),
             )
         }
     }
@@ -239,11 +451,12 @@ private fun ClearHistoryBar(
 }
 
 /**
- * Chat bubble displaying a single message with timestamp.
+ * Chat bubble displaying a single message with timestamp and optional image grid.
  *
  * User messages are right-aligned with primary container color.
  * Daemon messages are left-aligned with surface variant color.
  * Long-press to copy message content. Error responses show a retry button.
+ * Messages with images show a thumbnail grid above the text.
  *
  * @param message The chat message to display.
  * @param onCopy Callback invoked when the user copies the message.
@@ -286,16 +499,21 @@ private fun ChatBubble(
                         },
             ) {
                 Column(modifier = Modifier.padding(BUBBLE_PADDING_DP.dp)) {
-                    Text(
-                        text = message.content,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color =
-                            when {
-                                isError -> MaterialTheme.colorScheme.onErrorContainer
-                                isUser -> MaterialTheme.colorScheme.onPrimaryContainer
-                                else -> MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                    )
+                    if (message.imageUris.isNotEmpty()) {
+                        MessageImageGrid(message.imageUris)
+                    }
+                    if (message.content.isNotBlank()) {
+                        Text(
+                            text = message.content,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color =
+                                when {
+                                    isError -> MaterialTheme.colorScheme.onErrorContainer
+                                    isUser -> MaterialTheme.colorScheme.onPrimaryContainer
+                                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                        )
+                    }
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(SMALL_SPACING_DP.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -362,12 +580,14 @@ private fun TypingIndicator() {
 }
 
 /**
- * Input bar with a text field and send button.
+ * Input bar with an attach button, text field, and send button.
  *
  * @param value Current input text.
  * @param onValueChange Callback when text changes.
  * @param onSend Callback when the send button is tapped.
+ * @param onAttach Callback when the attach button is tapped.
  * @param isLoading Whether a response is in progress (disables send).
+ * @param hasImages Whether images are currently attached.
  * @param modifier Modifier applied to the input bar.
  */
 @Composable
@@ -375,13 +595,36 @@ private fun ChatInputBar(
     value: String,
     onValueChange: (String) -> Unit,
     onSend: () -> Unit,
+    onAttach: () -> Unit,
     isLoading: Boolean,
+    hasImages: Boolean,
     modifier: Modifier = Modifier,
 ) {
+    val canSend = (value.isNotBlank() || hasImages) && !isLoading
+
     Row(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        IconButton(
+            onClick = onAttach,
+            enabled = !isLoading,
+            modifier =
+                Modifier.semantics {
+                    contentDescription = "Attach images"
+                },
+        ) {
+            Icon(
+                Icons.Outlined.Image,
+                contentDescription = null,
+                tint =
+                    if (!isLoading) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                    },
+            )
+        }
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
@@ -392,7 +635,7 @@ private fun ChatInputBar(
         Spacer(modifier = Modifier.width(MESSAGE_SPACING_DP.dp))
         IconButton(
             onClick = onSend,
-            enabled = value.isNotBlank() && !isLoading,
+            enabled = canSend,
             modifier =
                 Modifier.semantics {
                     contentDescription = "Send message"
@@ -402,7 +645,7 @@ private fun ChatInputBar(
                 Icons.AutoMirrored.Filled.Send,
                 contentDescription = null,
                 tint =
-                    if (value.isNotBlank() && !isLoading) {
+                    if (canSend) {
                         MaterialTheme.colorScheme.primary
                     } else {
                         MaterialTheme.colorScheme.onSurfaceVariant

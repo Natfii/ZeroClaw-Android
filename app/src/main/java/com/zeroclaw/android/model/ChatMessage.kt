@@ -15,10 +15,12 @@ package com.zeroclaw.android.model
  * @property content The message text content.
  * @property isFromUser True if the message was sent by the user, false if from the daemon.
  * @property timestamp Epoch milliseconds when the message was created.
+ * @property imageUris Content URIs of images attached to this message (empty for text-only).
  */
 data class ChatMessage(
     val id: Long = 0,
     val content: String,
     val isFromUser: Boolean,
     val timestamp: Long = System.currentTimeMillis(),
+    val imageUris: List<String> = emptyList(),
 )
