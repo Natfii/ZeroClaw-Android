@@ -14,7 +14,6 @@ package com.zeroclaw.android.model
  * a fallback branch.
  */
 sealed interface BudgetStatus {
-
     /**
      * Spending is within the configured limit; requests may proceed normally.
      */
