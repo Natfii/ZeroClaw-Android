@@ -12,6 +12,7 @@ import com.zeroclaw.android.model.KeyRejectionEvent
 import com.zeroclaw.android.model.ServiceState
 import com.zeroclaw.ffi.FfiException
 import com.zeroclaw.ffi.getStatus
+import com.zeroclaw.ffi.scaffoldWorkspace
 import com.zeroclaw.ffi.sendMessage
 import com.zeroclaw.ffi.startDaemon
 import com.zeroclaw.ffi.stopDaemon
@@ -213,6 +214,40 @@ class DaemonServiceBridge(
             }
             throw e
         }
+
+    /**
+     * Scaffolds the workspace directory with identity template files.
+     *
+     * Creates the standard `ZeroClaw` workspace structure (5 subdirectories
+     * and 8 markdown identity files) at `{dataDir}/zeroclaw/workspace`.
+     * Existing files are never overwritten (idempotent).
+     *
+     * Safe to call from the main thread; the underlying **blocking** FFI
+     * call is dispatched to [Dispatchers.IO].
+     *
+     * @param agentName Name for the AI agent (empty defaults to "ZeroClaw").
+     * @param userName Name of the human user (empty defaults to "User").
+     * @param timezone IANA timezone ID (empty defaults to "UTC").
+     * @param communicationStyle Preferred tone (empty uses upstream default).
+     * @throws FfiException if the native layer reports an I/O error.
+     */
+    @Throws(FfiException::class)
+    suspend fun ensureWorkspace(
+        agentName: String,
+        userName: String,
+        timezone: String,
+        communicationStyle: String,
+    ) {
+        withContext(ioDispatcher) {
+            scaffoldWorkspace(
+                "$dataDir/zeroclaw/workspace",
+                agentName,
+                userName,
+                timezone,
+                communicationStyle,
+            )
+        }
+    }
 
     /**
      * Parses a raw JSON health snapshot into a [DaemonStatus].

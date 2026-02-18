@@ -15,6 +15,7 @@ import com.zeroclaw.android.model.Agent
 import com.zeroclaw.android.model.ApiKey
 import com.zeroclaw.android.model.ChannelType
 import com.zeroclaw.android.model.ConnectedChannel
+import java.util.TimeZone
 import java.util.UUID
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -238,6 +239,7 @@ class OnboardingViewModel(
 
             saveChannelIfConfigured()
             ensureIdentity(name)
+            scaffoldWorkspaceIfNeeded(name)
 
             if (provider.isNotBlank()) {
                 settingsRepository.setDefaultProvider(provider)
@@ -303,6 +305,28 @@ class OnboardingViewModel(
                 }
             }.toString()
         settingsRepository.setIdentityJson(json)
+    }
+
+    /**
+     * Scaffolds the workspace directory with identity template files.
+     *
+     * Best-effort: failures are silently ignored because the daemon can
+     * still start without workspace files (it just lacks personalisation).
+     *
+     * @param agentName Name entered during the daemon naming step.
+     */
+    @Suppress("TooGenericExceptionCaught")
+    private suspend fun scaffoldWorkspaceIfNeeded(agentName: String) {
+        try {
+            app.daemonBridge.ensureWorkspace(
+                agentName = agentName,
+                userName = "User",
+                timezone = TimeZone.getDefault().id,
+                communicationStyle = "",
+            )
+        } catch (_: Exception) {
+            /* Workspace scaffold is best-effort; daemon can still start. */
+        }
     }
 
     /**

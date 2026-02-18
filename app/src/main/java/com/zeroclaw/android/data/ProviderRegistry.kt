@@ -94,9 +94,10 @@ object ProviderRegistry {
                 authType = ProviderAuthType.API_KEY_ONLY,
                 suggestedModels =
                     listOf(
+                        "claude-opus-4-6",
+                        "claude-sonnet-4-6",
                         "claude-sonnet-4-5-20250929",
                         "claude-haiku-4-5-20251001",
-                        "claude-opus-4-6",
                     ),
                 category = ProviderCategory.PRIMARY,
                 iconUrl = faviconUrl("anthropic.com"),
@@ -110,8 +111,8 @@ object ProviderRegistry {
                 suggestedModels =
                     listOf(
                         "openai/gpt-4o",
-                        "anthropic/claude-sonnet-4-5",
-                        "google/gemini-2.0-flash",
+                        "anthropic/claude-sonnet-4-6",
+                        "google/gemini-2.5-flash",
                     ),
                 category = ProviderCategory.PRIMARY,
                 iconUrl = faviconUrl("openrouter.ai"),
@@ -124,10 +125,10 @@ object ProviderRegistry {
                 authType = ProviderAuthType.API_KEY_ONLY,
                 suggestedModels =
                     listOf(
+                        "gemini-2.5-pro",
+                        "gemini-2.5-flash",
                         "gemini-2.0-flash",
                         "gemini-2.0-flash-lite",
-                        "gemini-1.5-pro",
-                        "gemini-1.5-flash",
                     ),
                 aliases = listOf("google", "gemini"),
                 category = ProviderCategory.PRIMARY,

@@ -10,13 +10,14 @@
 //!
 //! This crate provides a thin FFI layer over the `ZeroClaw` daemon,
 //! exposing `start_daemon`, `stop_daemon`, `get_status`, `send_message`,
-//! `get_version`, `validate_config`, and `doctor_channels` to Kotlin
-//! via UniFFI-generated bindings.
+//! `get_version`, `validate_config`, `doctor_channels`, and
+//! `scaffold_workspace` to Kotlin via UniFFI-generated bindings.
 
 uniffi::setup_scaffolding!();
 
 mod error;
 mod runtime;
+mod workspace;
 
 use std::panic::catch_unwind;
 
@@ -172,6 +173,45 @@ pub fn get_version() -> Result<String, FfiError> {
     })
 }
 
+/// Scaffolds the `ZeroClaw` workspace directory with identity files.
+///
+/// Creates 5 subdirectories (`sessions/`, `memory/`, `state/`, `cron/`,
+/// `skills/`) and writes 8 markdown template files (`IDENTITY.md`,
+/// `AGENTS.md`, `HEARTBEAT.md`, `SOUL.md`, `USER.md`, `TOOLS.md`,
+/// `BOOTSTRAP.md`, `MEMORY.md`) inside `workspace_path`.
+///
+/// Idempotent: existing files are never overwritten. Empty parameter
+/// strings are replaced with upstream defaults (e.g. agent name
+/// defaults to `"ZeroClaw"`).
+///
+/// # Errors
+///
+/// Returns [`FfiError::ConfigError`] if directory creation or file
+/// writing fails, or [`FfiError::InternalPanic`] if native code panics.
+#[uniffi::export]
+pub fn scaffold_workspace(
+    workspace_path: String,
+    agent_name: String,
+    user_name: String,
+    timezone: String,
+    communication_style: String,
+) -> Result<(), FfiError> {
+    catch_unwind(|| {
+        workspace::create_workspace(
+            &workspace_path,
+            &agent_name,
+            &user_name,
+            &timezone,
+            &communication_style,
+        )
+    })
+    .unwrap_or_else(|e| {
+        Err(FfiError::InternalPanic {
+            detail: panic_detail(&e),
+        })
+    })
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
@@ -261,5 +301,104 @@ mod tests {
             }
             other => panic!("expected ConfigError, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn test_scaffold_workspace_creates_files() {
+        let dir = std::env::temp_dir().join("zeroclaw_test_scaffold");
+        let _ = std::fs::remove_dir_all(&dir);
+
+        let result = scaffold_workspace(
+            dir.to_string_lossy().to_string(),
+            "TestAgent".to_string(),
+            "TestUser".to_string(),
+            "America/New_York".to_string(),
+            String::new(),
+        );
+        assert!(result.is_ok());
+
+        for subdir in &["sessions", "memory", "state", "cron", "skills"] {
+            assert!(dir.join(subdir).is_dir(), "missing directory: {subdir}");
+        }
+
+        let expected_files = [
+            "IDENTITY.md",
+            "AGENTS.md",
+            "HEARTBEAT.md",
+            "SOUL.md",
+            "USER.md",
+            "TOOLS.md",
+            "BOOTSTRAP.md",
+            "MEMORY.md",
+        ];
+        for filename in &expected_files {
+            assert!(dir.join(filename).is_file(), "missing file: {filename}");
+        }
+
+        let identity = std::fs::read_to_string(dir.join("IDENTITY.md")).unwrap();
+        assert!(identity.contains("TestAgent"));
+
+        let user_md = std::fs::read_to_string(dir.join("USER.md")).unwrap();
+        assert!(user_md.contains("TestUser"));
+        assert!(user_md.contains("America/New_York"));
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_scaffold_workspace_idempotent() {
+        let dir = std::env::temp_dir().join("zeroclaw_test_idem");
+        let _ = std::fs::remove_dir_all(&dir);
+
+        scaffold_workspace(
+            dir.to_string_lossy().to_string(),
+            "Agent1".to_string(),
+            String::new(),
+            String::new(),
+            String::new(),
+        )
+        .unwrap();
+
+        scaffold_workspace(
+            dir.to_string_lossy().to_string(),
+            "Agent2".to_string(),
+            String::new(),
+            String::new(),
+            String::new(),
+        )
+        .unwrap();
+
+        let identity = std::fs::read_to_string(dir.join("IDENTITY.md")).unwrap();
+        assert!(
+            identity.contains("Agent1"),
+            "existing file should not be overwritten"
+        );
+        assert!(!identity.contains("Agent2"));
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_scaffold_workspace_defaults() {
+        let dir = std::env::temp_dir().join("zeroclaw_test_defaults");
+        let _ = std::fs::remove_dir_all(&dir);
+
+        scaffold_workspace(
+            dir.to_string_lossy().to_string(),
+            String::new(),
+            String::new(),
+            String::new(),
+            String::new(),
+        )
+        .unwrap();
+
+        let identity = std::fs::read_to_string(dir.join("IDENTITY.md")).unwrap();
+        assert!(identity.contains("ZeroClaw"), "default agent name");
+
+        let user_md = std::fs::read_to_string(dir.join("USER.md")).unwrap();
+        assert!(user_md.contains("**Name:** User"), "default user name");
+        assert!(user_md.contains("**Timezone:** UTC"), "default timezone");
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
