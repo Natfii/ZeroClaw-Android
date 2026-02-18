@@ -7,10 +7,13 @@
 package com.zeroclaw.android.ui.screen.console
 
 import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.zeroclaw.android.ZeroClawApplication
 import com.zeroclaw.android.model.ChatMessage
+import com.zeroclaw.android.model.ProcessedImage
+import com.zeroclaw.android.util.ImageProcessor
 import com.zeroclaw.ffi.FfiException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -25,9 +28,10 @@ import kotlinx.coroutines.launch
  *
  * Manages the persisted chat message list and sends messages to the daemon
  * gateway via FFI. Messages are stored in Room and survive navigation and
- * app restarts.
+ * app restarts. Supports image attachments via the photo picker, with
+ * vision requests routed directly to the provider API.
  *
- * @param application Application context for accessing repositories and the daemon bridge.
+ * @param application Application context for accessing repositories and bridges.
  */
 class ConsoleViewModel(
     application: Application,
@@ -36,6 +40,7 @@ class ConsoleViewModel(
     private val chatMessageRepository = app.chatMessageRepository
     private val daemonBridge = app.daemonBridge
     private val settingsRepository = app.settingsRepository
+    private val visionBridge = app.visionBridge
 
     /** Ordered list of chat messages (oldest first), backed by Room. */
     val messages: StateFlow<List<ChatMessage>> =
@@ -44,28 +49,91 @@ class ConsoleViewModel(
 
     private val _isLoading = MutableStateFlow(false)
 
-    /** True while waiting for a response from the daemon. */
+    /** True while waiting for a response from the daemon or vision API. */
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _pendingImages = MutableStateFlow<List<ProcessedImage>>(emptyList())
+
+    /** Images currently staged for the next message (before sending). */
+    val pendingImages: StateFlow<List<ProcessedImage>> = _pendingImages.asStateFlow()
+
+    private val _isProcessingImages = MutableStateFlow(false)
+
+    /** True while images are being downscaled and encoded. */
+    val isProcessingImages: StateFlow<Boolean> = _isProcessingImages.asStateFlow()
+
+    /**
+     * Processes and stages images from the photo picker.
+     *
+     * Runs [ImageProcessor.process] on [Dispatchers.IO][kotlinx.coroutines.Dispatchers.IO]
+     * to downscale, compress, and base64-encode the selected images.
+     * Results are appended to [pendingImages], capped at [MAX_IMAGES].
+     *
+     * @param uris Content URIs returned by the photo picker.
+     */
+    fun attachImages(uris: List<Uri>) {
+        if (uris.isEmpty()) return
+        viewModelScope.launch {
+            _isProcessingImages.value = true
+            try {
+                val contentResolver = app.contentResolver
+                val processed = ImageProcessor.process(contentResolver, uris)
+                val current = _pendingImages.value
+                val combined = (current + processed).take(MAX_IMAGES)
+                _pendingImages.value = combined
+            } finally {
+                _isProcessingImages.value = false
+            }
+        }
+    }
+
+    /**
+     * Removes a pending image at the given index.
+     *
+     * @param index Zero-based index into [pendingImages].
+     */
+    fun removeImage(index: Int) {
+        val current = _pendingImages.value
+        if (index in current.indices) {
+            _pendingImages.value = current.toMutableList().apply { removeAt(index) }
+        }
+    }
 
     /**
      * Sends a user message to the daemon and persists both the request and response.
      *
+     * When [pendingImages] is non-empty, routes the message through [VisionBridge]
+     * for direct-to-provider multimodal dispatch. Otherwise sends through the
+     * standard daemon gateway.
+     *
      * The user message is immediately persisted via Room. While waiting for the
-     * FFI response, [isLoading] is true. On success the daemon response is persisted;
+     * response, [isLoading] is true. On success the response is persisted;
      * on failure an error message is stored instead.
      *
      * @param text The message text to send.
      */
     @Suppress("TooGenericExceptionCaught")
     fun sendMessage(text: String) {
-        if (text.isBlank()) return
+        val images = _pendingImages.value
+        if (text.isBlank() && images.isEmpty()) return
         _isLoading.value = true
+        _pendingImages.value = emptyList()
 
         viewModelScope.launch {
-            chatMessageRepository.append(content = text, isFromUser = true)
+            val imageUris = images.map { it.originalUri }
+            chatMessageRepository.append(
+                content = text,
+                isFromUser = true,
+                imageUris = imageUris,
+            )
 
             try {
-                val rawResponse = daemonBridge.send(text)
+                val rawResponse =
+                    if (images.isNotEmpty()) {
+                        visionBridge.send(text, images)
+                    } else {
+                        daemonBridge.send(text)
+                    }
                 val settings = settingsRepository.settings.first()
                 val response =
                     if (settings.stripThinkingTags) {
@@ -101,6 +169,9 @@ class ConsoleViewModel(
     companion object {
         /** Timeout in milliseconds before upstream Flow collection stops when UI is hidden. */
         private const val STOP_TIMEOUT_MS = 5_000L
+
+        /** Maximum number of images per message (matches FFI-side limit). */
+        private const val MAX_IMAGES = 5
 
         /** Pattern matching common chain-of-thought tag variants across models. */
         private val THINKING_TAG_REGEX =
