@@ -13,9 +13,15 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  ci:
+    name: CI Gate
+    uses: ./.github/workflows/ci.yml
+    secrets: inherit
+
   release:
     name: Build and Publish Release
     runs-on: ubuntu-latest
+    needs: [ci]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -45,14 +51,6 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Run Rust tests
-        run: |
-          cd zeroclaw-android
-          cargo test -p zeroclaw-ffi
-
-      - name: Run Kotlin tests
-        run: ./gradlew :app:testReleaseUnitTest :lib:testReleaseUnitTest
-
       - name: Build release AAR
         run: ./gradlew :lib:assembleRelease
 
@@ -78,6 +76,18 @@ jobs:
             exit 1
           fi
 
+      - name: Detect pre-release
+        id: prerelease
+        run: |
+          TAG="${GITHUB_REF#refs/tags/v}"
+          if echo "$TAG" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+-.+'; then
+            echo "flag=--prerelease" >> "$GITHUB_OUTPUT"
+            echo "Detected pre-release tag: $TAG"
+          else
+            echo "flag=" >> "$GITHUB_OUTPUT"
+            echo "Detected stable release tag: $TAG"
+          fi
+
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -85,5 +95,6 @@ jobs:
           gh release create "${{ steps.version.outputs.tag }}" \
             --title "${{ steps.version.outputs.tag }}" \
             --generate-notes \
+            ${{ steps.prerelease.outputs.flag }} \
             lib/build/outputs/aar/lib-release.aar \
             app/build/outputs/apk/release/app-release-unsigned.apk

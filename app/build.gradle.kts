@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.detekt)
     alias(libs.plugins.spotless)
+    alias(libs.plugins.dokka)
 }
 
 android {
@@ -62,6 +63,23 @@ android {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+dokka {
+    moduleName.set("ZeroClaw Android")
+    dokkaPublications.html {
+        suppressInheritedMembers.set(true)
+    }
+    dokkaSourceSets.configureEach {
+        sourceLink {
+            localDirectory.set(projectDir.resolve("src"))
+            remoteUrl("https://github.com/Natfii/ZeroClaw-Android/tree/main/app/src")
+        }
+        perPackageOption {
+            matchingRegex.set(".*\\.generated\\..*")
+            suppress.set(true)
+        }
+    }
 }
 
 dependencies {

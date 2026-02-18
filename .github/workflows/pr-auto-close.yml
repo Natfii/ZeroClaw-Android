@@ -1,0 +1,94 @@
+name: Auto-close Failed PRs
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+jobs:
+  close-pr:
+    name: Close PR on CI Failure
+    runs-on: ubuntu-latest
+    if: >-
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.event == 'pull_request'
+    permissions:
+      pull-requests: write
+      actions: read
+    steps:
+      - name: Find associated PR
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SHA="${{ github.event.workflow_run.head_sha }}"
+          REPO="${{ github.repository }}"
+          PR_JSON=$(gh api "repos/${REPO}/commits/${SHA}/pulls" --jq '.[0]')
+          if [ -z "$PR_JSON" ] || [ "$PR_JSON" = "null" ]; then
+            echo "No PR found for commit ${SHA}"
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          PR_NUMBER=$(echo "$PR_JSON" | jq -r '.number')
+          PR_AUTHOR=$(echo "$PR_JSON" | jq -r '.user.login')
+          echo "number=${PR_NUMBER}" >> "$GITHUB_OUTPUT"
+          echo "author=${PR_AUTHOR}" >> "$GITHUB_OUTPUT"
+          echo "found=true" >> "$GITHUB_OUTPUT"
+          echo "Found PR #${PR_NUMBER} by ${PR_AUTHOR}"
+
+      - name: Check if author is maintainer
+        id: maintainer
+        if: steps.pr.outputs.found == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          REPO="${{ github.repository }}"
+          AUTHOR="${{ steps.pr.outputs.author }}"
+          PERMISSION=$(gh api "repos/${REPO}/collaborators/${AUTHOR}/permission" --jq '.permission' 2>/dev/null || echo "none")
+          if [ "$PERMISSION" = "admin" ] || [ "$PERMISSION" = "maintain" ] || [ "$PERMISSION" = "write" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Author ${AUTHOR} has ${PERMISSION} permission, skipping auto-close"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "Author ${AUTHOR} has ${PERMISSION} permission, proceeding with auto-close"
+          fi
+
+      - name: Get failed jobs
+        id: failures
+        if: steps.pr.outputs.found == 'true' && steps.maintainer.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          REPO="${{ github.repository }}"
+          RUN_ID="${{ github.event.workflow_run.id }}"
+          FAILED_JOBS=$(gh api "repos/${REPO}/actions/runs/${RUN_ID}/jobs" \
+            --jq '[.jobs[] | select(.conclusion == "failure") | .name] | join(", ")')
+          echo "jobs=${FAILED_JOBS}" >> "$GITHUB_OUTPUT"
+          echo "Failed jobs: ${FAILED_JOBS}"
+
+      - name: Comment and close PR
+        if: steps.pr.outputs.found == 'true' && steps.maintainer.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          REPO="${{ github.repository }}"
+          PR_NUMBER="${{ steps.pr.outputs.number }}"
+          RUN_ID="${{ github.event.workflow_run.id }}"
+          RUN_URL="${{ github.event.workflow_run.html_url }}"
+          FAILED_JOBS="${{ steps.failures.outputs.jobs }}"
+
+          BODY=$(cat <<EOF
+          ## CI Failed — Auto-closing PR
+
+          The CI pipeline failed for this pull request.
+
+          **Failed jobs:** ${FAILED_JOBS}
+          **Workflow run:** [View details](${RUN_URL})
+
+          This PR has been automatically closed. Please fix the failing checks and reopen, or open a new PR.
+          EOF
+          )
+
+          gh pr comment "${PR_NUMBER}" --repo "${REPO}" --body "${BODY}"
+          gh pr close "${PR_NUMBER}" --repo "${REPO}"
+          echo "Closed PR #${PR_NUMBER}"
