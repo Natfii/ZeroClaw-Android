@@ -53,6 +53,7 @@ import com.zeroclaw.android.ui.screen.settings.apikeys.ApiKeysScreen
 import com.zeroclaw.android.ui.screen.settings.apikeys.ApiKeysViewModel
 import com.zeroclaw.android.ui.screen.settings.channels.ChannelDetailScreen
 import com.zeroclaw.android.ui.screen.settings.channels.ConnectedChannelsScreen
+import com.zeroclaw.android.ui.screen.settings.cron.CronJobsScreen
 import com.zeroclaw.android.ui.screen.settings.doctor.DoctorScreen
 import com.zeroclaw.android.ui.screen.settings.gateway.QrScannerScreen
 import com.zeroclaw.android.ui.screen.settings.logs.LogViewerScreen
@@ -116,6 +117,7 @@ fun ZeroClawNavHost(
             DashboardScreen(
                 edgeMargin = edgeMargin,
                 onNavigateToCostDetail = { navController.navigate(CostDetailRoute) },
+                onNavigateToCronJobs = { navController.navigate(CronJobsRoute) },
             )
         }
 
@@ -196,6 +198,7 @@ fun ZeroClawNavHost(
                 onNavigateToObservability = { navController.navigate(ObservabilityRoute) },
                 onNavigateToSecurityOverview = { navController.navigate(SecurityOverviewRoute) },
                 onNavigateToPluginRegistry = { navController.navigate(PluginRegistryRoute) },
+                onNavigateToCronJobs = { navController.navigate(CronJobsRoute) },
                 onRerunWizard = {
                     settingsViewModel.resetOnboarding()
                     navController.navigate(OnboardingRoute) {
@@ -436,6 +439,10 @@ fun ZeroClawNavHost(
 
         composable<CostDetailRoute> {
             CostDetailScreen(edgeMargin = edgeMargin)
+        }
+
+        composable<CronJobsRoute> {
+            CronJobsScreen(edgeMargin = edgeMargin)
         }
     }
 }

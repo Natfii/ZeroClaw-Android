@@ -61,10 +61,11 @@ import com.zeroclaw.android.viewmodel.DaemonViewModel
 
 /**
  * Dashboard home screen displaying daemon status, component health,
- * cost summary, metrics, and an activity feed.
+ * cost summary, cron summary, metrics, and an activity feed.
  *
  * @param edgeMargin Horizontal padding based on window width size class.
  * @param onNavigateToCostDetail Callback to navigate to the cost detail screen.
+ * @param onNavigateToCronJobs Callback to navigate to the cron jobs management screen.
  * @param viewModel The [DaemonViewModel] for daemon state and actions.
  * @param modifier Modifier applied to the root layout.
  */
@@ -72,6 +73,7 @@ import com.zeroclaw.android.viewmodel.DaemonViewModel
 fun DashboardScreen(
     edgeMargin: androidx.compose.ui.unit.Dp,
     onNavigateToCostDetail: () -> Unit = {},
+    onNavigateToCronJobs: () -> Unit = {},
     viewModel: DaemonViewModel = viewModel(),
     modifier: Modifier = Modifier,
 ) {
@@ -80,6 +82,7 @@ fun DashboardScreen(
     val keyRejection by viewModel.keyRejectionEvent.collectAsStateWithLifecycle()
     val healthDetail by viewModel.healthDetail.collectAsStateWithLifecycle()
     val costSummary by viewModel.costSummary.collectAsStateWithLifecycle()
+    val cronJobs by viewModel.cronJobs.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val oemType = remember { BatteryOptimization.detectAggressiveOem() }
     val isExempt = remember { BatteryOptimization.isExempt(context) }
@@ -150,6 +153,13 @@ fun DashboardScreen(
                     onClick = onNavigateToCostDetail,
                 )
             }
+        }
+
+        if (serviceState == ServiceState.RUNNING && cronJobs.isNotEmpty()) {
+            CronSummaryCard(
+                cronJobs = cronJobs,
+                onClick = onNavigateToCronJobs,
+            )
         }
 
         SectionHeader(title = "Recent Activity")

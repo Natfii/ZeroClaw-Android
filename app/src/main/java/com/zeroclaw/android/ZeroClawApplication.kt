@@ -43,6 +43,7 @@ import com.zeroclaw.android.data.repository.RoomLogRepository
 import com.zeroclaw.android.data.repository.RoomPluginRepository
 import com.zeroclaw.android.data.repository.SettingsRepository
 import com.zeroclaw.android.service.CostBridge
+import com.zeroclaw.android.service.CronBridge
 import com.zeroclaw.android.service.DaemonServiceBridge
 import com.zeroclaw.android.service.EventBridge
 import com.zeroclaw.android.service.HealthBridge
@@ -131,6 +132,10 @@ class ZeroClawApplication :
     lateinit var eventBridge: EventBridge
         private set
 
+    /** Bridge for cron job CRUD FFI calls. */
+    lateinit var cronBridge: CronBridge
+        private set
+
     override fun onCreate() {
         super.onCreate()
         System.loadLibrary("zeroclaw")
@@ -152,6 +157,7 @@ class ZeroClawApplication :
         chatMessageRepository = RoomChatMessageRepository(database.chatMessageDao(), ioScope)
         healthBridge = HealthBridge()
         costBridge = CostBridge()
+        cronBridge = CronBridge()
         eventBridge = EventBridge(activityRepository, ioScope)
         daemonBridge.eventBridge = eventBridge
 

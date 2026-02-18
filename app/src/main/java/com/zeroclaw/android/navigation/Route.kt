@@ -159,6 +159,10 @@ data object QrScannerRoute
 @Serializable
 data object CostDetailRoute
 
+/** Scheduled cron jobs management screen. */
+@Serializable
+data object CronJobsRoute
+
 /** First-run onboarding wizard. */
 @Serializable
 data object OnboardingRoute

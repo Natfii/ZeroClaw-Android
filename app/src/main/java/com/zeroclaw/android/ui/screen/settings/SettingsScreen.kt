@@ -32,6 +32,7 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.SystemUpdate
+import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.material.icons.outlined.VpnKey
@@ -81,6 +82,7 @@ import com.zeroclaw.android.ui.component.SectionHeader
  * @param onNavigateToObservability Navigate to observability backend screen.
  * @param onNavigateToSecurityOverview Navigate to security posture overview screen.
  * @param onNavigateToPluginRegistry Navigate to plugin registry sync settings.
+ * @param onNavigateToCronJobs Navigate to scheduled cron jobs management screen.
  * @param onRerunWizard Callback to reset onboarding and navigate to the setup wizard.
  * @param edgeMargin Horizontal padding based on window width size class.
  * @param settingsViewModel ViewModel providing current settings for dynamic subtitles.
@@ -108,6 +110,7 @@ fun SettingsScreen(
     onNavigateToObservability: () -> Unit,
     onNavigateToSecurityOverview: () -> Unit,
     onNavigateToPluginRegistry: () -> Unit = {},
+    onNavigateToCronJobs: () -> Unit = {},
     onRerunWizard: () -> Unit,
     edgeMargin: androidx.compose.ui.unit.Dp,
     settingsViewModel: SettingsViewModel = viewModel(),
@@ -226,6 +229,12 @@ fun SettingsScreen(
             subtitle =
                 if (settings.schedulerEnabled) "Scheduler on" else "Scheduler off",
             onClick = onNavigateToScheduler,
+        )
+        SettingsItem(
+            icon = Icons.Outlined.TaskAlt,
+            title = "Scheduled Tasks",
+            subtitle = "View and manage cron jobs",
+            onClick = onNavigateToCronJobs,
         )
         SettingsItem(
             icon = Icons.Outlined.Speed,

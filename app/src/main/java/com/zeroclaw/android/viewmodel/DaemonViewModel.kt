@@ -12,11 +12,13 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.zeroclaw.android.ZeroClawApplication
 import com.zeroclaw.android.model.CostSummary
+import com.zeroclaw.android.model.CronJob
 import com.zeroclaw.android.model.DaemonStatus
 import com.zeroclaw.android.model.HealthDetail
 import com.zeroclaw.android.model.KeyRejectionEvent
 import com.zeroclaw.android.model.ServiceState
 import com.zeroclaw.android.service.CostBridge
+import com.zeroclaw.android.service.CronBridge
 import com.zeroclaw.android.service.DaemonServiceBridge
 import com.zeroclaw.android.service.HealthBridge
 import com.zeroclaw.android.service.ZeroClawDaemonService
@@ -97,6 +99,7 @@ class DaemonViewModel(
     private val settingsRepository = app.settingsRepository
     private val healthBridge: HealthBridge = app.healthBridge
     private val costBridge: CostBridge = app.costBridge
+    private val cronBridge: CronBridge = app.cronBridge
 
     private val _pendingBiometricAction = MutableStateFlow<BiometricAction?>(null)
 
@@ -152,9 +155,19 @@ class DaemonViewModel(
      */
     val costSummary: StateFlow<CostSummary?> = _costSummary.asStateFlow()
 
+    private val _cronJobs = MutableStateFlow<List<CronJob>>(emptyList())
+
+    /**
+     * List of cron jobs fetched periodically while the daemon is running.
+     *
+     * Empty when the daemon is not running or no cron poll has completed.
+     */
+    val cronJobs: StateFlow<List<CronJob>> = _cronJobs.asStateFlow()
+
     private var statusPollJob: Job? = null
     private var healthPollJob: Job? = null
     private var costPollJob: Job? = null
+    private var cronPollJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -164,12 +177,14 @@ class DaemonViewModel(
                         startStatusPolling()
                         startHealthPolling()
                         startCostPolling()
+                        startCronPolling()
                     }
                     ServiceState.STOPPED -> {
                         stopAllPolling()
                         _statusState.value = DaemonUiState.Idle
                         _healthDetail.value = null
                         _costSummary.value = null
+                        _cronJobs.value = emptyList()
                     }
                     ServiceState.ERROR -> {
                         stopAllPolling()
@@ -180,6 +195,7 @@ class DaemonViewModel(
                             )
                         _healthDetail.value = null
                         _costSummary.value = null
+                        _cronJobs.value = emptyList()
                     }
                     ServiceState.STARTING ->
                         _statusState.value = DaemonUiState.Loading
@@ -366,10 +382,32 @@ class DaemonViewModel(
         costPollJob = null
     }
 
+    @Suppress("TooGenericExceptionCaught")
+    private fun startCronPolling() {
+        stopCronPolling()
+        cronPollJob =
+            viewModelScope.launch {
+                while (true) {
+                    delay(CRON_POLL_INTERVAL_MS)
+                    try {
+                        _cronJobs.value = cronBridge.listJobs()
+                    } catch (_: Exception) {
+                        /** Cron poll failure is non-fatal. */
+                    }
+                }
+            }
+    }
+
+    private fun stopCronPolling() {
+        cronPollJob?.cancel()
+        cronPollJob = null
+    }
+
     private fun stopAllPolling() {
         stopStatusPolling()
         stopHealthPolling()
         stopCostPolling()
+        stopCronPolling()
     }
 
     /** Constants for [DaemonViewModel]. */
@@ -377,5 +415,6 @@ class DaemonViewModel(
         private const val STATUS_POLL_INTERVAL_MS = 5_000L
         private const val HEALTH_POLL_INTERVAL_MS = 5_000L
         private const val COST_POLL_INTERVAL_MS = 10_000L
+        private const val CRON_POLL_INTERVAL_MS = 10_000L
     }
 }
