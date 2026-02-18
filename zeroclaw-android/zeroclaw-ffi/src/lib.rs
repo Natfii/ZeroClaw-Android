@@ -17,6 +17,7 @@ uniffi::setup_scaffolding!();
 
 mod error;
 mod runtime;
+mod types;
 mod workspace;
 
 use std::panic::catch_unwind;
