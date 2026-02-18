@@ -11,10 +11,14 @@ import android.content.Intent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.zeroclaw.android.ZeroClawApplication
+import com.zeroclaw.android.model.CostSummary
 import com.zeroclaw.android.model.DaemonStatus
+import com.zeroclaw.android.model.HealthDetail
 import com.zeroclaw.android.model.KeyRejectionEvent
 import com.zeroclaw.android.model.ServiceState
+import com.zeroclaw.android.service.CostBridge
 import com.zeroclaw.android.service.DaemonServiceBridge
+import com.zeroclaw.android.service.HealthBridge
 import com.zeroclaw.android.service.ZeroClawDaemonService
 import com.zeroclaw.ffi.FfiException
 import kotlinx.coroutines.Job
@@ -91,6 +95,8 @@ class DaemonViewModel(
     private val app = application as ZeroClawApplication
     private val bridge: DaemonServiceBridge = app.daemonBridge
     private val settingsRepository = app.settingsRepository
+    private val healthBridge: HealthBridge = app.healthBridge
+    private val costBridge: CostBridge = app.costBridge
 
     private val _pendingBiometricAction = MutableStateFlow<BiometricAction?>(null)
 
@@ -126,24 +132,54 @@ class DaemonViewModel(
      */
     val keyRejectionEvent: StateFlow<KeyRejectionEvent?> = _keyRejectionEvent.asStateFlow()
 
+    private val _healthDetail = MutableStateFlow<HealthDetail?>(null)
+
+    /**
+     * Structured health detail snapshot fetched periodically while the daemon is running.
+     *
+     * Includes per-component status, restart counts, and last-error messages.
+     * Returns `null` when the daemon is not running or no health poll has completed.
+     */
+    val healthDetail: StateFlow<HealthDetail?> = _healthDetail.asStateFlow()
+
+    private val _costSummary = MutableStateFlow<CostSummary?>(null)
+
+    /**
+     * Aggregated cost summary fetched periodically while the daemon is running.
+     *
+     * Includes session, daily, and monthly costs plus token usage figures.
+     * Returns `null` when the daemon is not running or no cost poll has completed.
+     */
+    val costSummary: StateFlow<CostSummary?> = _costSummary.asStateFlow()
+
     private var statusPollJob: Job? = null
+    private var healthPollJob: Job? = null
+    private var costPollJob: Job? = null
 
     init {
         viewModelScope.launch {
             bridge.serviceState.collect { state ->
                 when (state) {
-                    ServiceState.RUNNING -> startStatusPolling()
+                    ServiceState.RUNNING -> {
+                        startStatusPolling()
+                        startHealthPolling()
+                        startCostPolling()
+                    }
                     ServiceState.STOPPED -> {
-                        stopStatusPolling()
+                        stopAllPolling()
                         _statusState.value = DaemonUiState.Idle
+                        _healthDetail.value = null
+                        _costSummary.value = null
                     }
                     ServiceState.ERROR -> {
-                        stopStatusPolling()
+                        stopAllPolling()
                         _statusState.value =
                             DaemonUiState.Error(
                                 detail = bridge.lastError.value ?: "Unknown daemon error",
                                 retry = { requestStart() },
                             )
+                        _healthDetail.value = null
+                        _costSummary.value = null
                     }
                     ServiceState.STARTING ->
                         _statusState.value = DaemonUiState.Loading
@@ -288,8 +324,58 @@ class DaemonViewModel(
         statusPollJob = null
     }
 
+    @Suppress("TooGenericExceptionCaught")
+    private fun startHealthPolling() {
+        stopHealthPolling()
+        healthPollJob =
+            viewModelScope.launch {
+                while (true) {
+                    delay(HEALTH_POLL_INTERVAL_MS)
+                    try {
+                        _healthDetail.value = healthBridge.getHealthDetail()
+                    } catch (_: Exception) {
+                        // health poll failure is non-fatal
+                    }
+                }
+            }
+    }
+
+    private fun stopHealthPolling() {
+        healthPollJob?.cancel()
+        healthPollJob = null
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun startCostPolling() {
+        stopCostPolling()
+        costPollJob =
+            viewModelScope.launch {
+                while (true) {
+                    delay(COST_POLL_INTERVAL_MS)
+                    try {
+                        _costSummary.value = costBridge.getCostSummary()
+                    } catch (_: Exception) {
+                        // cost poll failure is non-fatal
+                    }
+                }
+            }
+    }
+
+    private fun stopCostPolling() {
+        costPollJob?.cancel()
+        costPollJob = null
+    }
+
+    private fun stopAllPolling() {
+        stopStatusPolling()
+        stopHealthPolling()
+        stopCostPolling()
+    }
+
     /** Constants for [DaemonViewModel]. */
     companion object {
         private const val STATUS_POLL_INTERVAL_MS = 5_000L
+        private const val HEALTH_POLL_INTERVAL_MS = 5_000L
+        private const val COST_POLL_INTERVAL_MS = 10_000L
     }
 }

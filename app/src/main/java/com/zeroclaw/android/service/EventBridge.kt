@@ -111,7 +111,7 @@ private fun parseEvent(json: String): DaemonEvent? =
             data = dataMap,
         )
     } catch (
-        @Suppress("TooGenericExceptionCaught") e: Exception,
+        @Suppress("TooGenericExceptionCaught", "SwallowedException") e: Exception,
     ) {
         null
     }

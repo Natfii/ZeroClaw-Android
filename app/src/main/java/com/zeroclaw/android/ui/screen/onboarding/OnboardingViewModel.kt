@@ -280,7 +280,6 @@ class OnboardingViewModel(
                     }
                 }
             } catch (_: Exception) {
-                // identity JSON malformed — keep default
             }
         }
     }
@@ -325,7 +324,6 @@ class OnboardingViewModel(
                 communicationStyle = "",
             )
         } catch (_: Exception) {
-            /* Workspace scaffold is best-effort; daemon can still start. */
         }
     }
 

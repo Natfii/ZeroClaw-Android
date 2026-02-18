@@ -33,6 +33,7 @@ import com.zeroclaw.android.ui.screen.plugins.PluginsScreen
 import com.zeroclaw.android.ui.screen.settings.AboutScreen
 import com.zeroclaw.android.ui.screen.settings.AutonomyScreen
 import com.zeroclaw.android.ui.screen.settings.BatterySettingsScreen
+import com.zeroclaw.android.ui.screen.settings.CostDetailScreen
 import com.zeroclaw.android.ui.screen.settings.GatewayScreen
 import com.zeroclaw.android.ui.screen.settings.IdentityScreen
 import com.zeroclaw.android.ui.screen.settings.MemoryAdvancedScreen
@@ -112,7 +113,10 @@ fun ZeroClawNavHost(
         modifier = modifier,
     ) {
         composable<DashboardRoute> {
-            DashboardScreen(edgeMargin = edgeMargin)
+            DashboardScreen(
+                edgeMargin = edgeMargin,
+                onNavigateToCostDetail = { navController.navigate(CostDetailRoute) },
+            )
         }
 
         composable<AgentsRoute> {
@@ -428,6 +432,10 @@ fun ZeroClawNavHost(
                     }
                 },
             )
+        }
+
+        composable<CostDetailRoute> {
+            CostDetailScreen(edgeMargin = edgeMargin)
         }
     }
 }

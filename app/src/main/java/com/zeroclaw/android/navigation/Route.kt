@@ -155,6 +155,10 @@ data object PluginRegistryRoute
 @Serializable
 data object QrScannerRoute
 
+/** Cost tracking detail screen. */
+@Serializable
+data object CostDetailRoute
+
 /** First-run onboarding wizard. */
 @Serializable
 data object OnboardingRoute

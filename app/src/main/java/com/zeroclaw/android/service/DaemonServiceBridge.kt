@@ -50,6 +50,15 @@ class DaemonServiceBridge(
     private val dataDir: String,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
+    /**
+     * Optional [EventBridge] for daemon event callbacks.
+     *
+     * Set after construction from [ZeroClawApplication.onCreate] because the
+     * [EventBridge] is created after this bridge. When non-null, [register] is
+     * called after a successful [start] and [unregister] before [stop].
+     */
+    var eventBridge: EventBridge? = null
+
     init {
         require(dataDir.isNotEmpty()) { "dataDir must not be empty" }
     }
@@ -129,6 +138,7 @@ class DaemonServiceBridge(
             }
             _lastError.value = null
             _serviceState.value = ServiceState.RUNNING
+            eventBridge?.register()
         } catch (e: FfiException) {
             _lastError.value = e.errorDetail()
             _serviceState.value = ServiceState.ERROR
@@ -151,6 +161,7 @@ class DaemonServiceBridge(
     @Throws(FfiException::class)
     suspend fun stop() {
         _serviceState.value = ServiceState.STOPPING
+        eventBridge?.unregister()
         try {
             withContext(ioDispatcher) { stopDaemon() }
             _lastError.value = null

@@ -4,8 +4,12 @@ package com.zeroclaw.android.ui.screen.dashboard
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
@@ -13,9 +17,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Badge
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
@@ -29,6 +36,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
@@ -40,7 +48,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zeroclaw.android.ZeroClawApplication
 import com.zeroclaw.android.model.Agent
+import com.zeroclaw.android.model.ComponentHealth
 import com.zeroclaw.android.model.DaemonStatus
+import com.zeroclaw.android.model.HealthDetail
 import com.zeroclaw.android.model.Plugin
 import com.zeroclaw.android.model.ServiceState
 import com.zeroclaw.android.ui.component.LoadingIndicator
@@ -50,22 +60,26 @@ import com.zeroclaw.android.viewmodel.DaemonUiState
 import com.zeroclaw.android.viewmodel.DaemonViewModel
 
 /**
- * Dashboard home screen displaying daemon status, toggle control,
- * and an activity feed placeholder.
+ * Dashboard home screen displaying daemon status, component health,
+ * cost summary, metrics, and an activity feed.
  *
  * @param edgeMargin Horizontal padding based on window width size class.
+ * @param onNavigateToCostDetail Callback to navigate to the cost detail screen.
  * @param viewModel The [DaemonViewModel] for daemon state and actions.
  * @param modifier Modifier applied to the root layout.
  */
 @Composable
 fun DashboardScreen(
     edgeMargin: androidx.compose.ui.unit.Dp,
+    onNavigateToCostDetail: () -> Unit = {},
     viewModel: DaemonViewModel = viewModel(),
     modifier: Modifier = Modifier,
 ) {
     val serviceState by viewModel.serviceState.collectAsStateWithLifecycle()
     val statusState by viewModel.statusState.collectAsStateWithLifecycle()
     val keyRejection by viewModel.keyRejectionEvent.collectAsStateWithLifecycle()
+    val healthDetail by viewModel.healthDetail.collectAsStateWithLifecycle()
+    val costSummary by viewModel.costSummary.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val oemType = remember { BatteryOptimization.detectAggressiveOem() }
     val isExempt = remember { BatteryOptimization.isExempt(context) }
@@ -107,6 +121,12 @@ fun DashboardScreen(
             onStop = { viewModel.requestStop() },
         )
 
+        if (serviceState == ServiceState.RUNNING) {
+            healthDetail?.let { detail ->
+                ComponentHealthRow(healthDetail = detail)
+            }
+        }
+
         val app = context.applicationContext as ZeroClawApplication
         val agents by app.agentRepository.agents
             .collectAsStateWithLifecycle(initialValue = emptyList())
@@ -122,6 +142,15 @@ fun DashboardScreen(
             daemonStatus = lastStatus,
             serviceState = serviceState,
         )
+
+        if (serviceState == ServiceState.RUNNING) {
+            costSummary?.let { cost ->
+                CostSummaryCard(
+                    costSummary = cost,
+                    onClick = onNavigateToCostDetail,
+                )
+            }
+        }
 
         SectionHeader(title = "Recent Activity")
         val activityEvents by app.activityRepository.events
@@ -446,3 +475,130 @@ private fun serviceStateDescription(state: ServiceState): String =
         ServiceState.STOPPING -> "The daemon is shutting down\u2026"
         ServiceState.ERROR -> "The daemon encountered an error."
     }
+
+/** Component status value indicating healthy operation. */
+private const val COMPONENT_STATUS_OK = "ok"
+
+/** Component status value indicating the component is initializing. */
+private const val COMPONENT_STATUS_STARTING = "starting"
+
+/** Status dot indicator size in dp. */
+private const val STATUS_DOT_SIZE = 8
+
+/**
+ * Flow row of chips showing each daemon component's health status.
+ *
+ * Each chip displays the component name, a colored status dot
+ * (green for ok, amber for starting, red for error), and a restart
+ * count badge when the count is greater than zero.
+ *
+ * Visible only when the daemon is running and a [HealthDetail] is available.
+ *
+ * @param healthDetail Structured health snapshot from the health bridge.
+ * @param modifier Modifier applied to the root layout.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ComponentHealthRow(
+    healthDetail: HealthDetail,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            ),
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(
+                text = "Component Health",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                healthDetail.components.forEach { component ->
+                    ComponentHealthChip(component = component)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Individual chip for a single daemon component showing its status.
+ *
+ * Displays a colored dot, the component name, and an optional badge
+ * indicating the restart count. The dot color follows the same scheme
+ * as the top-bar status indicator: green for ok, amber for starting,
+ * red for error.
+ *
+ * @param component Health data for this component.
+ * @param modifier Modifier applied to the chip card.
+ */
+@Composable
+private fun ComponentHealthChip(
+    component: ComponentHealth,
+    modifier: Modifier = Modifier,
+) {
+    val dotColor =
+        when (component.status) {
+            COMPONENT_STATUS_OK -> MaterialTheme.colorScheme.primary
+            COMPONENT_STATUS_STARTING -> MaterialTheme.colorScheme.tertiary
+            else -> MaterialTheme.colorScheme.error
+        }
+    val statusLabel =
+        when (component.status) {
+            COMPONENT_STATUS_OK -> "healthy"
+            COMPONENT_STATUS_STARTING -> "starting"
+            else -> "error"
+        }
+
+    Card(
+        modifier =
+            modifier.semantics(mergeDescendants = true) {
+                contentDescription =
+                    "${component.name}: $statusLabel" +
+                    if (component.restartCount > 0) {
+                        ", ${component.restartCount} restarts"
+                    } else {
+                        ""
+                    }
+            },
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .size(STATUS_DOT_SIZE.dp)
+                        .clip(CircleShape)
+                        .background(dotColor),
+            )
+            Text(
+                text = component.name,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            if (component.restartCount > 0) {
+                Badge(
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                ) {
+                    Text(text = component.restartCount.toString())
+                }
+            }
+        }
+    }
+}

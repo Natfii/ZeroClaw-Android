@@ -153,6 +153,7 @@ class ZeroClawApplication :
         healthBridge = HealthBridge()
         costBridge = CostBridge()
         eventBridge = EventBridge(activityRepository, ioScope)
+        daemonBridge.eventBridge = eventBridge
 
         schedulePluginSyncIfEnabled(ioScope)
     }
