@@ -39,8 +39,6 @@ The onboarding wizard walks you through all of this on first launch.
 
 <img src="https://github.com/user-attachments/assets/9712875d-5650-43a4-9646-8aa4d4175291" alt="On Boarding" width="30%" /> <img src="https://github.com/user-attachments/assets/ae198cdc-2130-4b25-8e69-114468653777" alt="Nav" width="37.5%" /> <img src="https://github.com/user-attachments/assets/4f1dc8bb-8cf7-4ce3-8321-860060ab98f6" alt="Nav" width="30%" /> 
 
-![Adobe Express - screen-20260218-170944~2 (2)]()
-
 ## Why a Phone?
 
 You already carry a computer with a multi-core ARM chip, 8GB RAM, always-on connectivity, and a built-in battery backup. Why buy another one?
