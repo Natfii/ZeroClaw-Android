@@ -84,7 +84,7 @@ fun ZeroClawNavHost(
         val action = pendingBiometricAction ?: return@LaunchedEffect
         val activity =
             biometricActivity ?: run {
-                daemonViewModel.confirmBiometricAction()
+                daemonViewModel.cancelBiometricAction()
                 return@LaunchedEffect
             }
         BiometricGatekeeper.authenticate(
@@ -95,11 +95,13 @@ fun ZeroClawNavHost(
                     BiometricAction.StopDaemon -> "Stop Daemon"
                 },
             subtitle = "Authenticate to control the daemon service",
-            negativeButtonText = "Cancel",
+            allowDeviceCredential = true,
         ) { result ->
             when (result) {
                 is AuthResult.Success -> daemonViewModel.confirmBiometricAction()
-                else -> daemonViewModel.cancelBiometricAction()
+                is AuthResult.NotAvailable -> daemonViewModel.confirmBiometricAction()
+                is AuthResult.Cancelled -> daemonViewModel.cancelBiometricAction()
+                is AuthResult.Failed -> daemonViewModel.cancelBiometricAction()
             }
         }
     }

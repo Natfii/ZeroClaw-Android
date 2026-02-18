@@ -20,11 +20,9 @@ import com.zeroclaw.ffi.FfiException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
@@ -93,11 +91,6 @@ class DaemonViewModel(
     private val app = application as ZeroClawApplication
     private val bridge: DaemonServiceBridge = app.daemonBridge
     private val settingsRepository = app.settingsRepository
-
-    private val biometricForService: StateFlow<Boolean> =
-        settingsRepository.settings
-            .map { it.biometricForService }
-            .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     private val _pendingBiometricAction = MutableStateFlow<BiometricAction?>(null)
 
@@ -178,32 +171,48 @@ class DaemonViewModel(
     /**
      * Requests the daemon to start.
      *
-     * If biometric auth is required for service control, emits a
-     * [BiometricAction.StartDaemon] via [pendingBiometricAction] instead
-     * of starting immediately. The UI layer observes this and presents
-     * a biometric prompt, then calls [confirmBiometricAction].
+     * Reads the biometric-for-service setting from the repository
+     * before deciding whether to gate on authentication. This avoids
+     * a race condition where an eagerly initialised [StateFlow] could
+     * still hold its `false` default before the data store emits.
+     *
+     * If biometric auth is required, emits [BiometricAction.StartDaemon]
+     * via [pendingBiometricAction] so the UI layer can present a
+     * biometric prompt and call [confirmBiometricAction] on success.
      */
     fun requestStart() {
-        if (biometricForService.value) {
-            _pendingBiometricAction.value = BiometricAction.StartDaemon
-        } else {
-            performStart()
+        viewModelScope.launch {
+            val requireBiometric =
+                settingsRepository.settings.first().biometricForService
+            if (requireBiometric) {
+                _pendingBiometricAction.value = BiometricAction.StartDaemon
+            } else {
+                performStart()
+            }
         }
     }
 
     /**
      * Requests the daemon to stop.
      *
-     * If biometric auth is required for service control, emits a
-     * [BiometricAction.StopDaemon] via [pendingBiometricAction] instead
-     * of stopping immediately. The UI layer observes this and presents
-     * a biometric prompt, then calls [confirmBiometricAction].
+     * Reads the biometric-for-service setting from the repository
+     * before deciding whether to gate on authentication. This avoids
+     * a race condition where an eagerly initialised [StateFlow] could
+     * still hold its `false` default before the data store emits.
+     *
+     * If biometric auth is required, emits [BiometricAction.StopDaemon]
+     * via [pendingBiometricAction] so the UI layer can present a
+     * biometric prompt and call [confirmBiometricAction] on success.
      */
     fun requestStop() {
-        if (biometricForService.value) {
-            _pendingBiometricAction.value = BiometricAction.StopDaemon
-        } else {
-            performStop()
+        viewModelScope.launch {
+            val requireBiometric =
+                settingsRepository.settings.first().biometricForService
+            if (requireBiometric) {
+                _pendingBiometricAction.value = BiometricAction.StopDaemon
+            } else {
+                performStop()
+            }
         }
     }
 

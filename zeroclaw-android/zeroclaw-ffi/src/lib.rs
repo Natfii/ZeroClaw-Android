@@ -180,7 +180,7 @@ mod tests {
     #[test]
     fn test_get_version() {
         let version = get_version().unwrap();
-        assert_eq!(version, "0.0.5");
+        assert_eq!(version, "0.0.6");
     }
 
     #[test]

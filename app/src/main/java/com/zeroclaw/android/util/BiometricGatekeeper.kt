@@ -48,6 +48,14 @@ sealed interface AuthResult {
  * creation throughout the app with a single, testable entry point.
  */
 object BiometricGatekeeper {
+    /** Authenticators for biometric-only prompts. */
+    private const val BIOMETRIC_ONLY = BiometricManager.Authenticators.BIOMETRIC_WEAK
+
+    /** Authenticators with device credential (PIN/pattern/password) fallback. */
+    private const val BIOMETRIC_OR_CREDENTIAL =
+        BiometricManager.Authenticators.BIOMETRIC_STRONG or
+            BiometricManager.Authenticators.DEVICE_CREDENTIAL
+
     /**
      * Checks whether the device supports biometric authentication.
      *
@@ -59,7 +67,7 @@ object BiometricGatekeeper {
      */
     fun isAvailable(context: Context): Boolean {
         val manager = BiometricManager.from(context)
-        return manager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_WEAK) ==
+        return manager.canAuthenticate(BIOMETRIC_ONLY) ==
             BiometricManager.BIOMETRIC_SUCCESS
     }
 
@@ -78,16 +86,27 @@ object BiometricGatekeeper {
      * @param title Title text shown on the biometric dialog.
      * @param subtitle Subtitle text shown below the title.
      * @param negativeButtonText Text for the cancel/negative button.
+     * @param allowDeviceCredential When true, the prompt accepts
+     *   PIN/pattern/password as a fallback when biometrics are
+     *   unavailable or fail. The [negativeButtonText] is ignored
+     *   in this mode because the system provides its own fallback
+     *   button. Defaults to false for backwards compatibility.
      * @param onResult Callback receiving the [AuthResult].
      */
+    @Suppress("LongParameterList")
     fun authenticate(
         activity: FragmentActivity,
         title: String,
         subtitle: String,
-        negativeButtonText: String,
+        negativeButtonText: String = "",
+        allowDeviceCredential: Boolean = false,
         onResult: (AuthResult) -> Unit,
     ) {
-        if (!isAvailable(activity)) {
+        val authenticators =
+            if (allowDeviceCredential) BIOMETRIC_OR_CREDENTIAL else BIOMETRIC_ONLY
+
+        val manager = BiometricManager.from(activity)
+        if (manager.canAuthenticate(authenticators) != BiometricManager.BIOMETRIC_SUCCESS) {
             onResult(AuthResult.NotAvailable)
             return
         }
@@ -125,8 +144,13 @@ object BiometricGatekeeper {
                 .Builder()
                 .setTitle(title)
                 .setSubtitle(subtitle)
-                .setNegativeButtonText(negativeButtonText)
-                .build()
+                .apply {
+                    if (allowDeviceCredential) {
+                        setAllowedAuthenticators(authenticators)
+                    } else {
+                        setNegativeButtonText(negativeButtonText)
+                    }
+                }.build()
         prompt.authenticate(promptInfo)
     }
 }

@@ -107,13 +107,29 @@ jobs:
             echo "Detected stable release tag: $TAG"
           fi
 
+      - name: Extract ZeroClaw upstream version
+        id: upstream
+        run: |
+          ZC_VERSION=$(grep '^version' zeroclaw/Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          ZC_COMMIT=$(git -C zeroclaw rev-parse --short HEAD)
+          echo "version=${ZC_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "commit=${ZC_COMMIT}" >> "$GITHUB_OUTPUT"
+          echo "ZeroClaw upstream: v${ZC_VERSION} (${ZC_COMMIT})"
+
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          gh api repos/${{ github.repository }}/releases/generate-notes \
+            -f tag_name="${{ steps.version.outputs.tag }}" \
+            --jq '.body' > /tmp/auto-notes.md
+          printf '## ZeroClaw Upstream\n' > /tmp/release-notes.md
+          printf 'Built against [ZeroClaw](https://github.com/theonlyhenrygod/zeroclaw) v%s (`%s`)\n\n' \
+            "${{ steps.upstream.outputs.version }}" "${{ steps.upstream.outputs.commit }}" >> /tmp/release-notes.md
+          cat /tmp/auto-notes.md >> /tmp/release-notes.md
           gh release create "${{ steps.version.outputs.tag }}" \
             --title "${{ steps.version.outputs.tag }}" \
-            --generate-notes \
+            --notes-file /tmp/release-notes.md \
             ${{ steps.prerelease.outputs.flag }} \
             lib/build/outputs/aar/lib-release.aar \
             app/build/outputs/apk/release/zeroclaw_android.apk

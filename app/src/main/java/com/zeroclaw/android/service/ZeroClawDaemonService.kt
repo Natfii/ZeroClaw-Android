@@ -13,11 +13,13 @@ import android.os.IBinder
 import android.os.PowerManager
 import android.util.Log
 import com.zeroclaw.android.ZeroClawApplication
+import com.zeroclaw.android.data.repository.ActivityRepository
 import com.zeroclaw.android.data.repository.AgentRepository
 import com.zeroclaw.android.data.repository.ApiKeyRepository
 import com.zeroclaw.android.data.repository.ChannelConfigRepository
 import com.zeroclaw.android.data.repository.LogRepository
 import com.zeroclaw.android.data.repository.SettingsRepository
+import com.zeroclaw.android.model.ActivityType
 import com.zeroclaw.android.model.ApiKey
 import com.zeroclaw.android.model.AppSettings
 import com.zeroclaw.android.model.LogSeverity
@@ -70,6 +72,7 @@ class ZeroClawDaemonService : Service() {
     private lateinit var networkMonitor: NetworkMonitor
     private lateinit var persistence: DaemonPersistence
     private lateinit var logRepository: LogRepository
+    private lateinit var activityRepository: ActivityRepository
     private lateinit var settingsRepository: SettingsRepository
     private lateinit var apiKeyRepository: ApiKeyRepository
     private lateinit var channelConfigRepository: ChannelConfigRepository
@@ -85,6 +88,7 @@ class ZeroClawDaemonService : Service() {
         val app = application as ZeroClawApplication
         bridge = app.daemonBridge
         logRepository = app.logRepository
+        activityRepository = app.activityRepository
         settingsRepository = app.settingsRepository
         apiKeyRepository = app.apiKeyRepository
         channelConfigRepository = app.channelConfigRepository
@@ -319,9 +323,17 @@ class ZeroClawDaemonService : Service() {
         serviceScope.launch {
             try {
                 bridge.stop()
+                activityRepository.record(
+                    ActivityType.DAEMON_STOPPED,
+                    "Daemon stopped by user",
+                )
             } catch (e: FfiException) {
                 Log.w(TAG, "Daemon stop failed: ${e.message}")
                 logRepository.append(LogSeverity.ERROR, TAG, "Stop failed: ${e.message}")
+                activityRepository.record(
+                    ActivityType.DAEMON_ERROR,
+                    "Stop failed: ${e.message}",
+                )
             } finally {
                 releaseWakeLock()
                 stopForeground(STOP_FOREGROUND_REMOVE)
@@ -351,6 +363,10 @@ class ZeroClawDaemonService : Service() {
                 return
             }
         Log.i(TAG, "Restoring daemon after process death")
+        activityRepository.record(
+            ActivityType.DAEMON_STARTED,
+            "Daemon restored after process death",
+        )
         handleStart(saved.configToml, saved.host, saved.port)
     }
 
@@ -376,6 +392,10 @@ class ZeroClawDaemonService : Service() {
                         )
                         persistence.recordRunning(configToml, host, port)
                         retryPolicy.reset()
+                        activityRepository.record(
+                            ActivityType.DAEMON_STARTED,
+                            "Daemon started on $host:$port",
+                        )
                         startStatusPolling()
                         return@launch
                     } catch (e: FfiException) {
@@ -392,6 +412,10 @@ class ZeroClawDaemonService : Service() {
                         } else {
                             Log.e(TAG, "Daemon start failed after max retries: $errorMsg")
                             logRepository.append(LogSeverity.ERROR, TAG, "Start failed: $errorMsg")
+                            activityRepository.record(
+                                ActivityType.DAEMON_ERROR,
+                                "Start failed: $errorMsg",
+                            )
                             notificationManager.updateNotification(
                                 ServiceState.ERROR,
                                 errorDetail = errorMsg,
@@ -448,8 +472,19 @@ class ZeroClawDaemonService : Service() {
     private fun observeNetworkState() {
         serviceScope.launch {
             networkMonitor.isConnected.collect { connected ->
-                if (!connected && bridge.serviceState.value == ServiceState.RUNNING) {
-                    Log.w(TAG, "Network connectivity lost while daemon running")
+                if (bridge.serviceState.value == ServiceState.RUNNING) {
+                    if (!connected) {
+                        Log.w(TAG, "Network connectivity lost while daemon running")
+                        activityRepository.record(
+                            ActivityType.NETWORK_CHANGE,
+                            "Network connectivity lost",
+                        )
+                    } else {
+                        activityRepository.record(
+                            ActivityType.NETWORK_CHANGE,
+                            "Network connectivity restored",
+                        )
+                    }
                 }
             }
         }
