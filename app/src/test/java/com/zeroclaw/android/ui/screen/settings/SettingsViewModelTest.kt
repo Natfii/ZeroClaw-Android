@@ -28,34 +28,37 @@ import org.junit.jupiter.api.Test
 class SettingsViewModelTest {
     @Test
     @DisplayName("default values are correct")
-    fun `default values are correct`() = runTest {
-        val repo = TestSettingsRepository()
-        val settings = repo.settings.first()
-        assertEquals(AppSettings.DEFAULT_HOST, settings.host)
-        assertEquals(AppSettings.DEFAULT_PORT, settings.port)
-        assertEquals(false, settings.autoStartOnBoot)
-        assertEquals(LogLevel.INFO, settings.logLevel)
-    }
+    fun `default values are correct`() =
+        runTest {
+            val repo = TestSettingsRepository()
+            val settings = repo.settings.first()
+            assertEquals(AppSettings.DEFAULT_HOST, settings.host)
+            assertEquals(AppSettings.DEFAULT_PORT, settings.port)
+            assertEquals(false, settings.autoStartOnBoot)
+            assertEquals(LogLevel.INFO, settings.logLevel)
+        }
 
     @Test
     @DisplayName("toggle auto-start updates repository")
-    fun `toggle auto-start updates repository`() = runTest {
-        val repo = TestSettingsRepository()
-        repo.setAutoStartOnBoot(true)
-        assertEquals(true, repo.settings.first().autoStartOnBoot)
-        repo.setAutoStartOnBoot(false)
-        assertEquals(false, repo.settings.first().autoStartOnBoot)
-    }
+    fun `toggle auto-start updates repository`() =
+        runTest {
+            val repo = TestSettingsRepository()
+            repo.setAutoStartOnBoot(true)
+            assertEquals(true, repo.settings.first().autoStartOnBoot)
+            repo.setAutoStartOnBoot(false)
+            assertEquals(false, repo.settings.first().autoStartOnBoot)
+        }
 
     @Test
     @DisplayName("log level update round-trips correctly")
-    fun `log level update round-trips correctly`() = runTest {
-        val repo = TestSettingsRepository()
-        LogLevel.entries.forEach { level ->
-            repo.setLogLevel(level)
-            assertEquals(level, repo.settings.first().logLevel)
+    fun `log level update round-trips correctly`() =
+        runTest {
+            val repo = TestSettingsRepository()
+            LogLevel.entries.forEach { level ->
+                repo.setLogLevel(level)
+                assertEquals(level, repo.settings.first().logLevel)
+            }
         }
-    }
 }
 
 /**

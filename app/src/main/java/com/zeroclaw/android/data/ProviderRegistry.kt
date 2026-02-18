@@ -24,11 +24,12 @@ object ProviderRegistry {
     private const val FAVICON_SIZE = 128
 
     /** All known providers ordered by category then display name. */
-    val allProviders: List<ProviderInfo> = buildList {
-        addAll(primaryProviders())
-        addAll(ecosystemProviders())
-        addAll(customProviders())
-    }
+    val allProviders: List<ProviderInfo> =
+        buildList {
+            addAll(primaryProviders())
+            addAll(ecosystemProviders())
+            addAll(customProviders())
+        }
 
     private val byId: Map<String, ProviderInfo> by lazy {
         buildMap {
@@ -52,8 +53,7 @@ object ProviderRegistry {
      *
      * @return Map from category to providers in that category.
      */
-    fun allByCategory(): Map<ProviderCategory, List<ProviderInfo>> =
-        allProviders.groupBy { it.category }
+    fun allByCategory(): Map<ProviderCategory, List<ProviderInfo>> = allProviders.groupBy { it.category }
 
     /**
      * Builds a Google Favicon API URL for the given domain.
@@ -74,8 +74,14 @@ object ProviderRegistry {
                 authType = ProviderAuthType.API_KEY_ONLY,
                 suggestedModels =
                     listOf(
-                        "gpt-4o", "gpt-4o-mini", "o1", "o1-mini",
-                        "o3-mini", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano",
+                        "gpt-4o",
+                        "gpt-4o-mini",
+                        "o1",
+                        "o1-mini",
+                        "o3-mini",
+                        "gpt-4.1",
+                        "gpt-4.1-mini",
+                        "gpt-4.1-nano",
                     ),
                 category = ProviderCategory.PRIMARY,
                 iconUrl = "https://cdn.openai.com/API/logo-assets/openai-logomark.png",
@@ -117,7 +123,12 @@ object ProviderRegistry {
                 displayName = "Google Gemini",
                 authType = ProviderAuthType.API_KEY_ONLY,
                 suggestedModels =
-                    listOf("gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-pro", "gemini-1.5-flash"),
+                    listOf(
+                        "gemini-2.0-flash",
+                        "gemini-2.0-flash-lite",
+                        "gemini-1.5-pro",
+                        "gemini-1.5-flash",
+                    ),
                 aliases = listOf("google", "gemini"),
                 category = ProviderCategory.PRIMARY,
                 iconUrl = faviconUrl("ai.google.dev"),
@@ -129,7 +140,15 @@ object ProviderRegistry {
                 displayName = "Ollama",
                 authType = ProviderAuthType.URL_ONLY,
                 defaultBaseUrl = "http://localhost:11434",
-                suggestedModels = listOf("llama3.3", "qwen2.5", "mistral", "deepseek-r1", "phi4", "gemma3"),
+                suggestedModels =
+                    listOf(
+                        "llama3.3",
+                        "qwen2.5",
+                        "mistral",
+                        "deepseek-r1",
+                        "phi4",
+                        "gemma3",
+                    ),
                 category = ProviderCategory.PRIMARY,
                 iconUrl = faviconUrl("ollama.com"),
                 modelListUrl = "http://localhost:11434/api/tags",
@@ -172,7 +191,12 @@ object ProviderRegistry {
                 displayName = "Groq",
                 authType = ProviderAuthType.API_KEY_ONLY,
                 suggestedModels =
-                    listOf("llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768", "gemma2-9b-it"),
+                    listOf(
+                        "llama-3.3-70b-versatile",
+                        "llama-3.1-8b-instant",
+                        "mixtral-8x7b-32768",
+                        "gemma2-9b-it",
+                    ),
                 category = ProviderCategory.ECOSYSTEM,
                 iconUrl = faviconUrl("groq.com"),
                 modelListUrl = "https://api.groq.com/openai/v1/models",
@@ -183,7 +207,12 @@ object ProviderRegistry {
                 displayName = "Mistral",
                 authType = ProviderAuthType.API_KEY_ONLY,
                 suggestedModels =
-                    listOf("mistral-large-latest", "mistral-small-latest", "codestral-latest", "pixtral-large-latest"),
+                    listOf(
+                        "mistral-large-latest",
+                        "mistral-small-latest",
+                        "codestral-latest",
+                        "pixtral-large-latest",
+                    ),
                 category = ProviderCategory.ECOSYSTEM,
                 iconUrl = faviconUrl("mistral.ai"),
                 modelListUrl = "https://api.mistral.ai/v1/models",

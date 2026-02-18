@@ -139,7 +139,16 @@ class ProviderRegistryTest {
     @DisplayName("major cloud providers have iconUrl populated")
     fun `major cloud providers have iconUrl populated`() {
         val expectedWithIcons =
-            listOf("openai", "anthropic", "openrouter", "google-gemini", "ollama", "groq", "mistral", "deepseek")
+            listOf(
+                "openai",
+                "anthropic",
+                "openrouter",
+                "google-gemini",
+                "ollama",
+                "groq",
+                "mistral",
+                "deepseek",
+            )
         expectedWithIcons.forEach { id ->
             val provider = ProviderRegistry.findById(id)
             assertNotNull(provider, "$id should exist")
@@ -150,21 +159,26 @@ class ProviderRegistryTest {
     @Test
     @DisplayName("major cloud providers have modelListUrl populated")
     fun `major cloud providers have modelListUrl populated`() {
-        val expectedWithModelList = mapOf(
-            "openai" to ModelListFormat.OPENAI_COMPATIBLE,
-            "anthropic" to ModelListFormat.ANTHROPIC,
-            "openrouter" to ModelListFormat.OPENROUTER,
-            "google-gemini" to ModelListFormat.GOOGLE_GEMINI,
-            "ollama" to ModelListFormat.OLLAMA,
-            "groq" to ModelListFormat.OPENAI_COMPATIBLE,
-            "mistral" to ModelListFormat.OPENAI_COMPATIBLE,
-            "deepseek" to ModelListFormat.OPENAI_COMPATIBLE,
-        )
+        val expectedWithModelList =
+            mapOf(
+                "openai" to ModelListFormat.OPENAI_COMPATIBLE,
+                "anthropic" to ModelListFormat.ANTHROPIC,
+                "openrouter" to ModelListFormat.OPENROUTER,
+                "google-gemini" to ModelListFormat.GOOGLE_GEMINI,
+                "ollama" to ModelListFormat.OLLAMA,
+                "groq" to ModelListFormat.OPENAI_COMPATIBLE,
+                "mistral" to ModelListFormat.OPENAI_COMPATIBLE,
+                "deepseek" to ModelListFormat.OPENAI_COMPATIBLE,
+            )
         expectedWithModelList.forEach { (id, expectedFormat) ->
             val provider = ProviderRegistry.findById(id)
             assertNotNull(provider, "$id should exist")
             assertTrue(provider!!.modelListUrl.isNotBlank(), "$id should have a modelListUrl")
-            assertEquals(expectedFormat, provider.modelListFormat, "$id should have format $expectedFormat")
+            assertEquals(
+                expectedFormat,
+                provider.modelListFormat,
+                "$id should have format $expectedFormat",
+            )
         }
     }
 

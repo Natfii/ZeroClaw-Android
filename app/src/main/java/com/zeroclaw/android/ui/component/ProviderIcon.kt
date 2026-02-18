@@ -101,9 +101,10 @@ fun ProviderIcon(
             model = iconUrl,
             contentDescription = "$displayName provider",
             contentScale = ContentScale.Crop,
-            modifier = modifier
-                .size(ICON_SIZE_DP.dp)
-                .clip(CircleShape),
+            modifier =
+                modifier
+                    .size(ICON_SIZE_DP.dp)
+                    .clip(CircleShape),
             loading = { InitialCircle(resolvedId, displayName, Modifier) },
             error = { InitialCircle(resolvedId, displayName, Modifier) },
         )

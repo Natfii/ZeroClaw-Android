@@ -6,13 +6,13 @@
 
 package com.zeroclaw.android.data
 
+import java.io.IOException
+import java.net.HttpURLConnection
+import java.net.URL
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
-import java.io.IOException
-import java.net.HttpURLConnection
-import java.net.URL
 
 /**
  * Result of a successful OAuth token refresh.
@@ -51,7 +51,6 @@ class OAuthRefreshException(
 class OAuthTokenRefresher(
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
-
     /**
      * Exchanges a refresh token for a new access token pair.
      *
@@ -63,53 +62,60 @@ class OAuthTokenRefresher(
      * @throws OAuthRefreshException if the refresh request fails.
      */
     @Suppress("TooGenericExceptionCaught")
-    suspend fun refresh(refreshToken: String): RefreshResult = withContext(ioDispatcher) {
-        val body = JSONObject().apply {
-            put("grant_type", "refresh_token")
-            put("refresh_token", refreshToken)
-        }.toString()
+    suspend fun refresh(refreshToken: String): RefreshResult =
+        withContext(ioDispatcher) {
+            val body =
+                JSONObject()
+                    .apply {
+                        put("grant_type", "refresh_token")
+                        put("refresh_token", refreshToken)
+                    }.toString()
 
-        val url = URL(REFRESH_URL)
-        val conn = url.openConnection() as HttpURLConnection
-        try {
-            conn.requestMethod = "POST"
-            conn.setRequestProperty("Content-Type", "application/json")
-            conn.connectTimeout = CONNECT_TIMEOUT_MS
-            conn.readTimeout = READ_TIMEOUT_MS
-            conn.doOutput = true
+            val url = URL(REFRESH_URL)
+            val conn = url.openConnection() as HttpURLConnection
+            try {
+                conn.requestMethod = "POST"
+                conn.setRequestProperty("Content-Type", "application/json")
+                conn.connectTimeout = CONNECT_TIMEOUT_MS
+                conn.readTimeout = READ_TIMEOUT_MS
+                conn.doOutput = true
 
-            conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+                conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
 
-            val statusCode = conn.responseCode
-            if (statusCode !in httpOkRange) {
-                val errorBody = try {
-                    conn.errorStream?.bufferedReader()?.readText().orEmpty()
-                } catch (_: IOException) {
-                    ""
+                val statusCode = conn.responseCode
+                if (statusCode !in httpOkRange) {
+                    val errorBody =
+                        try {
+                            conn.errorStream
+                                ?.bufferedReader()
+                                ?.readText()
+                                .orEmpty()
+                        } catch (_: IOException) {
+                            ""
+                        }
+                    throw OAuthRefreshException(
+                        "Refresh failed: HTTP $statusCode - $errorBody",
+                        httpStatusCode = statusCode,
+                    )
                 }
-                throw OAuthRefreshException(
-                    "Refresh failed: HTTP $statusCode - $errorBody",
-                    httpStatusCode = statusCode,
+
+                val responseBody = conn.inputStream.bufferedReader().readText()
+                val json = JSONObject(responseBody)
+
+                val expiresInSeconds = json.optLong("expires_in", 0L)
+                RefreshResult(
+                    accessToken = json.getString("access_token"),
+                    refreshToken = json.getString("refresh_token"),
+                    expiresAt = System.currentTimeMillis() + expiresInSeconds * MILLIS_PER_SECOND,
                 )
+            } catch (e: OAuthRefreshException) {
+                throw e
+            } catch (e: Exception) {
+                throw OAuthRefreshException("Token refresh failed", cause = e)
+            } finally {
+                conn.disconnect()
             }
-
-            val responseBody = conn.inputStream.bufferedReader().readText()
-            val json = JSONObject(responseBody)
-
-            val expiresInSeconds = json.optLong("expires_in", 0L)
-            RefreshResult(
-                accessToken = json.getString("access_token"),
-                refreshToken = json.getString("refresh_token"),
-                expiresAt = System.currentTimeMillis() + expiresInSeconds * MILLIS_PER_SECOND,
-            )
-        } catch (e: OAuthRefreshException) {
-            throw e
-        } catch (e: Exception) {
-            throw OAuthRefreshException("Token refresh failed", cause = e)
-        } finally {
-            conn.disconnect()
         }
-    }
 
     private val httpOkRange = 200..299
 

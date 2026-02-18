@@ -77,7 +77,10 @@ interface PluginDao {
      * @param configJson New JSON-serialized configuration map.
      */
     @Query("UPDATE plugins SET config_json = :configJson WHERE id = :id")
-    suspend fun updateConfigJson(id: String, configJson: String)
+    suspend fun updateConfigJson(
+        id: String,
+        configJson: String,
+    )
 
     /**
      * Returns the total number of plugins.

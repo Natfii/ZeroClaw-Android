@@ -12,11 +12,11 @@ import androidx.lifecycle.viewModelScope
 import com.zeroclaw.android.ZeroClawApplication
 import com.zeroclaw.android.model.ChatMessage
 import com.zeroclaw.ffi.FfiException
+import java.util.UUID
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.util.UUID
 
 /**
  * ViewModel for the agent chat screen.
@@ -72,36 +72,40 @@ class ChatViewModel(
     @Suppress("TooGenericExceptionCaught")
     fun sendMessage(text: String) {
         if (text.isBlank()) return
-        val userMessage = ChatMessage(
-            id = UUID.randomUUID().toString(),
-            content = text,
-            isFromUser = true,
-        )
+        val userMessage =
+            ChatMessage(
+                id = UUID.randomUUID().toString(),
+                content = text,
+                isFromUser = true,
+            )
         _messages.value = _messages.value + userMessage
         _isLoading.value = true
 
         viewModelScope.launch {
             try {
                 val response = daemonBridge.send(text)
-                val agentMessage = ChatMessage(
-                    id = UUID.randomUUID().toString(),
-                    content = response,
-                    isFromUser = false,
-                )
+                val agentMessage =
+                    ChatMessage(
+                        id = UUID.randomUUID().toString(),
+                        content = response,
+                        isFromUser = false,
+                    )
                 _messages.value = _messages.value + agentMessage
             } catch (e: FfiException) {
-                val errorMessage = ChatMessage(
-                    id = UUID.randomUUID().toString(),
-                    content = "Error: ${e.message ?: "Failed to get response"}",
-                    isFromUser = false,
-                )
+                val errorMessage =
+                    ChatMessage(
+                        id = UUID.randomUUID().toString(),
+                        content = "Error: ${e.message ?: "Failed to get response"}",
+                        isFromUser = false,
+                    )
                 _messages.value = _messages.value + errorMessage
             } catch (e: Exception) {
-                val errorMessage = ChatMessage(
-                    id = UUID.randomUUID().toString(),
-                    content = "Error: ${e.message ?: "Unexpected error"}",
-                    isFromUser = false,
-                )
+                val errorMessage =
+                    ChatMessage(
+                        id = UUID.randomUUID().toString(),
+                        content = "Error: ${e.message ?: "Unexpected error"}",
+                        isFromUser = false,
+                    )
                 _messages.value = _messages.value + errorMessage
             } finally {
                 _isLoading.value = false

@@ -13,9 +13,9 @@ import kotlinx.serialization.Serializable
  *
  * Each route is a [Serializable] object or data class that the Navigation
  * Compose library uses for type-safe argument passing between destinations.
+ *
+ * Dashboard home screen showing daemon status overview.
  */
-
-/** Dashboard home screen showing daemon status overview. */
 @Serializable
 data object DashboardRoute
 

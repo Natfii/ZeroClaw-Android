@@ -63,24 +63,27 @@ fun ProviderDropdown(
 ) {
     var expanded by remember { mutableStateOf(false) }
     var filterText by remember { mutableStateOf("") }
-    val displayText = ProviderRegistry.findById(selectedProviderId)?.displayName
-        ?: selectedProviderId.ifEmpty { "" }
+    val displayText =
+        ProviderRegistry.findById(selectedProviderId)?.displayName
+            ?: selectedProviderId.ifEmpty { "" }
 
     val grouped = remember { ProviderRegistry.allByCategory() }
-    val filteredGrouped = remember(filterText) {
-        if (filterText.isBlank()) {
-            grouped
-        } else {
-            val query = filterText.lowercase()
-            grouped.mapValues { (_, providers) ->
-                providers.filter { provider ->
-                    provider.displayName.lowercase().contains(query) ||
-                        provider.id.contains(query) ||
-                        provider.aliases.any { it.contains(query) }
-                }
-            }.filterValues { it.isNotEmpty() }
+    val filteredGrouped =
+        remember(filterText) {
+            if (filterText.isBlank()) {
+                grouped
+            } else {
+                val query = filterText.lowercase()
+                grouped
+                    .mapValues { (_, providers) ->
+                        providers.filter { provider ->
+                            provider.displayName.lowercase().contains(query) ||
+                                provider.id.contains(query) ||
+                                provider.aliases.any { it.contains(query) }
+                        }
+                    }.filterValues { it.isNotEmpty() }
+            }
         }
-    }
 
     ExposedDropdownMenuBox(
         expanded = expanded,
@@ -95,10 +98,11 @@ fun ProviderDropdown(
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             singleLine = true,
             enabled = enabled,
-            modifier = Modifier
-                .fillMaxWidth()
-                .menuAnchor(MenuAnchorType.PrimaryEditable)
-                .semantics { contentDescription = "$label dropdown" },
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .menuAnchor(MenuAnchorType.PrimaryEditable)
+                    .semantics { contentDescription = "$label dropdown" },
         )
 
         ExposedDropdownMenu(

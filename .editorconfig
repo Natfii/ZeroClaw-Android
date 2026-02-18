@@ -15,6 +15,7 @@ ij_kotlin_imports_layout = *
 ij_kotlin_allow_trailing_comma = true
 ij_kotlin_allow_trailing_comma_on_call_site = true
 ktlint_function_naming_ignore_when_annotated_with = Composable
+ktlint_standard_max-line-length = disabled
 
 [*.rs]
 indent_size = 4

@@ -24,41 +24,44 @@ import org.junit.jupiter.api.Test
 class OnboardingViewModelTest {
     @Test
     @DisplayName("nextStep advances within bounds")
-    fun `nextStep advances within bounds`() = runTest {
-        val steps = TestStepTracker()
-        steps.next()
-        assertEquals(1, steps.current)
-        steps.next()
-        assertEquals(2, steps.current)
-        steps.next()
-        assertEquals(3, steps.current)
-        steps.next()
-        assertEquals(3, steps.current)
-    }
+    fun `nextStep advances within bounds`() =
+        runTest {
+            val steps = TestStepTracker()
+            steps.next()
+            assertEquals(1, steps.current)
+            steps.next()
+            assertEquals(2, steps.current)
+            steps.next()
+            assertEquals(3, steps.current)
+            steps.next()
+            assertEquals(3, steps.current)
+        }
 
     @Test
     @DisplayName("previousStep goes back within bounds")
-    fun `previousStep goes back within bounds`() = runTest {
-        val steps = TestStepTracker()
-        steps.next()
-        steps.next()
-        assertEquals(2, steps.current)
-        steps.previous()
-        assertEquals(1, steps.current)
-        steps.previous()
-        assertEquals(0, steps.current)
-        steps.previous()
-        assertEquals(0, steps.current)
-    }
+    fun `previousStep goes back within bounds`() =
+        runTest {
+            val steps = TestStepTracker()
+            steps.next()
+            steps.next()
+            assertEquals(2, steps.current)
+            steps.previous()
+            assertEquals(1, steps.current)
+            steps.previous()
+            assertEquals(0, steps.current)
+            steps.previous()
+            assertEquals(0, steps.current)
+        }
 
     @Test
     @DisplayName("complete delegates to repository")
-    fun `complete delegates to repository`() = runTest {
-        val repo = TestOnboardingRepository()
-        assertEquals(false, repo.isCompleted.first())
-        repo.markComplete()
-        assertEquals(true, repo.isCompleted.first())
-    }
+    fun `complete delegates to repository`() =
+        runTest {
+            val repo = TestOnboardingRepository()
+            assertEquals(false, repo.isCompleted.first())
+            repo.markComplete()
+            assertEquals(true, repo.isCompleted.first())
+        }
 }
 
 /**

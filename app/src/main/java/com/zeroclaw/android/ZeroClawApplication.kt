@@ -21,13 +21,13 @@ import com.zeroclaw.android.data.local.ZeroClawDatabase
 import com.zeroclaw.android.data.repository.ActivityRepository
 import com.zeroclaw.android.data.repository.AgentRepository
 import com.zeroclaw.android.data.repository.ApiKeyRepository
+import com.zeroclaw.android.data.repository.ChannelConfigRepository
 import com.zeroclaw.android.data.repository.DataStoreOnboardingRepository
 import com.zeroclaw.android.data.repository.DataStoreSettingsRepository
 import com.zeroclaw.android.data.repository.EncryptedApiKeyRepository
 import com.zeroclaw.android.data.repository.InMemoryApiKeyRepository
 import com.zeroclaw.android.data.repository.LogRepository
 import com.zeroclaw.android.data.repository.OnboardingRepository
-import com.zeroclaw.android.data.repository.ChannelConfigRepository
 import com.zeroclaw.android.data.repository.PluginRepository
 import com.zeroclaw.android.data.repository.RoomActivityRepository
 import com.zeroclaw.android.data.repository.RoomAgentRepository
@@ -53,7 +53,9 @@ import kotlinx.coroutines.SupervisorJob
  * survives process restarts. Settings and API keys remain in DataStore
  * and EncryptedSharedPreferences respectively.
  */
-class ZeroClawApplication : Application(), SingletonImageLoader.Factory {
+class ZeroClawApplication :
+    Application(),
+    SingletonImageLoader.Factory {
     /**
      * Shared bridge between the Android service layer and the Rust FFI.
      *
@@ -172,20 +174,21 @@ class ZeroClawApplication : Application(), SingletonImageLoader.Factory {
     }
 
     override fun newImageLoader(context: Context): ImageLoader =
-        ImageLoader.Builder(context)
+        ImageLoader
+            .Builder(context)
             .crossfade(true)
             .memoryCache {
-                MemoryCache.Builder()
+                MemoryCache
+                    .Builder()
                     .maxSizePercent(context, MEMORY_CACHE_PERCENT)
                     .build()
-            }
-            .diskCache {
-                DiskCache.Builder()
+            }.diskCache {
+                DiskCache
+                    .Builder()
                     .directory(context.cacheDir.resolve("image_cache"))
                     .maxSizeBytes(DISK_CACHE_MAX_BYTES)
                     .build()
-            }
-            .build()
+            }.build()
 
     /** Constants for [ZeroClawApplication]. */
     companion object {

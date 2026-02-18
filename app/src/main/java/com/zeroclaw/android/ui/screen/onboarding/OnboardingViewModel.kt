@@ -15,11 +15,11 @@ import com.zeroclaw.android.model.Agent
 import com.zeroclaw.android.model.ApiKey
 import com.zeroclaw.android.model.ChannelType
 import com.zeroclaw.android.model.ConnectedChannel
+import java.util.UUID
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.util.UUID
 
 /** Total number of onboarding steps (including channel setup). */
 private const val TOTAL_STEPS = 5
@@ -164,7 +164,10 @@ class OnboardingViewModel(
      * @param key The field key.
      * @param value The field value.
      */
-    fun setChannelField(key: String, value: String) {
+    fun setChannelField(
+        key: String,
+        value: String,
+    ) {
         _channelFieldValues.value = _channelFieldValues.value + (key to value)
     }
 
@@ -232,23 +235,26 @@ class OnboardingViewModel(
     private suspend fun saveChannelIfConfigured() {
         val channelType = _selectedChannelType.value ?: return
         val fields = _channelFieldValues.value
-        val requiredFilled = channelType.fields
-            .filter { it.isRequired }
-            .all { fields[it.key]?.isNotBlank() == true }
+        val requiredFilled =
+            channelType.fields
+                .filter { it.isRequired }
+                .all { fields[it.key]?.isNotBlank() == true }
         if (!requiredFilled) return
 
-        val secretKeys = channelType.fields
-            .filter { it.isSecret }
-            .map { it.key }
-            .toSet()
+        val secretKeys =
+            channelType.fields
+                .filter { it.isSecret }
+                .map { it.key }
+                .toSet()
         val secrets = fields.filter { it.key in secretKeys }
         val nonSecrets = fields.filter { it.key !in secretKeys }
 
-        val channel = ConnectedChannel(
-            id = UUID.randomUUID().toString(),
-            type = channelType,
-            configValues = nonSecrets,
-        )
+        val channel =
+            ConnectedChannel(
+                id = UUID.randomUUID().toString(),
+                type = channelType,
+                configValues = nonSecrets,
+            )
         channelConfigRepository.save(channel, secrets)
     }
 }

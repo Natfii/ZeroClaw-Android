@@ -59,14 +59,18 @@ class ChannelsViewModel(
      * @param allFieldValues All field values including both secrets and non-secrets.
      */
     @Suppress("TooGenericExceptionCaught")
-    fun saveChannel(channel: ConnectedChannel, allFieldValues: Map<String, String>) {
+    fun saveChannel(
+        channel: ConnectedChannel,
+        allFieldValues: Map<String, String>,
+    ) {
         _saveState.value = SaveState.Saving
         viewModelScope.launch {
             try {
-                val secretKeys = channel.type.fields
-                    .filter { it.isSecret }
-                    .map { it.key }
-                    .toSet()
+                val secretKeys =
+                    channel.type.fields
+                        .filter { it.isSecret }
+                        .map { it.key }
+                        .toSet()
                 val secrets = allFieldValues.filter { it.key in secretKeys }
                 val nonSecrets = allFieldValues.filter { it.key !in secretKeys }
                 val updated = channel.copy(configValues = nonSecrets)
@@ -126,8 +130,7 @@ class ChannelsViewModel(
      * @param type Channel type to check.
      * @return True if the type is not yet configured and is available.
      */
-    suspend fun isTypeAvailable(type: ChannelType): Boolean =
-        !repository.existsForType(type)
+    suspend fun isTypeAvailable(type: ChannelType): Boolean = !repository.existsForType(type)
 
     /** Resets [saveState] back to [SaveState.Idle]. */
     fun resetSaveState() {

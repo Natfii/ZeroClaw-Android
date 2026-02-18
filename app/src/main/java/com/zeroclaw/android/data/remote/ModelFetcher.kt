@@ -8,12 +8,12 @@ package com.zeroclaw.android.data.remote
 
 import com.zeroclaw.android.model.ModelListFormat
 import com.zeroclaw.android.model.ProviderInfo
+import java.net.HttpURLConnection
+import java.net.URL
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
 
 /**
  * Fetches available model lists from provider APIs.
@@ -51,18 +51,20 @@ object ModelFetcher {
         provider: ProviderInfo,
         apiKey: String = "",
         baseUrl: String = "",
-    ): Result<List<String>> = withContext(Dispatchers.IO) {
-        try {
-            val url = resolveUrl(provider, baseUrl)
-                ?: return@withContext Result.failure(IllegalStateException("No model list URL"))
+    ): Result<List<String>> =
+        withContext(Dispatchers.IO) {
+            try {
+                val url =
+                    resolveUrl(provider, baseUrl)
+                        ?: return@withContext Result.failure(IllegalStateException("No model list URL"))
 
-            val json = executeRequest(url, provider.modelListFormat, apiKey)
-            val models = parseModels(json, provider.modelListFormat)
-            Result.success(models)
-        } catch (e: Exception) {
-            Result.failure(e)
+                val json = executeRequest(url, provider.modelListFormat, apiKey)
+                val models = parseModels(json, provider.modelListFormat)
+                Result.success(models)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
         }
-    }
 
     /**
      * Resolves the final URL for fetching models.
@@ -71,14 +73,20 @@ object ModelFetcher {
      * @param baseUrl User-supplied base URL override.
      * @return The resolved URL string, or null if none available.
      */
-    private fun resolveUrl(provider: ProviderInfo, baseUrl: String): String? {
+    private fun resolveUrl(
+        provider: ProviderInfo,
+        baseUrl: String,
+    ): String? {
         if (provider.modelListFormat == ModelListFormat.NONE) return null
 
         if (provider.modelListUrl.isNotEmpty()) {
             return when (provider.modelListFormat) {
                 ModelListFormat.OLLAMA -> {
-                    if (baseUrl.isNotBlank()) "${baseUrl.trimEnd('/')}/api/tags"
-                    else provider.modelListUrl
+                    if (baseUrl.isNotBlank()) {
+                        "${baseUrl.trimEnd('/')}/api/tags"
+                    } else {
+                        provider.modelListUrl
+                    }
                 }
                 else -> provider.modelListUrl
             }
@@ -106,12 +114,13 @@ object ModelFetcher {
         format: ModelListFormat,
         apiKey: String,
     ): String {
-        val finalUrl = if (format == ModelListFormat.GOOGLE_GEMINI && apiKey.isNotBlank()) {
-            val separator = if ('?' in url) '&' else '?'
-            "$url${separator}key=$apiKey"
-        } else {
-            url
-        }
+        val finalUrl =
+            if (format == ModelListFormat.GOOGLE_GEMINI && apiKey.isNotBlank()) {
+                val separator = if ('?' in url) '&' else '?'
+                "$url${separator}key=$apiKey"
+            } else {
+                url
+            }
 
         val connection = URL(finalUrl).openConnection() as HttpURLConnection
         try {
@@ -165,7 +174,10 @@ object ModelFetcher {
      * @param format Expected response format.
      * @return List of model ID strings extracted from the response.
      */
-    internal fun parseModels(json: String, format: ModelListFormat): List<String> =
+    internal fun parseModels(
+        json: String,
+        format: ModelListFormat,
+    ): List<String> =
         when (format) {
             ModelListFormat.OPENAI_COMPATIBLE,
             ModelListFormat.ANTHROPIC,
@@ -186,7 +198,10 @@ object ModelFetcher {
      * @param field Name of the field to extract from each array element.
      * @return List of extracted string values.
      */
-    private fun parseDataArray(json: String, field: String): List<String> {
+    private fun parseDataArray(
+        json: String,
+        field: String,
+    ): List<String> {
         val root = JSONObject(json)
         val data = root.getJSONArray("data")
         return buildList {

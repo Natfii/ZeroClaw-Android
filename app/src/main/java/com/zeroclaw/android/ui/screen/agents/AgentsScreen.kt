@@ -176,9 +176,10 @@ private fun AgentListItem(
             }
             IconButton(
                 onClick = onEdit,
-                modifier = Modifier.semantics {
-                    contentDescription = "Edit ${agent.name}"
-                },
+                modifier =
+                    Modifier.semantics {
+                        contentDescription = "Edit ${agent.name}"
+                    },
             ) {
                 Icon(
                     Icons.Outlined.Edit,

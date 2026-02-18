@@ -34,39 +34,42 @@ class RoomActivityRepositoryTest {
     }
 
     @Test
-    fun `record inserts entity via dao`() = runTest {
-        coEvery { dao.count() } returns 1
-        val repo = RoomActivityRepository(dao = dao, ioScope = this, maxEvents = 100)
+    fun `record inserts entity via dao`() =
+        runTest {
+            coEvery { dao.count() } returns 1
+            val repo = RoomActivityRepository(dao = dao, ioScope = this, maxEvents = 100)
 
-        repo.record(ActivityType.DAEMON_STARTED, "Daemon started")
-        advanceUntilIdle()
+            repo.record(ActivityType.DAEMON_STARTED, "Daemon started")
+            advanceUntilIdle()
 
-        val slot = slot<ActivityEventEntity>()
-        coVerify { dao.insert(capture(slot)) }
-        assertEquals("DAEMON_STARTED", slot.captured.type)
-        assertEquals("Daemon started", slot.captured.message)
-    }
-
-    @Test
-    fun `record prunes when count exceeds max`() = runTest {
-        val maxEvents = 10
-        coEvery { dao.count() } returns maxEvents + 1
-        val repo = RoomActivityRepository(dao = dao, ioScope = this, maxEvents = maxEvents)
-
-        repo.record(ActivityType.FFI_CALL, "Test")
-        advanceUntilIdle()
-
-        coVerify { dao.pruneOldest(maxEvents) }
-    }
+            val slot = slot<ActivityEventEntity>()
+            coVerify { dao.insert(capture(slot)) }
+            assertEquals("DAEMON_STARTED", slot.captured.type)
+            assertEquals("Daemon started", slot.captured.message)
+        }
 
     @Test
-    fun `record does not prune when count is within limit`() = runTest {
-        coEvery { dao.count() } returns 5
-        val repo = RoomActivityRepository(dao = dao, ioScope = this, maxEvents = 100)
+    fun `record prunes when count exceeds max`() =
+        runTest {
+            val maxEvents = 10
+            coEvery { dao.count() } returns maxEvents + 1
+            val repo = RoomActivityRepository(dao = dao, ioScope = this, maxEvents = maxEvents)
 
-        repo.record(ActivityType.NETWORK_CHANGE, "WiFi connected")
-        advanceUntilIdle()
+            repo.record(ActivityType.FFI_CALL, "Test")
+            advanceUntilIdle()
 
-        coVerify(exactly = 0) { dao.pruneOldest(any()) }
-    }
+            coVerify { dao.pruneOldest(maxEvents) }
+        }
+
+    @Test
+    fun `record does not prune when count is within limit`() =
+        runTest {
+            coEvery { dao.count() } returns 5
+            val repo = RoomActivityRepository(dao = dao, ioScope = this, maxEvents = 100)
+
+            repo.record(ActivityType.NETWORK_CHANGE, "WiFi connected")
+            advanceUntilIdle()
+
+            coVerify(exactly = 0) { dao.pruneOldest(any()) }
+        }
 }

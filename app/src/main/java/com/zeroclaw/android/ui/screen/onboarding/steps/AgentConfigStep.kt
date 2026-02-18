@@ -39,7 +39,9 @@ fun AgentConfigStep(
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "Set up your first AI agent. You can customize it further and add more agents later.",
+            text =
+                "Set up your first AI agent. " +
+                    "You can customize it further and add more agents later.",
             style = MaterialTheme.typography.bodyLarge,
         )
         Spacer(modifier = Modifier.height(24.dp))

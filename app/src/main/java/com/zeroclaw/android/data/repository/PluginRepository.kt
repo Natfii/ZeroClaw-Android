@@ -52,5 +52,9 @@ interface PluginRepository {
      * @param key Configuration field key.
      * @param value New value for the field.
      */
-    suspend fun updateConfig(pluginId: String, key: String, value: String)
+    suspend fun updateConfig(
+        pluginId: String,
+        key: String,
+        value: String,
+    )
 }

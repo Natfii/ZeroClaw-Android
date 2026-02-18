@@ -103,9 +103,10 @@ fun ConnectedChannelsScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { showTypePicker = true },
-                modifier = Modifier.semantics {
-                    contentDescription = "Add connected channel"
-                },
+                modifier =
+                    Modifier.semantics {
+                        contentDescription = "Add connected channel"
+                    },
             ) {
                 Icon(Icons.Filled.Add, contentDescription = null)
             }
@@ -113,10 +114,11 @@ fun ConnectedChannelsScreen(
         modifier = modifier,
     ) { innerPadding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = edgeMargin),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(horizontal = edgeMargin),
         ) {
             Spacer(modifier = Modifier.height(SPACER_HEIGHT_DP.dp))
 
@@ -186,9 +188,10 @@ private fun ChannelListItem(
 ) {
     Card(
         onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .defaultMinSize(minHeight = MIN_TOUCH_TARGET_DP.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .defaultMinSize(minHeight = MIN_TOUCH_TARGET_DP.dp),
     ) {
         Row(
             modifier = Modifier.padding(ROW_PADDING_DP.dp),
@@ -214,10 +217,11 @@ private fun ChannelListItem(
             Switch(
                 checked = channel.isEnabled,
                 onCheckedChange = { onToggle() },
-                modifier = Modifier.semantics {
-                    contentDescription =
-                        "${channel.type.displayName} ${if (channel.isEnabled) "enabled" else "disabled"}"
-                },
+                modifier =
+                    Modifier.semantics {
+                        contentDescription =
+                            "${channel.type.displayName} ${if (channel.isEnabled) "enabled" else "disabled"}"
+                    },
             )
             IconButton(onClick = onDelete) {
                 Icon(
@@ -258,11 +262,12 @@ private fun ChannelTypePickerDialog(
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text(
-                            text = if (isConfigured) {
-                                "${type.displayName} (configured)"
-                            } else {
-                                type.displayName
-                            },
+                            text =
+                                if (isConfigured) {
+                                    "${type.displayName} (configured)"
+                                } else {
+                                    type.displayName
+                                },
                         )
                     }
                 }

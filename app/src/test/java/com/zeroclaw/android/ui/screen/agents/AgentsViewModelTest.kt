@@ -43,45 +43,63 @@ class AgentsViewModelTest {
 
     @Test
     @DisplayName("empty query returns all agents")
-    fun `empty query returns all agents`() = runTest {
-        val filtered = filterAgents(sampleAgents, "")
-        assertEquals(2, filtered.size)
-    }
+    fun `empty query returns all agents`() =
+        runTest {
+            val filtered = filterAgents(sampleAgents, "")
+            assertEquals(2, filtered.size)
+        }
 
     @Test
     @DisplayName("search by name filters correctly")
-    fun `search by name filters correctly`() = runTest {
-        val filtered = filterAgents(sampleAgents, "general")
-        assertEquals(1, filtered.size)
-        assertEquals("General Assistant", filtered.first().name)
-    }
+    fun `search by name filters correctly`() =
+        runTest {
+            val filtered = filterAgents(sampleAgents, "general")
+            assertEquals(1, filtered.size)
+            assertEquals("General Assistant", filtered.first().name)
+        }
 
     @Test
     @DisplayName("search by provider filters correctly")
-    fun `search by provider filters correctly`() = runTest {
-        val filtered = filterAgents(sampleAgents, "openai")
-        assertEquals(1, filtered.size)
-        assertEquals("Code Reviewer", filtered.first().name)
-    }
+    fun `search by provider filters correctly`() =
+        runTest {
+            val filtered = filterAgents(sampleAgents, "openai")
+            assertEquals(1, filtered.size)
+            assertEquals("Code Reviewer", filtered.first().name)
+        }
 
     @Test
     @DisplayName("no match returns empty list")
-    fun `no match returns empty list`() = runTest {
-        val filtered = filterAgents(sampleAgents, "nonexistent")
-        assertTrue(filtered.isEmpty())
-    }
+    fun `no match returns empty list`() =
+        runTest {
+            val filtered = filterAgents(sampleAgents, "nonexistent")
+            assertTrue(filtered.isEmpty())
+        }
 
     @Test
     @DisplayName("toggle agent flips enabled state")
-    fun `toggle agent flips enabled state`() = runTest {
-        val repo = TestAgentRepository(sampleAgents.toMutableList())
-        val before = repo.agents.first().first().isEnabled
-        repo.toggleEnabled("1")
-        assertEquals(!before, repo.agents.first().first().isEnabled)
-    }
+    fun `toggle agent flips enabled state`() =
+        runTest {
+            val repo = TestAgentRepository(sampleAgents.toMutableList())
+            val before =
+                repo.agents
+                    .first()
+                    .first()
+                    .isEnabled
+            repo.toggleEnabled("1")
+            assertEquals(
+                !before,
+                repo.agents
+                    .first()
+                    .first()
+                    .isEnabled,
+            )
+        }
 }
 
-private fun filterAgents(agents: List<Agent>, query: String): List<Agent> =
+private fun filterAgents(
+    agents: List<Agent>,
+    query: String,
+): List<Agent> =
     if (query.isBlank()) {
         agents
     } else {

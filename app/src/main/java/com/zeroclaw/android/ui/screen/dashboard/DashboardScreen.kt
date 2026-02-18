@@ -41,9 +41,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.zeroclaw.android.ZeroClawApplication
 import com.zeroclaw.android.model.ServiceState
 import com.zeroclaw.android.ui.component.LoadingIndicator
-import com.zeroclaw.android.ZeroClawApplication
 import com.zeroclaw.android.ui.component.SectionHeader
 import com.zeroclaw.android.util.BatteryOptimization
 import com.zeroclaw.android.viewmodel.DaemonUiState
@@ -252,9 +252,7 @@ private fun BatteryOptimizationBanner(
  * @param onDismiss Callback when the user dismisses the banner.
  */
 @Composable
-private fun KeyRejectionBanner(
-    onDismiss: () -> Unit,
-) {
+private fun KeyRejectionBanner(onDismiss: () -> Unit) {
     Card(
         modifier =
             Modifier
@@ -267,8 +265,9 @@ private fun KeyRejectionBanner(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = "An API key may be invalid or expired. " +
-                    "Check Settings \u203A API Keys.",
+                text =
+                    "An API key may be invalid or expired. " +
+                        "Check Settings \u203A API Keys.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onErrorContainer,
             )

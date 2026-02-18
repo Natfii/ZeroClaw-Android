@@ -89,13 +89,14 @@ fun ChannelDetailScreen(
     modifier: Modifier = Modifier,
 ) {
     val saveState by channelsViewModel.saveState.collectAsStateWithLifecycle()
-    val channelType = remember(channelId, channelTypeName) {
-        if (channelTypeName != null) {
-            runCatching { ChannelType.valueOf(channelTypeName) }.getOrNull()
-        } else {
-            null
+    val channelType =
+        remember(channelId, channelTypeName) {
+            if (channelTypeName != null) {
+                runCatching { ChannelType.valueOf(channelTypeName) }.getOrNull()
+            } else {
+                null
+            }
         }
-    }
 
     var loadedChannel by remember { mutableStateOf<ConnectedChannel?>(null) }
     var resolvedType by remember { mutableStateOf(channelType) }
@@ -134,24 +135,27 @@ fun ChannelDetailScreen(
     val optionalFields = currentType.fields.filter { !it.isRequired }
     val hasAdvanced = optionalFields.size > ADVANCED_THRESHOLD
 
-    val allRequiredFilled = requiredFields.all { spec ->
-        fieldValues[spec.key]?.isNotBlank() == true
-    }
+    val allRequiredFilled =
+        requiredFields.all { spec ->
+            fieldValues[spec.key]?.isNotBlank() == true
+        }
 
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(horizontal = edgeMargin)
-            .verticalScroll(rememberScrollState()),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .padding(horizontal = edgeMargin)
+                .verticalScroll(rememberScrollState()),
     ) {
         Spacer(modifier = Modifier.height(HEADING_SPACING_DP.dp))
 
         Text(
-            text = if (channelId != null) {
-                "Edit ${currentType.displayName}"
-            } else {
-                "Add ${currentType.displayName}"
-            },
+            text =
+                if (channelId != null) {
+                    "Edit ${currentType.displayName}"
+                } else {
+                    "Add ${currentType.displayName}"
+                },
             style = MaterialTheme.typography.headlineSmall,
         )
         Spacer(modifier = Modifier.height(HEADING_SPACING_DP.dp))
@@ -191,12 +195,13 @@ fun ChannelDetailScreen(
 
         FilledTonalButton(
             onClick = {
-                val channel = loadedChannel?.copy(
-                    configValues = emptyMap(),
-                ) ?: ConnectedChannel(
-                    id = UUID.randomUUID().toString(),
-                    type = currentType,
-                )
+                val channel =
+                    loadedChannel?.copy(
+                        configValues = emptyMap(),
+                    ) ?: ConnectedChannel(
+                        id = UUID.randomUUID().toString(),
+                        type = currentType,
+                    )
                 channelsViewModel.saveChannel(channel, fieldValues.toMap())
             },
             enabled = allRequiredFilled && saveState !is SaveState.Saving,
@@ -248,11 +253,12 @@ private fun ChannelField(
             )
         }
         else -> {
-            val keyboardType = when (spec.inputType) {
-                FieldInputType.NUMBER -> KeyboardType.Number
-                FieldInputType.URL -> KeyboardType.Uri
-                else -> KeyboardType.Text
-            }
+            val keyboardType =
+                when (spec.inputType) {
+                    FieldInputType.NUMBER -> KeyboardType.Number
+                    FieldInputType.URL -> KeyboardType.Uri
+                    else -> KeyboardType.Text
+                }
             OutlinedTextField(
                 value = value,
                 onValueChange = onValueChange,
@@ -261,11 +267,12 @@ private fun ChannelField(
                         if (spec.isRequired) "${spec.label} *" else spec.label,
                     )
                 },
-                supportingText = if (spec.inputType == FieldInputType.LIST) {
-                    { Text("Comma-separated values") }
-                } else {
-                    null
-                },
+                supportingText =
+                    if (spec.inputType == FieldInputType.LIST) {
+                        { Text("Comma-separated values") }
+                    } else {
+                        null
+                    },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
                 modifier = Modifier.fillMaxWidth(),
@@ -299,9 +306,10 @@ private fun BooleanField(
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,
-            modifier = Modifier.semantics {
-                contentDescription = "$label ${if (checked) "enabled" else "disabled"}"
-            },
+            modifier =
+                Modifier.semantics {
+                    contentDescription = "$label ${if (checked) "enabled" else "disabled"}"
+                },
         )
     }
 }
@@ -328,19 +336,21 @@ private fun SecretField(
         onValueChange = onValueChange,
         label = { Text(if (isRequired) "$label *" else label) },
         singleLine = true,
-        visualTransformation = if (revealed) {
-            VisualTransformation.None
-        } else {
-            PasswordVisualTransformation()
-        },
+        visualTransformation =
+            if (revealed) {
+                VisualTransformation.None
+            } else {
+                PasswordVisualTransformation()
+            },
         trailingIcon = {
             IconButton(onClick = { revealed = !revealed }) {
                 Icon(
-                    imageVector = if (revealed) {
-                        Icons.Filled.VisibilityOff
-                    } else {
-                        Icons.Filled.Visibility
-                    },
+                    imageVector =
+                        if (revealed) {
+                            Icons.Filled.VisibilityOff
+                        } else {
+                            Icons.Filled.Visibility
+                        },
                     contentDescription = if (revealed) "Hide $label" else "Show $label",
                 )
             }

@@ -32,109 +32,118 @@ import org.junit.jupiter.api.Test
 class OnboardingViewModelProviderTest {
     @Test
     @DisplayName("setProvider updates selectedProvider state")
-    fun `setProvider updates selectedProvider state`() = runTest {
-        val state = TestProviderState()
-        state.setProvider("anthropic")
-        assertEquals("anthropic", state.selectedProvider)
-    }
+    fun `setProvider updates selectedProvider state`() =
+        runTest {
+            val state = TestProviderState()
+            state.setProvider("anthropic")
+            assertEquals("anthropic", state.selectedProvider)
+        }
 
     @Test
     @DisplayName("setProvider auto-populates baseUrl from registry")
-    fun `setProvider auto-populates baseUrl from registry`() = runTest {
-        val state = TestProviderState()
-        state.setProvider("ollama")
-        assertEquals("http://localhost:11434", state.baseUrl)
-    }
+    fun `setProvider auto-populates baseUrl from registry`() =
+        runTest {
+            val state = TestProviderState()
+            state.setProvider("ollama")
+            assertEquals("http://localhost:11434", state.baseUrl)
+        }
 
     @Test
     @DisplayName("setProvider auto-populates first suggested model")
-    fun `setProvider auto-populates first suggested model`() = runTest {
-        val state = TestProviderState()
-        state.setProvider("openai")
-        val expected = ProviderRegistry.findById("openai")!!.suggestedModels.first()
-        assertEquals(expected, state.selectedModel)
-    }
+    fun `setProvider auto-populates first suggested model`() =
+        runTest {
+            val state = TestProviderState()
+            state.setProvider("openai")
+            val expected = ProviderRegistry.findById("openai")!!.suggestedModels.first()
+            assertEquals(expected, state.selectedModel)
+        }
 
     @Test
     @DisplayName("setProvider clears baseUrl when provider has no default URL")
-    fun `setProvider clears baseUrl when provider has no default URL`() = runTest {
-        val state = TestProviderState()
-        state.setProvider("ollama")
-        assertTrue(state.baseUrl.isNotBlank())
-        state.setProvider("openai")
-        assertEquals("", state.baseUrl)
-    }
+    fun `setProvider clears baseUrl when provider has no default URL`() =
+        runTest {
+            val state = TestProviderState()
+            state.setProvider("ollama")
+            assertTrue(state.baseUrl.isNotBlank())
+            state.setProvider("openai")
+            assertEquals("", state.baseUrl)
+        }
 
     @Test
     @DisplayName("complete saves API key when provided")
-    fun `complete saves API key when provided`() = runTest {
-        val apiKeyRepo = TestApiKeyRepository()
-        val settingsRepo = TestSettingsRepository()
-        val onboardingRepo = FakeOnboardingRepository()
+    fun `complete saves API key when provided`() =
+        runTest {
+            val apiKeyRepo = TestApiKeyRepository()
+            val settingsRepo = TestSettingsRepository()
+            val onboardingRepo = FakeOnboardingRepository()
 
-        val completer = TestCompleter(apiKeyRepo, settingsRepo, onboardingRepo)
-        completer.selectedProvider = "anthropic"
-        completer.apiKey = "sk-ant-test-key"
-        completer.selectedModel = "claude-sonnet-4-5-20250929"
+            val completer = TestCompleter(apiKeyRepo, settingsRepo, onboardingRepo)
+            completer.selectedProvider = "anthropic"
+            completer.apiKey = "sk-ant-test-key"
+            completer.selectedModel = "claude-sonnet-4-5-20250929"
 
-        completer.complete()
+            completer.complete()
 
-        val savedKeys = apiKeyRepo.keys.first()
-        assertEquals(1, savedKeys.size)
-        assertEquals("anthropic", savedKeys[0].provider)
-        assertEquals("sk-ant-test-key", savedKeys[0].key)
-    }
+            val savedKeys = apiKeyRepo.keys.first()
+            assertEquals(1, savedKeys.size)
+            assertEquals("anthropic", savedKeys[0].provider)
+            assertEquals("sk-ant-test-key", savedKeys[0].key)
+        }
 
     @Test
     @DisplayName("complete saves default provider and model")
-    fun `complete saves default provider and model`() = runTest {
-        val apiKeyRepo = TestApiKeyRepository()
-        val settingsRepo = TestSettingsRepository()
-        val onboardingRepo = FakeOnboardingRepository()
+    fun `complete saves default provider and model`() =
+        runTest {
+            val apiKeyRepo = TestApiKeyRepository()
+            val settingsRepo = TestSettingsRepository()
+            val onboardingRepo = FakeOnboardingRepository()
 
-        val completer = TestCompleter(apiKeyRepo, settingsRepo, onboardingRepo)
-        completer.selectedProvider = "openai"
-        completer.apiKey = "sk-test"
-        completer.selectedModel = "gpt-4o"
+            val completer = TestCompleter(apiKeyRepo, settingsRepo, onboardingRepo)
+            completer.selectedProvider = "openai"
+            completer.apiKey = "sk-test"
+            completer.selectedModel = "gpt-4o"
 
-        completer.complete()
+            completer.complete()
 
-        val settings = settingsRepo.settings.first()
-        assertEquals("openai", settings.defaultProvider)
-        assertEquals("gpt-4o", settings.defaultModel)
-    }
+            val settings = settingsRepo.settings.first()
+            assertEquals("openai", settings.defaultProvider)
+            assertEquals("gpt-4o", settings.defaultModel)
+        }
 
     @Test
     @DisplayName("complete does not save blank API key")
-    fun `complete does not save blank API key`() = runTest {
-        val apiKeyRepo = TestApiKeyRepository()
-        val settingsRepo = TestSettingsRepository()
-        val onboardingRepo = FakeOnboardingRepository()
+    fun `complete does not save blank API key`() =
+        runTest {
+            val apiKeyRepo = TestApiKeyRepository()
+            val settingsRepo = TestSettingsRepository()
+            val onboardingRepo = FakeOnboardingRepository()
 
-        val completer = TestCompleter(apiKeyRepo, settingsRepo, onboardingRepo)
-        completer.selectedProvider = "openai"
-        completer.apiKey = ""
-        completer.selectedModel = "gpt-4o"
+            val completer = TestCompleter(apiKeyRepo, settingsRepo, onboardingRepo)
+            completer.selectedProvider = "openai"
+            completer.apiKey = ""
+            completer.selectedModel = "gpt-4o"
 
-        completer.complete()
+            completer.complete()
 
-        val savedKeys = apiKeyRepo.keys.first()
-        assertTrue(savedKeys.isEmpty())
-    }
+            val savedKeys = apiKeyRepo.keys.first()
+            assertTrue(savedKeys.isEmpty())
+        }
 
     @Test
     @DisplayName("complete marks onboarding as completed")
-    fun `complete marks onboarding as completed`() = runTest {
-        val onboardingRepo = FakeOnboardingRepository()
-        val completer = TestCompleter(TestApiKeyRepository(), TestSettingsRepository(), onboardingRepo)
-        completer.selectedProvider = "openai"
-        completer.apiKey = ""
-        completer.selectedModel = ""
+    fun `complete marks onboarding as completed`() =
+        runTest {
+            val onboardingRepo = FakeOnboardingRepository()
+            val completer =
+                TestCompleter(TestApiKeyRepository(), TestSettingsRepository(), onboardingRepo)
+            completer.selectedProvider = "openai"
+            completer.apiKey = ""
+            completer.selectedModel = ""
 
-        completer.complete()
+            completer.complete()
 
-        assertTrue(onboardingRepo.isCompleted.first())
-    }
+            assertTrue(onboardingRepo.isCompleted.first())
+        }
 }
 
 /**
@@ -214,8 +223,7 @@ private class TestApiKeyRepository : ApiKeyRepository {
         passphrase: String,
     ): Int = 0
 
-    override suspend fun getByProvider(provider: String): ApiKey? =
-        _keys.value.find { it.provider == provider }
+    override suspend fun getByProvider(provider: String): ApiKey? = _keys.value.find { it.provider == provider }
 }
 
 /**

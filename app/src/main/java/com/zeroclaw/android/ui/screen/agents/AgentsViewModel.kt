@@ -69,5 +69,4 @@ class AgentsViewModel(
             repository.toggleEnabled(agentId)
         }
     }
-
 }

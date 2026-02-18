@@ -77,9 +77,10 @@ fun ZeroClawAppShell(
     val isOnboarding = currentDestination?.hasRoute(OnboardingRoute::class) == true
 
     val isTopLevel =
-        !isOnboarding && currentDestination?.hierarchy?.any { dest ->
-            topLevelRoutes.any { routeClass -> dest.hasRoute(routeClass) }
-        } == true
+        !isOnboarding &&
+            currentDestination?.hierarchy?.any { dest ->
+                topLevelRoutes.any { routeClass -> dest.hasRoute(routeClass) }
+            } == true
 
     val edgeMargin =
         if (windowWidthSizeClass == WindowWidthSizeClass.Compact) 16.dp else 24.dp

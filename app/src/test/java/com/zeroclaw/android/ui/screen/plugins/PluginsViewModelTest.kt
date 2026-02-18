@@ -51,54 +51,64 @@ class PluginsViewModelTest {
 
     @Test
     @DisplayName("installed tab shows only installed plugins")
-    fun `installed tab shows only installed plugins`() = runTest {
-        val filtered = filterPlugins(samplePlugins, TAB_INSTALLED, "")
-        assertEquals(1, filtered.size)
-        assertTrue(filtered.all { it.isInstalled })
-    }
+    fun `installed tab shows only installed plugins`() =
+        runTest {
+            val filtered = filterPlugins(samplePlugins, TAB_INSTALLED, "")
+            assertEquals(1, filtered.size)
+            assertTrue(filtered.all { it.isInstalled })
+        }
 
     @Test
     @DisplayName("available tab shows only uninstalled plugins")
-    fun `available tab shows only uninstalled plugins`() = runTest {
-        val filtered = filterPlugins(samplePlugins, TAB_AVAILABLE, "")
-        assertEquals(1, filtered.size)
-        assertTrue(filtered.none { it.isInstalled })
-    }
+    fun `available tab shows only uninstalled plugins`() =
+        runTest {
+            val filtered = filterPlugins(samplePlugins, TAB_AVAILABLE, "")
+            assertEquals(1, filtered.size)
+            assertTrue(filtered.none { it.isInstalled })
+        }
 
     @Test
     @DisplayName("search by name filters correctly")
-    fun `search by name filters correctly`() = runTest {
-        val filtered = filterPlugins(samplePlugins, TAB_INSTALLED, "HTTP")
-        assertEquals(1, filtered.size)
-        assertEquals("HTTP Channel", filtered.first().name)
-    }
+    fun `search by name filters correctly`() =
+        runTest {
+            val filtered = filterPlugins(samplePlugins, TAB_INSTALLED, "HTTP")
+            assertEquals(1, filtered.size)
+            assertEquals("HTTP Channel", filtered.first().name)
+        }
 
     @Test
     @DisplayName("search by description filters correctly")
-    fun `search by description filters correctly`() = runTest {
-        val filtered = filterPlugins(samplePlugins, TAB_AVAILABLE, "search")
-        assertEquals(1, filtered.size)
-        assertEquals("Web Search", filtered.first().name)
-    }
+    fun `search by description filters correctly`() =
+        runTest {
+            val filtered = filterPlugins(samplePlugins, TAB_AVAILABLE, "search")
+            assertEquals(1, filtered.size)
+            assertEquals("Web Search", filtered.first().name)
+        }
 
     @Test
     @DisplayName("no match returns empty list")
-    fun `no match returns empty list`() = runTest {
-        val filtered = filterPlugins(samplePlugins, TAB_INSTALLED, "nonexistent")
-        assertTrue(filtered.isEmpty())
-    }
+    fun `no match returns empty list`() =
+        runTest {
+            val filtered = filterPlugins(samplePlugins, TAB_INSTALLED, "nonexistent")
+            assertTrue(filtered.isEmpty())
+        }
 
     @Test
     @DisplayName("install moves plugin to installed tab")
-    fun `install moves plugin to installed tab`() = runTest {
-        val repo = TestPluginRepository(samplePlugins.toMutableList())
-        repo.install("2")
-        val installed = repo.plugins.first().filter { it.isInstalled }
-        assertEquals(2, installed.size)
-    }
+    fun `install moves plugin to installed tab`() =
+        runTest {
+            val repo = TestPluginRepository(samplePlugins.toMutableList())
+            repo.install("2")
+            val installed = repo.plugins.first().filter { it.isInstalled }
+            assertEquals(2, installed.size)
+        }
 }
 
-private fun filterPlugins(plugins: List<Plugin>, tab: Int, query: String): List<Plugin> {
+private fun filterPlugins(
+    plugins: List<Plugin>,
+    tab: Int,
+    query: String,
+): List<Plugin> {
     val tabFiltered =
         when (tab) {
             TAB_INSTALLED -> plugins.filter { it.isInstalled }
@@ -147,10 +157,20 @@ private class TestPluginRepository(
         }
     }
 
-    override suspend fun updateConfig(pluginId: String, key: String, value: String) {
+    override suspend fun updateConfig(
+        pluginId: String,
+        key: String,
+        value: String,
+    ) {
         _plugins.update { current ->
             current.map {
-                if (it.id == pluginId) it.copy(configFields = it.configFields + (key to value)) else it
+                if (it.id ==
+                    pluginId
+                ) {
+                    it.copy(configFields = it.configFields + (key to value))
+                } else {
+                    it
+                }
             }
         }
     }

@@ -120,8 +120,9 @@ fun ApiKeysScreen(
     if (deleteTarget != null) {
         ConfirmDeleteDialog(
             title = "Delete API Key",
-            message = "Delete the ${deleteTarget?.provider} key? " +
-                "This action cannot be undone.",
+            message =
+                "Delete the ${deleteTarget?.provider} key? " +
+                    "This action cannot be undone.",
             onConfirm = {
                 deleteTarget?.let { apiKeysViewModel.deleteKey(it.id) }
                 deleteTarget = null
@@ -178,7 +179,8 @@ fun ApiKeysScreen(
         },
         modifier = modifier,
     ) { innerPadding ->
-        if (keys.isEmpty() && corruptCount == 0 &&
+        if (keys.isEmpty() &&
+            corruptCount == 0 &&
             apiKeysViewModel.storageHealth is StorageHealth.Healthy
         ) {
             EmptyState(
@@ -200,9 +202,10 @@ fun ApiKeysScreen(
                 if (apiKeysViewModel.storageHealth is StorageHealth.Degraded) {
                     item {
                         ErrorCard(
-                            message = "Encrypted storage unavailable. Keys are " +
-                                "stored in memory only and will be lost when " +
-                                "the app restarts.",
+                            message =
+                                "Encrypted storage unavailable. Keys are " +
+                                    "stored in memory only and will be lost when " +
+                                    "the app restarts.",
                             onRetry = null,
                         )
                     }
@@ -211,8 +214,9 @@ fun ApiKeysScreen(
                 if (apiKeysViewModel.storageHealth is StorageHealth.Recovered) {
                     item {
                         ErrorCard(
-                            message = "Encrypted storage was corrupted and has " +
-                                "been reset. Previously stored keys were lost.",
+                            message =
+                                "Encrypted storage was corrupted and has " +
+                                    "been reset. Previously stored keys were lost.",
                             onRetry = null,
                         )
                     }
@@ -221,8 +225,9 @@ fun ApiKeysScreen(
                 if (corruptCount > 0) {
                     item {
                         ErrorCard(
-                            message = "$corruptCount stored key(s) could not " +
-                                "be read and may be corrupted.",
+                            message =
+                                "$corruptCount stored key(s) could not " +
+                                    "be read and may be corrupted.",
                             onRetry = null,
                         )
                     }
@@ -282,9 +287,10 @@ private fun ExportImportRow(
         TextButton(
             onClick = onExport,
             enabled = hasKeys,
-            modifier = Modifier.semantics {
-                contentDescription = "Export API keys"
-            },
+            modifier =
+                Modifier.semantics {
+                    contentDescription = "Export API keys"
+                },
         ) {
             Icon(
                 imageVector = Icons.Outlined.FileUpload,
@@ -295,9 +301,10 @@ private fun ExportImportRow(
         }
         TextButton(
             onClick = onImport,
-            modifier = Modifier.semantics {
-                contentDescription = "Import API keys"
-            },
+            modifier =
+                Modifier.semantics {
+                    contentDescription = "Import API keys"
+                },
         ) {
             Icon(
                 imageVector = Icons.Outlined.FileDownload,
@@ -308,9 +315,10 @@ private fun ExportImportRow(
         }
         TextButton(
             onClick = onImportCredentials,
-            modifier = Modifier.semantics {
-                contentDescription = "Import credentials file"
-            },
+            modifier =
+                Modifier.semantics {
+                    contentDescription = "Import credentials file"
+                },
         ) {
             Icon(
                 imageVector = Icons.Outlined.Upload,
@@ -339,8 +347,9 @@ private fun ExportPassphraseDialog(
     var passphrase by remember { mutableStateOf("") }
     var confirm by remember { mutableStateOf("") }
 
-    val matchesAndValid = passphrase.length >= MIN_PASSPHRASE_LENGTH &&
-        passphrase == confirm
+    val matchesAndValid =
+        passphrase.length >= MIN_PASSPHRASE_LENGTH &&
+            passphrase == confirm
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -348,8 +357,9 @@ private fun ExportPassphraseDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    text = "Enter a passphrase to encrypt your API keys. " +
-                        "You will need this passphrase to import them later.",
+                    text =
+                        "Enter a passphrase to encrypt your API keys. " +
+                            "You will need this passphrase to import them later.",
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 OutlinedTextField(
@@ -358,10 +368,11 @@ private fun ExportPassphraseDialog(
                     label = { Text("Passphrase") },
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Password,
-                        imeAction = ImeAction.Next,
-                    ),
+                    keyboardOptions =
+                        KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
+                            imeAction = ImeAction.Next,
+                        ),
                     supportingText = {
                         if (passphrase.isNotEmpty() &&
                             passphrase.length < MIN_PASSPHRASE_LENGTH
@@ -369,8 +380,9 @@ private fun ExportPassphraseDialog(
                             Text("At least $MIN_PASSPHRASE_LENGTH characters")
                         }
                     },
-                    isError = passphrase.isNotEmpty() &&
-                        passphrase.length < MIN_PASSPHRASE_LENGTH,
+                    isError =
+                        passphrase.isNotEmpty() &&
+                            passphrase.length < MIN_PASSPHRASE_LENGTH,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
@@ -379,10 +391,11 @@ private fun ExportPassphraseDialog(
                     label = { Text("Confirm passphrase") },
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Password,
-                        imeAction = ImeAction.Done,
-                    ),
+                    keyboardOptions =
+                        KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
+                            imeAction = ImeAction.Done,
+                        ),
                     supportingText = {
                         if (confirm.isNotEmpty() && passphrase != confirm) {
                             Text("Passphrases do not match")
@@ -434,8 +447,9 @@ private fun ImportPassphraseDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    text = "Paste the encrypted export data and enter the " +
-                        "passphrase that was used during export.",
+                    text =
+                        "Paste the encrypted export data and enter the " +
+                            "passphrase that was used during export.",
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 OutlinedTextField(
@@ -444,9 +458,10 @@ private fun ImportPassphraseDialog(
                     label = { Text("Encrypted data") },
                     minLines = 3,
                     maxLines = 5,
-                    keyboardOptions = KeyboardOptions(
-                        imeAction = ImeAction.Next,
-                    ),
+                    keyboardOptions =
+                        KeyboardOptions(
+                            imeAction = ImeAction.Next,
+                        ),
                     modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
@@ -455,10 +470,11 @@ private fun ImportPassphraseDialog(
                     label = { Text("Passphrase") },
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Password,
-                        imeAction = ImeAction.Done,
-                    ),
+                    keyboardOptions =
+                        KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
+                            imeAction = ImeAction.Done,
+                        ),
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
@@ -607,10 +623,11 @@ private fun ExpiryLabel(expiresAt: Long) {
         val totalMinutes = remainingMs / MILLIS_PER_MINUTE
         val hours = totalMinutes / MINUTES_PER_HOUR
         val minutes = totalMinutes % MINUTES_PER_HOUR
-        val label = when {
-            hours > 0 -> "Expires in ${hours}h ${minutes}m"
-            else -> "Expires in ${minutes}m"
-        }
+        val label =
+            when {
+                hours > 0 -> "Expires in ${hours}h ${minutes}m"
+                else -> "Expires in ${minutes}m"
+            }
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,

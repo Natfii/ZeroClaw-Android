@@ -32,9 +32,11 @@ class AgentDaoTest {
     @Before
     fun setUp() {
         val context = ApplicationProvider.getApplicationContext<Context>()
-        database = Room.inMemoryDatabaseBuilder(context, ZeroClawDatabase::class.java)
-            .allowMainThreadQueries()
-            .build()
+        database =
+            Room
+                .inMemoryDatabaseBuilder(context, ZeroClawDatabase::class.java)
+                .allowMainThreadQueries()
+                .build()
         dao = database.agentDao()
     }
 
@@ -44,67 +46,74 @@ class AgentDaoTest {
     }
 
     @Test
-    fun upsert_and_observeAll_returns_inserted_agents() = runBlocking {
-        val agent = makeAgent("a1", "Alpha Agent")
-        dao.upsert(agent)
+    fun upsert_and_observeAll_returns_inserted_agents() =
+        runBlocking {
+            val agent = makeAgent("a1", "Alpha Agent")
+            dao.upsert(agent)
 
-        val result = dao.observeAll().first()
-        assertEquals(1, result.size)
-        assertEquals("Alpha Agent", result[0].name)
-    }
-
-    @Test
-    fun upsert_updates_existing_agent() = runBlocking {
-        val agent = makeAgent("a1", "Original")
-        dao.upsert(agent)
-        dao.upsert(agent.copy(name = "Updated"))
-
-        val result = dao.observeAll().first()
-        assertEquals(1, result.size)
-        assertEquals("Updated", result[0].name)
-    }
+            val result = dao.observeAll().first()
+            assertEquals(1, result.size)
+            assertEquals("Alpha Agent", result[0].name)
+        }
 
     @Test
-    fun getById_returns_matching_agent() = runBlocking {
-        dao.upsert(makeAgent("a1", "Alpha"))
-        val result = dao.getById("a1")
-        assertNotNull(result)
-        assertEquals("Alpha", result!!.name)
-    }
+    fun upsert_updates_existing_agent() =
+        runBlocking {
+            val agent = makeAgent("a1", "Original")
+            dao.upsert(agent)
+            dao.upsert(agent.copy(name = "Updated"))
+
+            val result = dao.observeAll().first()
+            assertEquals(1, result.size)
+            assertEquals("Updated", result[0].name)
+        }
 
     @Test
-    fun getById_returns_null_for_missing_id() = runBlocking {
-        assertNull(dao.getById("nonexistent"))
-    }
+    fun getById_returns_matching_agent() =
+        runBlocking {
+            dao.upsert(makeAgent("a1", "Alpha"))
+            val result = dao.getById("a1")
+            assertNotNull(result)
+            assertEquals("Alpha", result!!.name)
+        }
 
     @Test
-    fun deleteById_removes_agent() = runBlocking {
-        dao.upsert(makeAgent("a1", "Alpha"))
-        dao.deleteById("a1")
-
-        val result = dao.observeAll().first()
-        assertTrue(result.isEmpty())
-    }
+    fun getById_returns_null_for_missing_id() =
+        runBlocking {
+            assertNull(dao.getById("nonexistent"))
+        }
 
     @Test
-    fun toggleEnabled_flips_state() = runBlocking {
-        dao.upsert(makeAgent("a1", "Alpha", isEnabled = true))
-        dao.toggleEnabled("a1")
+    fun deleteById_removes_agent() =
+        runBlocking {
+            dao.upsert(makeAgent("a1", "Alpha"))
+            dao.deleteById("a1")
 
-        val result = dao.getById("a1")
-        assertNotNull(result)
-        assertEquals(false, result!!.isEnabled)
-    }
+            val result = dao.observeAll().first()
+            assertTrue(result.isEmpty())
+        }
 
     @Test
-    fun observeAll_orders_by_name() = runBlocking {
-        dao.upsert(makeAgent("a2", "Zeta"))
-        dao.upsert(makeAgent("a1", "Alpha"))
+    fun toggleEnabled_flips_state() =
+        runBlocking {
+            dao.upsert(makeAgent("a1", "Alpha", isEnabled = true))
+            dao.toggleEnabled("a1")
 
-        val result = dao.observeAll().first()
-        assertEquals("Alpha", result[0].name)
-        assertEquals("Zeta", result[1].name)
-    }
+            val result = dao.getById("a1")
+            assertNotNull(result)
+            assertEquals(false, result!!.isEnabled)
+        }
+
+    @Test
+    fun observeAll_orders_by_name() =
+        runBlocking {
+            dao.upsert(makeAgent("a2", "Zeta"))
+            dao.upsert(makeAgent("a1", "Alpha"))
+
+            val result = dao.observeAll().first()
+            assertEquals("Alpha", result[0].name)
+            assertEquals("Zeta", result[1].name)
+        }
 
     private fun makeAgent(
         id: String,

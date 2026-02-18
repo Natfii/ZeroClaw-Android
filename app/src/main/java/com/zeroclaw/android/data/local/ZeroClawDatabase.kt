@@ -70,32 +70,34 @@ abstract class ZeroClawDatabase : RoomDatabase() {
         private const val DATABASE_NAME = "zeroclaw.db"
 
         /** Migration from schema version 1 to 2: adds the connected_channels table. */
-        private val MIGRATION_1_2 = object : Migration(1, 2) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL(
-                    """
-                    CREATE TABLE IF NOT EXISTS `connected_channels` (
-                        `id` TEXT NOT NULL,
-                        `type` TEXT NOT NULL,
-                        `is_enabled` INTEGER NOT NULL,
-                        `config_json` TEXT NOT NULL,
-                        `created_at` INTEGER NOT NULL,
-                        PRIMARY KEY(`id`)
+        private val MIGRATION_1_2 =
+            object : Migration(1, 2) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL(
+                        """
+                        CREATE TABLE IF NOT EXISTS `connected_channels` (
+                            `id` TEXT NOT NULL,
+                            `type` TEXT NOT NULL,
+                            `is_enabled` INTEGER NOT NULL,
+                            `config_json` TEXT NOT NULL,
+                            `created_at` INTEGER NOT NULL,
+                            PRIMARY KEY(`id`)
+                        )
+                        """.trimIndent(),
                     )
-                    """.trimIndent(),
-                )
+                }
             }
-        }
 
         /** Migration from schema version 2 to 3: adds temperature and max_depth to agents. */
-        private val MIGRATION_2_3 = object : Migration(2, 3) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE agents ADD COLUMN temperature REAL")
-                db.execSQL(
-                    "ALTER TABLE agents ADD COLUMN max_depth INTEGER NOT NULL DEFAULT 3",
-                )
+        private val MIGRATION_2_3 =
+            object : Migration(2, 3) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL("ALTER TABLE agents ADD COLUMN temperature REAL")
+                    db.execSQL(
+                        "ALTER TABLE agents ADD COLUMN max_depth INTEGER NOT NULL DEFAULT 3",
+                    )
+                }
             }
-        }
 
         /**
          * Ordered array of schema migrations.
@@ -115,28 +117,33 @@ abstract class ZeroClawDatabase : RoomDatabase() {
          * @param scope Coroutine scope for seed data insertion.
          * @return Configured [ZeroClawDatabase] instance.
          */
-        fun build(context: Context, scope: CoroutineScope): ZeroClawDatabase {
+        fun build(
+            context: Context,
+            scope: CoroutineScope,
+        ): ZeroClawDatabase {
             var instance: ZeroClawDatabase? = null
-            val db = Room.databaseBuilder(
-                context.applicationContext,
-                ZeroClawDatabase::class.java,
-                DATABASE_NAME,
-            ).apply { MIGRATIONS.forEach { addMigrations(it) } }
-                .fallbackToDestructiveMigration()
-                .addCallback(
-                    object : Callback() {
-                        override fun onCreate(db: SupportSQLiteDatabase) {
-                            super.onCreate(db)
-                            scope.launch {
-                                instance?.let { database ->
-                                    database.pluginDao().insertAllIgnoreConflicts(
-                                        SeedData.seedPlugins(),
-                                    )
+            val db =
+                Room
+                    .databaseBuilder(
+                        context.applicationContext,
+                        ZeroClawDatabase::class.java,
+                        DATABASE_NAME,
+                    ).apply { MIGRATIONS.forEach { addMigrations(it) } }
+                    .fallbackToDestructiveMigration()
+                    .addCallback(
+                        object : Callback() {
+                            override fun onCreate(db: SupportSQLiteDatabase) {
+                                super.onCreate(db)
+                                scope.launch {
+                                    instance?.let { database ->
+                                        database.pluginDao().insertAllIgnoreConflicts(
+                                            SeedData.seedPlugins(),
+                                        )
+                                    }
                                 }
                             }
-                        }
-                    },
-                ).build()
+                        },
+                    ).build()
             instance = db
             return db
         }

@@ -118,7 +118,8 @@ fun ApiKeyDetailScreen(
     val authType = providerInfo?.authType
     val needsKey = authType == ProviderAuthType.API_KEY_ONLY
     val showKeyField = authType != ProviderAuthType.URL_ONLY && authType != ProviderAuthType.NONE
-    val needsUrl = authType == ProviderAuthType.URL_ONLY || authType == ProviderAuthType.URL_AND_OPTIONAL_KEY
+    val needsUrl =
+        authType == ProviderAuthType.URL_ONLY || authType == ProviderAuthType.URL_AND_OPTIONAL_KEY
     val isSaving = saveState is SaveState.Saving
     val saveEnabled = providerId.isNotBlank() && (key.isNotBlank() || !needsKey) && !isSaving
 
@@ -166,10 +167,11 @@ fun ApiKeyDetailScreen(
                 label = { Text("Base URL") },
                 singleLine = true,
                 enabled = !isSaving,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Uri,
-                    imeAction = if (needsKey) ImeAction.Next else ImeAction.Done,
-                ),
+                keyboardOptions =
+                    KeyboardOptions(
+                        keyboardType = KeyboardType.Uri,
+                        imeAction = if (needsKey) ImeAction.Next else ImeAction.Done,
+                    ),
                 modifier = Modifier.fillMaxWidth(),
             )
 
@@ -195,15 +197,17 @@ fun ApiKeyDetailScreen(
                 singleLine = true,
                 enabled = !isSaving,
                 visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Password,
-                    imeAction = ImeAction.Done,
-                ),
-                supportingText = if (providerId == "anthropic") {
-                    { Text("Accepts API keys (sk-ant-...) or OAuth tokens (sk-ant-oat01-...)") }
-                } else {
-                    null
-                },
+                keyboardOptions =
+                    KeyboardOptions(
+                        keyboardType = KeyboardType.Password,
+                        imeAction = ImeAction.Done,
+                    ),
+                supportingText =
+                    if (providerId == "anthropic") {
+                        { Text("Accepts API keys (sk-ant-...) or OAuth tokens (sk-ant-oat01-...)") }
+                    } else {
+                        null
+                    },
                 modifier = Modifier.fillMaxWidth(),
             )
         }

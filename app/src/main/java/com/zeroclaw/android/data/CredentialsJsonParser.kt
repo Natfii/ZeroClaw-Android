@@ -7,8 +7,8 @@
 package com.zeroclaw.android.data
 
 import com.zeroclaw.android.model.ApiKey
-import org.json.JSONObject
 import java.util.UUID
+import org.json.JSONObject
 
 /**
  * Parses Claude Code `.credentials.json` files into [ApiKey] instances.
@@ -74,7 +74,9 @@ object CredentialsJsonParser {
     private fun parseIsoTimestamp(isoString: String): Long {
         if (isoString.isBlank()) return 0L
         return try {
-            java.time.Instant.parse(isoString).toEpochMilli()
+            java.time.Instant
+                .parse(isoString)
+                .toEpochMilli()
         } catch (_: Exception) {
             0L
         }

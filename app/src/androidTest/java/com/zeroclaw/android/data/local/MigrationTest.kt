@@ -24,10 +24,11 @@ import org.junit.runner.RunWith
 class MigrationTest {
     /** Room migration test helper for schema validation. */
     @get:Rule
-    val helper = MigrationTestHelper(
-        InstrumentationRegistry.getInstrumentation(),
-        ZeroClawDatabase::class.java,
-    )
+    val helper =
+        MigrationTestHelper(
+            InstrumentationRegistry.getInstrumentation(),
+            ZeroClawDatabase::class.java,
+        )
 
     /**
      * Verifies schema version 1 creates all four expected tables.
@@ -35,10 +36,11 @@ class MigrationTest {
     @Test
     fun createDatabase_v1_hasFourTables() {
         val db = helper.createDatabase(TEST_DB, 1)
-        val cursor = db.query(
-            "SELECT name FROM sqlite_master WHERE type='table' " +
-                "AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'room_%'",
-        )
+        val cursor =
+            db.query(
+                "SELECT name FROM sqlite_master WHERE type='table' " +
+                    "AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'room_%'",
+            )
         val tables = mutableSetOf<String>()
         while (cursor.moveToNext()) {
             tables.add(cursor.getString(0))

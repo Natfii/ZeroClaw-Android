@@ -116,10 +116,11 @@ fun NetworkScanSheet(
         sheetState = sheetState,
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = SHEET_PADDING_DP.dp)
-                .navigationBarsPadding(),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = SHEET_PADDING_DP.dp)
+                    .navigationBarsPadding(),
         ) {
             ScanSheetHeader(scanState)
             Spacer(modifier = Modifier.height(HEADER_SPACING_DP.dp))
@@ -127,9 +128,10 @@ fun NetworkScanSheet(
 
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(LIST_SPACING_DP.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(SHEET_CONTENT_HEIGHT_DP.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(SHEET_CONTENT_HEIGHT_DP.dp),
             ) {
                 if (scanState is ScanState.Completed && discoveredServers.isEmpty()) {
                     item {
@@ -176,22 +178,27 @@ private fun ScanSheetHeader(scanState: ScanState) {
     )
     Spacer(modifier = Modifier.height(CARD_INTERNAL_SPACING_DP.dp))
     Text(
-        text = when (scanState) {
-            is ScanState.Idle -> "Preparing to scan..."
-            is ScanState.Scanning -> "Scanning your network for AI servers..."
-            is ScanState.Completed -> {
-                val count = scanState.servers.size
-                if (count == 0) "No AI servers found"
-                else "$count server${if (count != 1) "s" else ""} found"
-            }
-            is ScanState.Error -> scanState.message
-        },
+        text =
+            when (scanState) {
+                is ScanState.Idle -> "Preparing to scan..."
+                is ScanState.Scanning -> "Scanning your network for AI servers..."
+                is ScanState.Completed -> {
+                    val count = scanState.servers.size
+                    if (count == 0) {
+                        "No AI servers found"
+                    } else {
+                        "$count server${if (count != 1) "s" else ""} found"
+                    }
+                }
+                is ScanState.Error -> scanState.message
+            },
         style = MaterialTheme.typography.bodyMedium,
-        color = if (scanState is ScanState.Error) {
-            MaterialTheme.colorScheme.error
-        } else {
-            MaterialTheme.colorScheme.onSurfaceVariant
-        },
+        color =
+            if (scanState is ScanState.Error) {
+                MaterialTheme.colorScheme.error
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
     )
 }
 
@@ -205,9 +212,10 @@ private fun ScanSheetProgress(scanState: ScanState) {
     if (scanState is ScanState.Scanning) {
         LinearProgressIndicator(
             progress = { scanState.progress },
-            modifier = Modifier
-                .fillMaxWidth()
-                .semantics { contentDescription = "Scan progress" },
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .semantics { contentDescription = "Scan progress" },
         )
         Spacer(modifier = Modifier.height(HEADER_SPACING_DP.dp))
     }
@@ -226,23 +234,28 @@ private fun ServerCard(
 ) {
     ElevatedCard(
         onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .semantics {
-                contentDescription = "${server.serverType.label} server at ${server.host} port ${server.port}"
-            },
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .semantics {
+                    contentDescription =
+                        "${server.serverType.label} server at " +
+                        "${server.host} port ${server.port}"
+                },
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = CARD_H_PADDING_DP.dp, vertical = CARD_PADDING_DP.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = CARD_H_PADDING_DP.dp, vertical = CARD_PADDING_DP.dp),
         ) {
             Icon(
-                imageVector = when (server.serverType) {
-                    LocalServerType.OLLAMA -> Icons.Default.Dns
-                    LocalServerType.OPENAI_COMPATIBLE -> Icons.Default.Storage
-                },
+                imageVector =
+                    when (server.serverType) {
+                        LocalServerType.OLLAMA -> Icons.Default.Dns
+                        LocalServerType.OPENAI_COMPATIBLE -> Icons.Default.Storage
+                    },
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(SERVER_ICON_SIZE_DP.dp),
@@ -255,15 +268,18 @@ private fun ServerCard(
                 )
                 Text(
                     text = "${server.host}:${server.port}",
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontFamily = FontFamily.Monospace,
-                    ),
+                    style =
+                        MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = FontFamily.Monospace,
+                        ),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 if (server.models.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(CARD_INTERNAL_SPACING_DP.dp))
                     Text(
-                        text = "${server.models.size} model${if (server.models.size != 1) "s" else ""} loaded",
+                        text =
+                            "${server.models.size} " +
+                                "model${if (server.models.size != 1) "s" else ""} loaded",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary,
                     )
@@ -292,9 +308,10 @@ private fun ServerCard(
 private fun EmptyScanResult() {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = SHEET_CONTENT_EMPTY_PADDING_DP.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = SHEET_CONTENT_EMPTY_PADDING_DP.dp),
     ) {
         Icon(
             imageVector = Icons.Default.ErrorOutline,
@@ -309,8 +326,9 @@ private fun EmptyScanResult() {
         )
         Spacer(modifier = Modifier.height(CARD_INTERNAL_SPACING_DP.dp))
         Text(
-            text = "Make sure a local AI server (Ollama, LM Studio, vLLM, or LocalAI) " +
-                "is running on a device connected to the same network.",
+            text =
+                "Make sure a local AI server (Ollama, LM Studio, vLLM, or LocalAI) " +
+                    "is running on a device connected to the same network.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

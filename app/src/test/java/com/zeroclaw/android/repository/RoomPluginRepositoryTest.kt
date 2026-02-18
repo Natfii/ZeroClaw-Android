@@ -33,85 +33,99 @@ class RoomPluginRepositoryTest {
     }
 
     @Test
-    fun `plugins flow maps entities to domain models`() = runTest {
-        val entity = makeEntity("p1", "Plugin A")
-        every { dao.observeAll() } returns flowOf(listOf(entity))
-        repo = RoomPluginRepository(dao)
+    fun `plugins flow maps entities to domain models`() =
+        runTest {
+            val entity = makeEntity("p1", "Plugin A")
+            every { dao.observeAll() } returns flowOf(listOf(entity))
+            repo = RoomPluginRepository(dao)
 
-        repo.plugins.test {
-            val plugins = awaitItem()
-            assertEquals(1, plugins.size)
-            assertEquals("Plugin A", plugins[0].name)
-            cancelAndConsumeRemainingEvents()
+            repo.plugins.test {
+                val plugins = awaitItem()
+                assertEquals(1, plugins.size)
+                assertEquals("Plugin A", plugins[0].name)
+                cancelAndConsumeRemainingEvents()
+            }
         }
-    }
 
     @Test
-    fun `getById returns mapped model`() = runTest {
-        coEvery { dao.getById("p1") } returns makeEntity("p1", "Plugin A")
+    fun `getById returns mapped model`() =
+        runTest {
+            coEvery { dao.getById("p1") } returns makeEntity("p1", "Plugin A")
 
-        val result = repo.getById("p1")
-        assertEquals("Plugin A", result?.name)
-    }
-
-    @Test
-    fun `getById returns null when not found`() = runTest {
-        coEvery { dao.getById("missing") } returns null
-
-        assertNull(repo.getById("missing"))
-    }
-
-    @Test
-    fun `install delegates to dao setInstalled`() = runTest {
-        repo.install("p1")
-
-        coVerify { dao.setInstalled("p1") }
-    }
-
-    @Test
-    fun `uninstall delegates to dao uninstall`() = runTest {
-        repo.uninstall("p1")
-
-        coVerify { dao.uninstall("p1") }
-    }
-
-    @Test
-    fun `toggleEnabled delegates to dao toggleEnabled`() = runTest {
-        repo.toggleEnabled("p1")
-
-        coVerify { dao.toggleEnabled("p1") }
-    }
-
-    @Test
-    fun `updateConfig merges key into existing config`() = runTest {
-        val existing = makeEntity("p1", "Plugin A").copy(
-            configJson = """{"port":"8080"}""",
-        )
-        coEvery { dao.getById("p1") } returns existing
-
-        repo.updateConfig("p1", "host", "0.0.0.0")
-
-        coVerify {
-            dao.updateConfigJson(
-                "p1",
-                match { json ->
-                    json.contains("port") && json.contains("8080") &&
-                        json.contains("host") && json.contains("0.0.0.0")
-                },
-            )
+            val result = repo.getById("p1")
+            assertEquals("Plugin A", result?.name)
         }
-    }
 
     @Test
-    fun `updateConfig does nothing when plugin not found`() = runTest {
-        coEvery { dao.getById("missing") } returns null
+    fun `getById returns null when not found`() =
+        runTest {
+            coEvery { dao.getById("missing") } returns null
 
-        repo.updateConfig("missing", "key", "value")
+            assertNull(repo.getById("missing"))
+        }
 
-        coVerify(exactly = 0) { dao.updateConfigJson(any(), any()) }
-    }
+    @Test
+    fun `install delegates to dao setInstalled`() =
+        runTest {
+            repo.install("p1")
 
-    private fun makeEntity(id: String, name: String): PluginEntity =
+            coVerify { dao.setInstalled("p1") }
+        }
+
+    @Test
+    fun `uninstall delegates to dao uninstall`() =
+        runTest {
+            repo.uninstall("p1")
+
+            coVerify { dao.uninstall("p1") }
+        }
+
+    @Test
+    fun `toggleEnabled delegates to dao toggleEnabled`() =
+        runTest {
+            repo.toggleEnabled("p1")
+
+            coVerify { dao.toggleEnabled("p1") }
+        }
+
+    @Test
+    fun `updateConfig merges key into existing config`() =
+        runTest {
+            val existing =
+                makeEntity("p1", "Plugin A").copy(
+                    configJson = """{"port":"8080"}""",
+                )
+            coEvery { dao.getById("p1") } returns existing
+
+            repo.updateConfig("p1", "host", "0.0.0.0")
+
+            coVerify {
+                dao.updateConfigJson(
+                    "p1",
+                    match { json ->
+                        json.contains("port") &&
+                            json.contains("8080") &&
+                            json.contains("host") &&
+                            json.contains("0.0.0.0")
+                    },
+                )
+            }
+        }
+
+    @Test
+    fun `updateConfig does nothing when plugin not found`() =
+        runTest {
+            coEvery { dao.getById("missing") } returns null
+
+            repo.updateConfig("missing", "key", "value")
+
+            coVerify(exactly = 0) { dao.updateConfigJson(any(), any()) }
+        }
+
+    private fun makeEntity(
+        id: String,
+        name: String,
+    ): PluginEntity =
         PluginEntity(
             id = id,
             name = name,

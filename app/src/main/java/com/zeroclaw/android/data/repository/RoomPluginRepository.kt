@@ -31,8 +31,7 @@ class RoomPluginRepository(
     override val plugins: Flow<List<Plugin>> =
         dao.observeAll().map { entities -> entities.map { it.toModel() } }
 
-    override suspend fun getById(id: String): Plugin? =
-        dao.getById(id)?.toModel()
+    override suspend fun getById(id: String): Plugin? = dao.getById(id)?.toModel()
 
     override suspend fun install(id: String) {
         dao.setInstalled(id)
@@ -46,11 +45,16 @@ class RoomPluginRepository(
         dao.toggleEnabled(id)
     }
 
-    override suspend fun updateConfig(pluginId: String, key: String, value: String) {
+    override suspend fun updateConfig(
+        pluginId: String,
+        key: String,
+        value: String,
+    ) {
         val entity = dao.getById(pluginId) ?: return
-        val currentConfig: Map<String, String> = runCatching {
-            json.decodeFromString<Map<String, String>>(entity.configJson)
-        }.getOrDefault(emptyMap())
+        val currentConfig: Map<String, String> =
+            runCatching {
+                json.decodeFromString<Map<String, String>>(entity.configJson)
+            }.getOrDefault(emptyMap())
         val updatedConfig = currentConfig + (key to value)
         dao.updateConfigJson(pluginId, json.encodeToString(updatedConfig))
     }

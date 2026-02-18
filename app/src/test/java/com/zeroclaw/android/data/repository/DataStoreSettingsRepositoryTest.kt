@@ -26,149 +26,166 @@ import org.junit.jupiter.api.Test
 class DataStoreSettingsRepositoryTest {
     @Test
     @DisplayName("default settings are returned initially")
-    fun `default settings are returned initially`() = runTest {
-        val repo = InMemorySettingsRepository()
-        val settings = repo.settings.first()
-        assertEquals(AppSettings.DEFAULT_HOST, settings.host)
-        assertEquals(AppSettings.DEFAULT_PORT, settings.port)
-        assertEquals(false, settings.autoStartOnBoot)
-        assertEquals(LogLevel.INFO, settings.logLevel)
-    }
+    fun `default settings are returned initially`() =
+        runTest {
+            val repo = InMemorySettingsRepository()
+            val settings = repo.settings.first()
+            assertEquals(AppSettings.DEFAULT_HOST, settings.host)
+            assertEquals(AppSettings.DEFAULT_PORT, settings.port)
+            assertEquals(false, settings.autoStartOnBoot)
+            assertEquals(LogLevel.INFO, settings.logLevel)
+        }
 
     @Test
     @DisplayName("setHost persists and emits updated value")
-    fun `setHost persists and emits updated value`() = runTest {
-        val repo = InMemorySettingsRepository()
-        repo.setHost("192.168.1.1")
-        assertEquals("192.168.1.1", repo.settings.first().host)
-    }
+    fun `setHost persists and emits updated value`() =
+        runTest {
+            val repo = InMemorySettingsRepository()
+            repo.setHost("192.168.1.1")
+            assertEquals("192.168.1.1", repo.settings.first().host)
+        }
 
     @Test
     @DisplayName("setPort persists and emits updated value")
-    fun `setPort persists and emits updated value`() = runTest {
-        val repo = InMemorySettingsRepository()
-        repo.setPort(9090)
-        assertEquals(9090, repo.settings.first().port)
-    }
+    fun `setPort persists and emits updated value`() =
+        runTest {
+            val repo = InMemorySettingsRepository()
+            repo.setPort(9090)
+            assertEquals(9090, repo.settings.first().port)
+        }
 
     @Test
     @DisplayName("setAutoStartOnBoot persists and emits updated value")
-    fun `setAutoStartOnBoot persists and emits updated value`() = runTest {
-        val repo = InMemorySettingsRepository()
-        repo.setAutoStartOnBoot(true)
-        assertEquals(true, repo.settings.first().autoStartOnBoot)
-    }
+    fun `setAutoStartOnBoot persists and emits updated value`() =
+        runTest {
+            val repo = InMemorySettingsRepository()
+            repo.setAutoStartOnBoot(true)
+            assertEquals(true, repo.settings.first().autoStartOnBoot)
+        }
 
     @Test
     @DisplayName("setLogLevel persists and emits updated value")
-    fun `setLogLevel persists and emits updated value`() = runTest {
-        val repo = InMemorySettingsRepository()
-        repo.setLogLevel(LogLevel.ERROR)
-        assertEquals(LogLevel.ERROR, repo.settings.first().logLevel)
-    }
+    fun `setLogLevel persists and emits updated value`() =
+        runTest {
+            val repo = InMemorySettingsRepository()
+            repo.setLogLevel(LogLevel.ERROR)
+            assertEquals(LogLevel.ERROR, repo.settings.first().logLevel)
+        }
 
     @Test
     @DisplayName("multiple updates compose correctly")
-    fun `multiple updates compose correctly`() = runTest {
-        val repo = InMemorySettingsRepository()
-        repo.setHost("10.0.0.1")
-        repo.setPort(3000)
-        repo.setAutoStartOnBoot(true)
-        repo.setLogLevel(LogLevel.DEBUG)
-        val settings = repo.settings.first()
-        assertEquals("10.0.0.1", settings.host)
-        assertEquals(3000, settings.port)
-        assertEquals(true, settings.autoStartOnBoot)
-        assertEquals(LogLevel.DEBUG, settings.logLevel)
-    }
+    fun `multiple updates compose correctly`() =
+        runTest {
+            val repo = InMemorySettingsRepository()
+            repo.setHost("10.0.0.1")
+            repo.setPort(3000)
+            repo.setAutoStartOnBoot(true)
+            repo.setLogLevel(LogLevel.DEBUG)
+            val settings = repo.settings.first()
+            assertEquals("10.0.0.1", settings.host)
+            assertEquals(3000, settings.port)
+            assertEquals(true, settings.autoStartOnBoot)
+            assertEquals(LogLevel.DEBUG, settings.logLevel)
+        }
 
     @Test
     @DisplayName("setDefaultTemperature persists and emits updated value")
-    fun `setDefaultTemperature persists and emits updated value`() = runTest {
-        val repo = InMemorySettingsRepository()
-        repo.setDefaultTemperature(1.5f)
-        assertEquals(1.5f, repo.settings.first().defaultTemperature)
-    }
+    fun `setDefaultTemperature persists and emits updated value`() =
+        runTest {
+            val repo = InMemorySettingsRepository()
+            repo.setDefaultTemperature(1.5f)
+            assertEquals(1.5f, repo.settings.first().defaultTemperature)
+        }
 
     @Test
     @DisplayName("setCompactContext persists and emits updated value")
-    fun `setCompactContext persists and emits updated value`() = runTest {
-        val repo = InMemorySettingsRepository()
-        repo.setCompactContext(true)
-        assertEquals(true, repo.settings.first().compactContext)
-    }
+    fun `setCompactContext persists and emits updated value`() =
+        runTest {
+            val repo = InMemorySettingsRepository()
+            repo.setCompactContext(true)
+            assertEquals(true, repo.settings.first().compactContext)
+        }
 
     @Test
     @DisplayName("setCostEnabled persists and emits updated value")
-    fun `setCostEnabled persists and emits updated value`() = runTest {
-        val repo = InMemorySettingsRepository()
-        repo.setCostEnabled(true)
-        assertEquals(true, repo.settings.first().costEnabled)
-    }
+    fun `setCostEnabled persists and emits updated value`() =
+        runTest {
+            val repo = InMemorySettingsRepository()
+            repo.setCostEnabled(true)
+            assertEquals(true, repo.settings.first().costEnabled)
+        }
 
     @Test
     @DisplayName("setDailyLimitUsd persists and emits updated value")
-    fun `setDailyLimitUsd persists and emits updated value`() = runTest {
-        val repo = InMemorySettingsRepository()
-        repo.setDailyLimitUsd(25f)
-        assertEquals(25f, repo.settings.first().dailyLimitUsd)
-    }
+    fun `setDailyLimitUsd persists and emits updated value`() =
+        runTest {
+            val repo = InMemorySettingsRepository()
+            repo.setDailyLimitUsd(25f)
+            assertEquals(25f, repo.settings.first().dailyLimitUsd)
+        }
 
     @Test
     @DisplayName("setMonthlyLimitUsd persists and emits updated value")
-    fun `setMonthlyLimitUsd persists and emits updated value`() = runTest {
-        val repo = InMemorySettingsRepository()
-        repo.setMonthlyLimitUsd(200f)
-        assertEquals(200f, repo.settings.first().monthlyLimitUsd)
-    }
+    fun `setMonthlyLimitUsd persists and emits updated value`() =
+        runTest {
+            val repo = InMemorySettingsRepository()
+            repo.setMonthlyLimitUsd(200f)
+            assertEquals(200f, repo.settings.first().monthlyLimitUsd)
+        }
 
     @Test
     @DisplayName("setCostWarnAtPercent persists and emits updated value")
-    fun `setCostWarnAtPercent persists and emits updated value`() = runTest {
-        val repo = InMemorySettingsRepository()
-        repo.setCostWarnAtPercent(90)
-        assertEquals(90, repo.settings.first().costWarnAtPercent)
-    }
+    fun `setCostWarnAtPercent persists and emits updated value`() =
+        runTest {
+            val repo = InMemorySettingsRepository()
+            repo.setCostWarnAtPercent(90)
+            assertEquals(90, repo.settings.first().costWarnAtPercent)
+        }
 
     @Test
     @DisplayName("setProviderRetries persists and emits updated value")
-    fun `setProviderRetries persists and emits updated value`() = runTest {
-        val repo = InMemorySettingsRepository()
-        repo.setProviderRetries(5)
-        assertEquals(5, repo.settings.first().providerRetries)
-    }
+    fun `setProviderRetries persists and emits updated value`() =
+        runTest {
+            val repo = InMemorySettingsRepository()
+            repo.setProviderRetries(5)
+            assertEquals(5, repo.settings.first().providerRetries)
+        }
 
     @Test
     @DisplayName("setFallbackProviders persists and emits updated value")
-    fun `setFallbackProviders persists and emits updated value`() = runTest {
-        val repo = InMemorySettingsRepository()
-        repo.setFallbackProviders("groq, anthropic")
-        assertEquals("groq, anthropic", repo.settings.first().fallbackProviders)
-    }
+    fun `setFallbackProviders persists and emits updated value`() =
+        runTest {
+            val repo = InMemorySettingsRepository()
+            repo.setFallbackProviders("groq, anthropic")
+            assertEquals("groq, anthropic", repo.settings.first().fallbackProviders)
+        }
 
     @Test
     @DisplayName("setMemoryBackend persists and emits updated value")
-    fun `setMemoryBackend persists and emits updated value`() = runTest {
-        val repo = InMemorySettingsRepository()
-        repo.setMemoryBackend("markdown")
-        assertEquals("markdown", repo.settings.first().memoryBackend)
-    }
+    fun `setMemoryBackend persists and emits updated value`() =
+        runTest {
+            val repo = InMemorySettingsRepository()
+            repo.setMemoryBackend("markdown")
+            assertEquals("markdown", repo.settings.first().memoryBackend)
+        }
 
     @Test
     @DisplayName("setMemoryAutoSave persists and emits updated value")
-    fun `setMemoryAutoSave persists and emits updated value`() = runTest {
-        val repo = InMemorySettingsRepository()
-        repo.setMemoryAutoSave(false)
-        assertEquals(false, repo.settings.first().memoryAutoSave)
-    }
+    fun `setMemoryAutoSave persists and emits updated value`() =
+        runTest {
+            val repo = InMemorySettingsRepository()
+            repo.setMemoryAutoSave(false)
+            assertEquals(false, repo.settings.first().memoryAutoSave)
+        }
 
     @Test
     @DisplayName("setIdentityJson persists and emits updated value")
-    fun `setIdentityJson persists and emits updated value`() = runTest {
-        val repo = InMemorySettingsRepository()
-        repo.setIdentityJson("""{"name":"TestBot"}""")
-        assertEquals("""{"name":"TestBot"}""", repo.settings.first().identityJson)
-    }
+    fun `setIdentityJson persists and emits updated value`() =
+        runTest {
+            val repo = InMemorySettingsRepository()
+            repo.setIdentityJson("""{"name":"TestBot"}""")
+            assertEquals("""{"name":"TestBot"}""", repo.settings.first().identityJson)
+        }
 }
 
 /**

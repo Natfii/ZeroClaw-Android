@@ -100,7 +100,10 @@ interface ApiKeyRepository {
      *   verification fails.
      * @throws IllegalArgumentException if the payload format is invalid.
      */
-    suspend fun importFrom(encryptedPayload: String, passphrase: String): Int
+    suspend fun importFrom(
+        encryptedPayload: String,
+        passphrase: String,
+    ): Int
 
     /**
      * Retrieves the first key matching the given provider.
@@ -122,7 +125,10 @@ interface ApiKeyRepository {
      * @param id Key identifier.
      * @param status New status to set.
      */
-    suspend fun markKeyStatus(id: String, status: KeyStatus) {
+    suspend fun markKeyStatus(
+        id: String,
+        status: KeyStatus,
+    ) {
         getById(id)?.copy(status = status)?.let { save(it) }
     }
 
@@ -144,12 +150,13 @@ interface ApiKeyRepository {
         if (!key.isOAuthToken || !key.isExpired()) return key
         return try {
             val result = OAuthTokenRefresher().refresh(key.refreshToken)
-            val refreshed = key.copy(
-                key = result.accessToken,
-                refreshToken = result.refreshToken,
-                expiresAt = result.expiresAt,
-                status = KeyStatus.ACTIVE,
-            )
+            val refreshed =
+                key.copy(
+                    key = result.accessToken,
+                    refreshToken = result.refreshToken,
+                    expiresAt = result.expiresAt,
+                    status = KeyStatus.ACTIVE,
+                )
             save(refreshed)
             refreshed
         } catch (e: OAuthRefreshException) {

@@ -27,8 +27,7 @@ class RoomAgentRepository(
     override val agents: Flow<List<Agent>> =
         dao.observeAll().map { entities -> entities.map { it.toModel() } }
 
-    override suspend fun getById(id: String): Agent? =
-        dao.getById(id)?.toModel()
+    override suspend fun getById(id: String): Agent? = dao.getById(id)?.toModel()
 
     override suspend fun save(agent: Agent) {
         dao.upsert(agent.toEntity())

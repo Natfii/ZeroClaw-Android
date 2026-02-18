@@ -88,7 +88,10 @@ class InMemoryApiKeyRepository : ApiKeyRepository {
             }
             save(
                 ApiKey(
-                    id = java.util.UUID.randomUUID().toString(),
+                    id =
+                        java.util.UUID
+                            .randomUUID()
+                            .toString(),
                     provider = provider,
                     key = key,
                     baseUrl = baseUrl,
@@ -103,8 +106,7 @@ class InMemoryApiKeyRepository : ApiKeyRepository {
         return count
     }
 
-    override suspend fun getByProvider(provider: String): ApiKey? =
-        store.values.find { it.provider.equals(provider, ignoreCase = true) }
+    override suspend fun getByProvider(provider: String): ApiKey? = store.values.find { it.provider.equals(provider, ignoreCase = true) }
 
     /** Constants for [InMemoryApiKeyRepository]. */
     companion object {
@@ -124,7 +126,9 @@ class InMemoryApiKeyRepository : ApiKeyRepository {
         private fun parseKeyStatus(value: String): KeyStatus =
             try {
                 KeyStatus.valueOf(value)
-            } catch (@Suppress("SwallowedException") e: IllegalArgumentException) {
+            } catch (
+                @Suppress("SwallowedException") e: IllegalArgumentException,
+            ) {
                 KeyStatus.UNKNOWN
             }
     }

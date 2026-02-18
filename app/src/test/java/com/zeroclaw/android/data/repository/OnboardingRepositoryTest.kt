@@ -23,37 +23,41 @@ import org.junit.jupiter.api.Test
 class OnboardingRepositoryTest {
     @Test
     @DisplayName("initial state is not completed")
-    fun `initial state is not completed`() = runTest {
-        val repo = InMemoryOnboardingRepository()
-        assertEquals(false, repo.isCompleted.first())
-    }
+    fun `initial state is not completed`() =
+        runTest {
+            val repo = InMemoryOnboardingRepository()
+            assertEquals(false, repo.isCompleted.first())
+        }
 
     @Test
     @DisplayName("markComplete sets completed to true")
-    fun `markComplete sets completed to true`() = runTest {
-        val repo = InMemoryOnboardingRepository()
-        repo.markComplete()
-        assertEquals(true, repo.isCompleted.first())
-    }
+    fun `markComplete sets completed to true`() =
+        runTest {
+            val repo = InMemoryOnboardingRepository()
+            repo.markComplete()
+            assertEquals(true, repo.isCompleted.first())
+        }
 
     @Test
     @DisplayName("reset sets completed back to false")
-    fun `reset sets completed back to false`() = runTest {
-        val repo = InMemoryOnboardingRepository()
-        repo.markComplete()
-        assertEquals(true, repo.isCompleted.first())
-        repo.reset()
-        assertEquals(false, repo.isCompleted.first())
-    }
+    fun `reset sets completed back to false`() =
+        runTest {
+            val repo = InMemoryOnboardingRepository()
+            repo.markComplete()
+            assertEquals(true, repo.isCompleted.first())
+            repo.reset()
+            assertEquals(false, repo.isCompleted.first())
+        }
 
     @Test
     @DisplayName("multiple markComplete calls are idempotent")
-    fun `multiple markComplete calls are idempotent`() = runTest {
-        val repo = InMemoryOnboardingRepository()
-        repo.markComplete()
-        repo.markComplete()
-        assertEquals(true, repo.isCompleted.first())
-    }
+    fun `multiple markComplete calls are idempotent`() =
+        runTest {
+            val repo = InMemoryOnboardingRepository()
+            repo.markComplete()
+            repo.markComplete()
+            assertEquals(true, repo.isCompleted.first())
+        }
 }
 
 /**

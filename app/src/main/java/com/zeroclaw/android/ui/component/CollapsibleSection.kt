@@ -6,6 +6,7 @@
 
 package com.zeroclaw.android.ui.component
 
+import android.os.PowerManager
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
@@ -34,7 +35,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import android.os.PowerManager
 
 /**
  * Expandable card section with power-save-aware animation.

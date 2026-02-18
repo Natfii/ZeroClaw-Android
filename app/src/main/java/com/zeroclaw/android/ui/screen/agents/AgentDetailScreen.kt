@@ -69,6 +69,9 @@ private const val DETAIL_TEMPERATURE_MAX = 2.0f
 /** Number of slider steps for temperature. */
 private const val DETAIL_TEMPERATURE_STEPS = 20
 
+/** Default temperature value when no per-agent temperature is set. */
+private const val DEFAULT_DETAIL_TEMPERATURE = 0.7f
+
 /**
  * Agent detail screen with editable fields and collapsible sections.
  *
@@ -106,7 +109,7 @@ fun AgentDetailScreen(
         mutableStateOf(loadedAgent.temperature == null)
     }
     var temperature by remember(loadedAgent) {
-        mutableStateOf(loadedAgent.temperature ?: 0.7f)
+        mutableStateOf(loadedAgent.temperature ?: DEFAULT_DETAIL_TEMPERATURE)
     }
     var maxDepth by remember(loadedAgent) {
         mutableStateOf(loadedAgent.maxDepth.toString())
@@ -189,9 +192,10 @@ fun AgentDetailScreen(
                     onValueChange = { temperature = it },
                     valueRange = 0f..DETAIL_TEMPERATURE_MAX,
                     steps = DETAIL_TEMPERATURE_STEPS - 1,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .semantics { contentDescription = "Agent temperature" },
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .semantics { contentDescription = "Agent temperature" },
                 )
             }
             Spacer(modifier = Modifier.height(FIELD_SPACING_DP.dp))

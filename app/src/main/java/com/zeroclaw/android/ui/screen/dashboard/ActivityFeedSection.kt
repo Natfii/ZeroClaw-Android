@@ -111,7 +111,6 @@ private fun activityIcon(type: ActivityType): String =
 
 private val activityTimeFormat = SimpleDateFormat("HH:mm", Locale.US)
 
-private fun formatTime(epochMs: Long): String =
-    activityTimeFormat.format(Date(epochMs))
+private fun formatTime(epochMs: Long): String = activityTimeFormat.format(Date(epochMs))
 
 private const val MAX_VISIBLE_EVENTS = 5

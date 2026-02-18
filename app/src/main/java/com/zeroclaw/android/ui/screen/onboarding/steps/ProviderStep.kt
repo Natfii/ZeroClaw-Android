@@ -7,7 +7,6 @@
 package com.zeroclaw.android.ui.screen.onboarding.steps
 
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -26,7 +25,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.zeroclaw.android.data.ProviderRegistry
@@ -87,8 +85,9 @@ fun ProviderStep(
     val providerInfo = ProviderRegistry.findById(selectedProvider)
     val authType = providerInfo?.authType
     val suggestedModels = providerInfo?.suggestedModels.orEmpty()
-    val isLocalProvider = authType == ProviderAuthType.URL_ONLY ||
-        authType == ProviderAuthType.URL_AND_OPTIONAL_KEY
+    val isLocalProvider =
+        authType == ProviderAuthType.URL_ONLY ||
+            authType == ProviderAuthType.URL_AND_OPTIONAL_KEY
 
     var liveModels by remember { mutableStateOf(emptyList<String>()) }
     var isLoadingLive by remember { mutableStateOf(false) }
@@ -98,7 +97,11 @@ fun ProviderStep(
     LaunchedEffect(selectedProvider, apiKey, baseUrl) {
         liveModels = emptyList()
         isLiveData = false
-        if (providerInfo == null || providerInfo.modelListFormat == ModelListFormat.NONE) return@LaunchedEffect
+        if (providerInfo == null ||
+            providerInfo.modelListFormat == ModelListFormat.NONE
+        ) {
+            return@LaunchedEffect
+        }
 
         if (!isLocalProvider && apiKey.isBlank()) return@LaunchedEffect
 
@@ -131,7 +134,9 @@ fun ProviderStep(
         )
         Spacer(modifier = Modifier.height(FIELD_SPACING_DP.dp))
         Text(
-            text = "Select your AI provider and enter credentials. You can add more keys later in Settings.",
+            text =
+                "Select your AI provider and enter credentials. " +
+                    "You can add more keys later in Settings.",
             style = MaterialTheme.typography.bodyLarge,
         )
         Spacer(modifier = Modifier.height(DESCRIPTION_SPACING_DP.dp))

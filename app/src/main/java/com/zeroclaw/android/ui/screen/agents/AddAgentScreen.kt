@@ -66,6 +66,9 @@ private const val AGENT_TEMPERATURE_MAX = 2.0f
 /** Number of slider steps for temperature. */
 private const val AGENT_TEMPERATURE_STEPS = 20
 
+/** Default temperature value for new agents. */
+private const val DEFAULT_AGENT_TEMPERATURE = 0.7f
+
 /**
  * Screen for adding a new agent.
  *
@@ -90,14 +93,16 @@ fun AddAgentScreen(
     var modelName by remember { mutableStateOf("") }
     var systemPrompt by remember { mutableStateOf("") }
     var useGlobalTemperature by remember { mutableStateOf(true) }
-    var temperature by remember { mutableStateOf(0.7f) }
+    var temperature by remember { mutableStateOf(DEFAULT_AGENT_TEMPERATURE) }
     var maxDepth by remember { mutableStateOf(Agent.DEFAULT_MAX_DEPTH.toString()) }
 
     val context = LocalContext.current
     val app = context.applicationContext as ZeroClawApplication
     val settings by app.settingsRepository.settings
         .collectAsStateWithLifecycle(
-            initialValue = com.zeroclaw.android.model.AppSettings(),
+            initialValue =
+                com.zeroclaw.android.model
+                    .AppSettings(),
         )
     val apiKeys by app.apiKeyRepository.keys
         .collectAsStateWithLifecycle(initialValue = emptyList())
@@ -113,12 +118,15 @@ fun AddAgentScreen(
 
     val providerInfo = ProviderRegistry.findById(providerId)
     val suggestedModels = providerInfo?.suggestedModels.orEmpty()
-    val needsApiKey = providerInfo?.authType == ProviderAuthType.API_KEY_ONLY ||
-        providerInfo?.authType == ProviderAuthType.URL_AND_OPTIONAL_KEY
-    val hasApiKey = providerId.isBlank() || apiKeys.any { key ->
-        val resolved = ProviderRegistry.findById(key.provider)
-        resolved?.id == providerInfo?.id
-    }
+    val needsApiKey =
+        providerInfo?.authType == ProviderAuthType.API_KEY_ONLY ||
+            providerInfo?.authType == ProviderAuthType.URL_AND_OPTIONAL_KEY
+    val hasApiKey =
+        providerId.isBlank() ||
+            apiKeys.any { key ->
+                val resolved = ProviderRegistry.findById(key.provider)
+                resolved?.id == providerInfo?.id
+            }
 
     Column(
         modifier =
@@ -158,14 +166,16 @@ fun AddAgentScreen(
 
         if (needsApiKey && !hasApiKey && providerId.isNotBlank()) {
             Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                ),
+                colors =
+                    CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                    ),
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(
-                    text = "No API key found for ${providerInfo?.displayName ?: providerId}. " +
-                        "Add one in Settings > API Keys.",
+                    text =
+                        "No API key found for ${providerInfo?.displayName ?: providerId}. " +
+                            "Add one in Settings > API Keys.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onErrorContainer,
                     modifier = Modifier.padding(WARNING_CARD_PADDING_DP.dp),
@@ -215,9 +225,10 @@ fun AddAgentScreen(
                     onValueChange = { temperature = it },
                     valueRange = 0f..AGENT_TEMPERATURE_MAX,
                     steps = AGENT_TEMPERATURE_STEPS - 1,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .semantics { contentDescription = "Agent temperature" },
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .semantics { contentDescription = "Agent temperature" },
                 )
             }
             Spacer(modifier = Modifier.height(FIELD_SPACING_DP.dp))

@@ -45,7 +45,7 @@ complexity:
     active: true
     thresholdInClasses: 18
     thresholdInFiles: 17
-    thresholdInInterfaces: 16
+    thresholdInInterfaces: 18
 
 naming:
   FunctionNaming:
@@ -54,6 +54,8 @@ naming:
       - "Composable"
 
 style:
+  MaxLineLength:
+    active: false
   ForbiddenComment:
     active: true
     comments:

@@ -78,8 +78,7 @@ class EncryptedApiKeyRepository(
 
     override val keys: Flow<List<ApiKey>> = _keys.asStateFlow()
 
-    override suspend fun getById(id: String): ApiKey? =
-        _keys.value.find { it.id == id }
+    override suspend fun getById(id: String): ApiKey? = _keys.value.find { it.id == id }
 
     override suspend fun save(apiKey: ApiKey) {
         val json =
@@ -145,7 +144,10 @@ class EncryptedApiKeyRepository(
             }
             val apiKey =
                 ApiKey(
-                    id = java.util.UUID.randomUUID().toString(),
+                    id =
+                        java.util.UUID
+                            .randomUUID()
+                            .toString(),
                     provider = provider,
                     key = key,
                     baseUrl = baseUrl,
@@ -163,7 +165,12 @@ class EncryptedApiKeyRepository(
     override suspend fun getByProvider(provider: String): ApiKey? {
         val resolved = ProviderRegistry.findById(provider)
         val targetId = resolved?.id ?: provider.lowercase()
-        val targetAliases = resolved?.aliases.orEmpty().map { it.lowercase() }.toSet() + targetId
+        val targetAliases =
+            resolved
+                ?.aliases
+                .orEmpty()
+                .map { it.lowercase() }
+                .toSet() + targetId
         return _keys.value.firstOrNull { key ->
             val keyResolved = ProviderRegistry.findById(key.provider)
             val keyId = keyResolved?.id ?: key.provider.lowercase()
@@ -175,15 +182,16 @@ class EncryptedApiKeyRepository(
     private fun loadAll(): List<ApiKey> {
         var corrupt = 0
         val loaded =
-            prefs.all.mapNotNull { (_, value) ->
-                try {
-                    parseApiKey(value as String)
-                } catch (e: Exception) {
-                    corrupt++
-                    Log.w(TAG, "Skipping corrupt key entry: ${e.message}")
-                    null
-                }
-            }.sortedByDescending { it.createdAt }
+            prefs.all
+                .mapNotNull { (_, value) ->
+                    try {
+                        parseApiKey(value as String)
+                    } catch (e: Exception) {
+                        corrupt++
+                        Log.w(TAG, "Skipping corrupt key entry: ${e.message}")
+                        null
+                    }
+                }.sortedByDescending { it.createdAt }
         _corruptKeyCount.value = corrupt
         return loaded
     }
@@ -222,7 +230,9 @@ class EncryptedApiKeyRepository(
         private fun parseKeyStatus(value: String): KeyStatus =
             try {
                 KeyStatus.valueOf(value)
-            } catch (@Suppress("SwallowedException") e: IllegalArgumentException) {
+            } catch (
+                @Suppress("SwallowedException") e: IllegalArgumentException,
+            ) {
                 KeyStatus.UNKNOWN
             }
     }

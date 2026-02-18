@@ -11,23 +11,23 @@ import android.net.ConnectivityManager
 import com.zeroclaw.android.model.DiscoveredServer
 import com.zeroclaw.android.model.LocalServerType
 import com.zeroclaw.android.model.ScanState
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.channels.ProducerScope
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.channelFlow
-import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
-import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.Inet4Address
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.net.URL
 import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.channels.ProducerScope
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
+import org.json.JSONObject
 
 /**
  * Scans the local network for AI inference servers.
@@ -43,12 +43,13 @@ import java.util.concurrent.atomic.AtomicInteger
 @Suppress("TooManyFunctions")
 object NetworkScanner {
     /** Common AI server ports to probe, ordered by popularity. */
-    private val TARGET_PORTS = intArrayOf(
-        PORT_OLLAMA,
-        PORT_LM_STUDIO,
-        PORT_VLLM,
-        PORT_LOCALAI,
-    )
+    private val TARGET_PORTS =
+        intArrayOf(
+            PORT_OLLAMA,
+            PORT_LM_STUDIO,
+            PORT_VLLM,
+            PORT_LOCALAI,
+        )
 
     /** Maximum concurrent TCP connection attempts. */
     private const val MAX_CONCURRENT = 64
@@ -73,32 +74,35 @@ object NetworkScanner {
      * @return A cold [Flow] of scan state updates.
      */
     @Suppress("InjectDispatcher")
-    fun scan(context: Context): Flow<ScanState> = channelFlow {
-        val subnet = getLocalSubnet(context)
-        if (subnet == null) {
-            send(ScanState.Error("Not connected to a local network"))
-            return@channelFlow
-        }
-
-        send(ScanState.Scanning(0f))
-
-        val totalProbes = SUBNET_HOST_COUNT * TARGET_PORTS.size
-        val completed = AtomicInteger(0)
-
-        val servers = coroutineScope {
-            val jobs = launchProbeJobs(subnet, completed)
-
-            val progressJob = async {
-                emitProgress(completed, totalProbes)
+    fun scan(context: Context): Flow<ScanState> =
+        channelFlow {
+            val subnet = getLocalSubnet(context)
+            if (subnet == null) {
+                send(ScanState.Error("Not connected to a local network"))
+                return@channelFlow
             }
 
-            val results = jobs.awaitAll().filterNotNull()
-            progressJob.cancel()
-            results
-        }
+            send(ScanState.Scanning(0f))
 
-        send(ScanState.Completed(servers))
-    }.flowOn(Dispatchers.IO)
+            val totalProbes = SUBNET_HOST_COUNT * TARGET_PORTS.size
+            val completed = AtomicInteger(0)
+
+            val servers =
+                coroutineScope {
+                    val jobs = launchProbeJobs(subnet, completed)
+
+                    val progressJob =
+                        async {
+                            emitProgress(completed, totalProbes)
+                        }
+
+                    val results = jobs.awaitAll().filterNotNull()
+                    progressJob.cancel()
+                    results
+                }
+
+            send(ScanState.Completed(servers))
+        }.flowOn(Dispatchers.IO)
 
     /**
      * Launches parallel probe jobs for every host:port combination in the subnet.
@@ -153,16 +157,18 @@ object NetworkScanner {
      * @return Subnet prefix (e.g. "192.168.1") or null if unavailable.
      */
     private fun getLocalSubnet(context: Context): String? {
-        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
-            ?: return null
+        val cm =
+            context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+                ?: return null
         val network = cm.activeNetwork ?: return null
         val linkProps = cm.getLinkProperties(network) ?: return null
 
-        val ipv4 = linkProps.linkAddresses
-            .firstOrNull { it.address is Inet4Address && !it.address.isLoopbackAddress }
-            ?.address
-            ?.hostAddress
-            ?: return null
+        val ipv4 =
+            linkProps.linkAddresses
+                .firstOrNull { it.address is Inet4Address && !it.address.isLoopbackAddress }
+                ?.address
+                ?.hostAddress
+                ?: return null
 
         val parts = ipv4.split(".")
         return if (parts.size == OCTET_COUNT) {
@@ -180,7 +186,10 @@ object NetworkScanner {
      * @return A [DiscoveredServer] if an AI server is detected, null otherwise.
      */
     @Suppress("TooGenericExceptionCaught", "SwallowedException")
-    private fun probeHost(ip: String, port: Int): DiscoveredServer? {
+    private fun probeHost(
+        ip: String,
+        port: Int,
+    ): DiscoveredServer? {
         if (!isPortOpen(ip, port)) return null
         return identifyServer(ip, port)
     }
@@ -193,7 +202,10 @@ object NetworkScanner {
      * @return True if the connection succeeds within the timeout.
      */
     @Suppress("TooGenericExceptionCaught", "SwallowedException")
-    private fun isPortOpen(ip: String, port: Int): Boolean =
+    private fun isPortOpen(
+        ip: String,
+        port: Int,
+    ): Boolean =
         try {
             Socket().use { socket ->
                 socket.connect(InetSocketAddress(ip, port), CONNECT_TIMEOUT_MS)
@@ -214,7 +226,10 @@ object NetworkScanner {
      * @return A [DiscoveredServer] with type and models, or null if unidentified.
      */
     @Suppress("TooGenericExceptionCaught", "SwallowedException")
-    private fun identifyServer(ip: String, port: Int): DiscoveredServer? {
+    private fun identifyServer(
+        ip: String,
+        port: Int,
+    ): DiscoveredServer? {
         val ollamaResult = tryOllama(ip, port)
         if (ollamaResult != null) return ollamaResult
 
@@ -232,17 +247,21 @@ object NetworkScanner {
      * @return A [DiscoveredServer] if Ollama is detected, null otherwise.
      */
     @Suppress("TooGenericExceptionCaught", "SwallowedException")
-    private fun tryOllama(ip: String, port: Int): DiscoveredServer? =
+    private fun tryOllama(
+        ip: String,
+        port: Int,
+    ): DiscoveredServer? =
         try {
             val json = httpGet("http://$ip:$port/api/tags")
             val root = JSONObject(json)
             val modelsArray = root.optJSONArray("models") ?: return null
-            val models = buildList {
-                for (i in 0 until modelsArray.length()) {
-                    val name = modelsArray.getJSONObject(i).optString("name", "")
-                    if (name.isNotEmpty()) add(name)
+            val models =
+                buildList {
+                    for (i in 0 until modelsArray.length()) {
+                        val name = modelsArray.getJSONObject(i).optString("name", "")
+                        if (name.isNotEmpty()) add(name)
+                    }
                 }
-            }
             DiscoveredServer(ip, port, LocalServerType.OLLAMA, models)
         } catch (e: Exception) {
             null
@@ -256,17 +275,21 @@ object NetworkScanner {
      * @return A [DiscoveredServer] if an OpenAI-compatible API is detected, null otherwise.
      */
     @Suppress("TooGenericExceptionCaught", "SwallowedException")
-    private fun tryOpenAiCompatible(ip: String, port: Int): DiscoveredServer? =
+    private fun tryOpenAiCompatible(
+        ip: String,
+        port: Int,
+    ): DiscoveredServer? =
         try {
             val json = httpGet("http://$ip:$port/v1/models")
             val root = JSONObject(json)
             val dataArray = root.optJSONArray("data") ?: return null
-            val models = buildList {
-                for (i in 0 until dataArray.length()) {
-                    val id = dataArray.getJSONObject(i).optString("id", "")
-                    if (id.isNotEmpty()) add(id)
+            val models =
+                buildList {
+                    for (i in 0 until dataArray.length()) {
+                        val id = dataArray.getJSONObject(i).optString("id", "")
+                        if (id.isNotEmpty()) add(id)
+                    }
                 }
-            }
             DiscoveredServer(ip, port, LocalServerType.OPENAI_COMPATIBLE, models)
         } catch (e: Exception) {
             null

@@ -95,8 +95,10 @@ fun OnboardingScreen(
         val baseUrlState by onboardingViewModel.baseUrl.collectAsStateWithLifecycle()
         val modelState by onboardingViewModel.selectedModel.collectAsStateWithLifecycle()
         val agentNameState by onboardingViewModel.agentName.collectAsStateWithLifecycle()
-        val channelTypeState by onboardingViewModel.selectedChannelType.collectAsStateWithLifecycle()
-        val channelFieldsState by onboardingViewModel.channelFieldValues.collectAsStateWithLifecycle()
+        val channelTypeState by onboardingViewModel.selectedChannelType
+            .collectAsStateWithLifecycle()
+        val channelFieldsState by onboardingViewModel.channelFieldValues
+            .collectAsStateWithLifecycle()
 
         Column(modifier = Modifier.weight(1f)) {
             when (currentStep) {

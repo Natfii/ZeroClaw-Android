@@ -69,8 +69,9 @@ fun ChannelSetupStep(
         )
         Spacer(modifier = Modifier.height(FIELD_SPACING_DP.dp))
         Text(
-            text = "Connect a chat platform so your agent can send and receive messages. " +
-                "You can skip this and add channels later in Settings.",
+            text =
+                "Connect a chat platform so your agent can send and receive messages. " +
+                    "You can skip this and add channels later in Settings.",
             style = MaterialTheme.typography.bodyLarge,
         )
         Spacer(modifier = Modifier.height(DESCRIPTION_SPACING_DP.dp))
@@ -81,21 +82,23 @@ fun ChannelSetupStep(
                 onClick = {
                     onTypeSelected(if (isSelected) null else type)
                 },
-                colors = if (isSelected) {
-                    CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    )
-                } else {
-                    CardDefaults.cardColors()
-                },
-                border = if (isSelected) {
-                    BorderStroke(
-                        SELECTED_BORDER_WIDTH_DP.dp,
-                        MaterialTheme.colorScheme.primary,
-                    )
-                } else {
-                    null
-                },
+                colors =
+                    if (isSelected) {
+                        CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        )
+                    } else {
+                        CardDefaults.cardColors()
+                    },
+                border =
+                    if (isSelected) {
+                        BorderStroke(
+                            SELECTED_BORDER_WIDTH_DP.dp,
+                            MaterialTheme.colorScheme.primary,
+                        )
+                    } else {
+                        null
+                    },
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(
@@ -116,21 +119,23 @@ fun ChannelSetupStep(
             Spacer(modifier = Modifier.height(FIELD_SPACING_DP.dp))
 
             selectedType.fields.filter { it.isRequired }.forEach { spec ->
-                val keyboardType = when (spec.inputType) {
-                    FieldInputType.NUMBER -> KeyboardType.Number
-                    FieldInputType.URL -> KeyboardType.Uri
-                    else -> KeyboardType.Text
-                }
+                val keyboardType =
+                    when (spec.inputType) {
+                        FieldInputType.NUMBER -> KeyboardType.Number
+                        FieldInputType.URL -> KeyboardType.Uri
+                        else -> KeyboardType.Text
+                    }
                 OutlinedTextField(
                     value = channelFieldValues[spec.key].orEmpty(),
                     onValueChange = { onFieldChanged(spec.key, it) },
                     label = { Text("${spec.label} *") },
                     singleLine = true,
-                    visualTransformation = if (spec.isSecret) {
-                        PasswordVisualTransformation()
-                    } else {
-                        androidx.compose.ui.text.input.VisualTransformation.None
-                    },
+                    visualTransformation =
+                        if (spec.isSecret) {
+                            PasswordVisualTransformation()
+                        } else {
+                            androidx.compose.ui.text.input.VisualTransformation.None
+                        },
                     keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
                     modifier = Modifier.fillMaxWidth(),
                 )

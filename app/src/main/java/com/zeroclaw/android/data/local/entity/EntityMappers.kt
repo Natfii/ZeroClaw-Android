@@ -256,5 +256,4 @@ private fun deserializeActivityType(name: String): ActivityType =
  * @param name Channel type name string.
  * @return Matching [ChannelType], or null if unknown.
  */
-private fun deserializeChannelType(name: String): ChannelType? =
-    runCatching { ChannelType.valueOf(name) }.getOrNull()
+private fun deserializeChannelType(name: String): ChannelType? = runCatching { ChannelType.valueOf(name) }.getOrNull()

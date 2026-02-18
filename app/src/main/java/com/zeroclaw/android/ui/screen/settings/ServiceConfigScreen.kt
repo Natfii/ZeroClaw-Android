@@ -47,14 +47,8 @@ import com.zeroclaw.android.ui.component.SectionHeader
 /** Maximum slider value for temperature. */
 private const val TEMPERATURE_MAX = 2.0f
 
-/** Step size for temperature slider. */
-private const val TEMPERATURE_STEP = 0.1f
-
 /** Number of steps for temperature slider. */
 private const val TEMPERATURE_STEPS = 20
-
-/** Minimum touch target height for interactive rows. */
-private const val MIN_TOUCH_TARGET_DP = 48
 
 /** Available memory backend options. */
 private val MEMORY_BACKENDS = listOf("sqlite", "none", "markdown", "lucid")
@@ -165,9 +159,10 @@ private fun InferenceSection(
         onValueChange = { viewModel.updateDefaultTemperature(it) },
         valueRange = 0f..TEMPERATURE_MAX,
         steps = TEMPERATURE_STEPS - 1,
-        modifier = Modifier
-            .fillMaxWidth()
-            .semantics { contentDescription = "Temperature slider" },
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .semantics { contentDescription = "Temperature slider" },
     )
 
     ToggleRow(
@@ -205,9 +200,10 @@ private fun MemorySection(
             readOnly = true,
             label = { Text("Backend") },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
-            modifier = Modifier
-                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                .fillMaxWidth(),
+            modifier =
+                Modifier
+                    .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                    .fillMaxWidth(),
         )
         ExposedDropdownMenu(
             expanded = expanded,

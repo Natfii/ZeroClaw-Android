@@ -48,21 +48,27 @@ class DataStoreSettingsRepository(
                     } ?: LogLevel.INFO,
                 defaultProvider = prefs[KEY_DEFAULT_PROVIDER] ?: "",
                 defaultModel = prefs[KEY_DEFAULT_MODEL] ?: "",
-                defaultTemperature = prefs[KEY_DEFAULT_TEMPERATURE]
-                    ?: AppSettings.DEFAULT_TEMPERATURE,
+                defaultTemperature =
+                    prefs[KEY_DEFAULT_TEMPERATURE]
+                        ?: AppSettings.DEFAULT_TEMPERATURE,
                 compactContext = prefs[KEY_COMPACT_CONTEXT] ?: false,
                 costEnabled = prefs[KEY_COST_ENABLED] ?: false,
-                dailyLimitUsd = prefs[KEY_DAILY_LIMIT_USD]
-                    ?: AppSettings.DEFAULT_DAILY_LIMIT_USD,
-                monthlyLimitUsd = prefs[KEY_MONTHLY_LIMIT_USD]
-                    ?: AppSettings.DEFAULT_MONTHLY_LIMIT_USD,
-                costWarnAtPercent = prefs[KEY_COST_WARN_PERCENT]
-                    ?: AppSettings.DEFAULT_COST_WARN_PERCENT,
-                providerRetries = prefs[KEY_PROVIDER_RETRIES]
-                    ?: AppSettings.DEFAULT_PROVIDER_RETRIES,
+                dailyLimitUsd =
+                    prefs[KEY_DAILY_LIMIT_USD]
+                        ?: AppSettings.DEFAULT_DAILY_LIMIT_USD,
+                monthlyLimitUsd =
+                    prefs[KEY_MONTHLY_LIMIT_USD]
+                        ?: AppSettings.DEFAULT_MONTHLY_LIMIT_USD,
+                costWarnAtPercent =
+                    prefs[KEY_COST_WARN_PERCENT]
+                        ?: AppSettings.DEFAULT_COST_WARN_PERCENT,
+                providerRetries =
+                    prefs[KEY_PROVIDER_RETRIES]
+                        ?: AppSettings.DEFAULT_PROVIDER_RETRIES,
                 fallbackProviders = prefs[KEY_FALLBACK_PROVIDERS] ?: "",
-                memoryBackend = prefs[KEY_MEMORY_BACKEND]
-                    ?: AppSettings.DEFAULT_MEMORY_BACKEND,
+                memoryBackend =
+                    prefs[KEY_MEMORY_BACKEND]
+                        ?: AppSettings.DEFAULT_MEMORY_BACKEND,
                 memoryAutoSave = prefs[KEY_MEMORY_AUTO_SAVE] ?: true,
                 identityJson = prefs[KEY_IDENTITY_JSON] ?: "",
             )

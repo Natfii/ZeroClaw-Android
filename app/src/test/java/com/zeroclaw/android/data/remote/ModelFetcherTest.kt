@@ -20,11 +20,11 @@ import org.junit.jupiter.api.Test
  */
 @DisplayName("ModelFetcher")
 class ModelFetcherTest {
-
     @Test
     @DisplayName("parseModels handles OpenAI-compatible format")
     fun `parseModels handles OpenAI-compatible format`() {
-        val json = """
+        val json =
+            """
             {
                 "data": [
                     {"id": "gpt-4o", "object": "model"},
@@ -32,7 +32,7 @@ class ModelFetcherTest {
                     {"id": "o1", "object": "model"}
                 ]
             }
-        """.trimIndent()
+            """.trimIndent()
 
         val models = ModelFetcher.parseModels(json, ModelListFormat.OPENAI_COMPATIBLE)
         assertEquals(listOf("gpt-4o", "gpt-4o-mini", "o1"), models)
@@ -41,14 +41,15 @@ class ModelFetcherTest {
     @Test
     @DisplayName("parseModels handles Anthropic format")
     fun `parseModels handles Anthropic format`() {
-        val json = """
+        val json =
+            """
             {
                 "data": [
                     {"id": "claude-sonnet-4-5-20250929", "type": "model"},
                     {"id": "claude-haiku-4-5-20251001", "type": "model"}
                 ]
             }
-        """.trimIndent()
+            """.trimIndent()
 
         val models = ModelFetcher.parseModels(json, ModelListFormat.ANTHROPIC)
         assertEquals(listOf("claude-sonnet-4-5-20250929", "claude-haiku-4-5-20251001"), models)
@@ -57,14 +58,15 @@ class ModelFetcherTest {
     @Test
     @DisplayName("parseModels handles Google Gemini format and strips prefix")
     fun `parseModels handles Google Gemini format and strips prefix`() {
-        val json = """
+        val json =
+            """
             {
                 "models": [
                     {"name": "models/gemini-2.0-flash", "displayName": "Gemini 2.0 Flash"},
                     {"name": "models/gemini-1.5-pro", "displayName": "Gemini 1.5 Pro"}
                 ]
             }
-        """.trimIndent()
+            """.trimIndent()
 
         val models = ModelFetcher.parseModels(json, ModelListFormat.GOOGLE_GEMINI)
         assertEquals(listOf("gemini-2.0-flash", "gemini-1.5-pro"), models)
@@ -73,14 +75,15 @@ class ModelFetcherTest {
     @Test
     @DisplayName("parseModels handles Ollama format")
     fun `parseModels handles Ollama format`() {
-        val json = """
+        val json =
+            """
             {
                 "models": [
                     {"name": "llama3.3:latest", "modified_at": "2024-01-01"},
                     {"name": "mistral:latest", "modified_at": "2024-01-01"}
                 ]
             }
-        """.trimIndent()
+            """.trimIndent()
 
         val models = ModelFetcher.parseModels(json, ModelListFormat.OLLAMA)
         assertEquals(listOf("llama3.3:latest", "mistral:latest"), models)
@@ -89,14 +92,15 @@ class ModelFetcherTest {
     @Test
     @DisplayName("parseModels handles OpenRouter format")
     fun `parseModels handles OpenRouter format`() {
-        val json = """
+        val json =
+            """
             {
                 "data": [
                     {"id": "openai/gpt-4o", "name": "GPT-4o"},
                     {"id": "anthropic/claude-sonnet-4-5", "name": "Claude 3.5 Sonnet"}
                 ]
             }
-        """.trimIndent()
+            """.trimIndent()
 
         val models = ModelFetcher.parseModels(json, ModelListFormat.OPENROUTER)
         assertEquals(listOf("openai/gpt-4o", "anthropic/claude-sonnet-4-5"), models)
@@ -105,12 +109,13 @@ class ModelFetcherTest {
     @Test
     @DisplayName("parseModels handles Together AI bare array format")
     fun `parseModels handles Together AI bare array format`() {
-        val json = """
+        val json =
+            """
             [
                 {"id": "meta-llama/Llama-3.3-70B-Instruct-Turbo", "type": "chat"},
                 {"id": "Qwen/Qwen2.5-72B-Instruct-Turbo", "type": "chat"}
             ]
-        """.trimIndent()
+            """.trimIndent()
 
         val models = ModelFetcher.parseModels(json, ModelListFormat.TOGETHER)
         assertEquals(
@@ -122,7 +127,8 @@ class ModelFetcherTest {
     @Test
     @DisplayName("parseModels handles Cohere format")
     fun `parseModels handles Cohere format`() {
-        val json = """
+        val json =
+            """
             {
                 "models": [
                     {"name": "command-r-plus", "endpoints": ["chat"]},
@@ -130,7 +136,7 @@ class ModelFetcherTest {
                     {"name": "command-a-03-2025", "endpoints": ["chat"]}
                 ]
             }
-        """.trimIndent()
+            """.trimIndent()
 
         val models = ModelFetcher.parseModels(json, ModelListFormat.COHERE)
         assertEquals(listOf("command-r-plus", "command-r", "command-a-03-2025"), models)
@@ -146,7 +152,8 @@ class ModelFetcherTest {
     @Test
     @DisplayName("parseModels skips entries with empty id field")
     fun `parseModels skips entries with empty id field`() {
-        val json = """
+        val json =
+            """
             {
                 "data": [
                     {"id": "gpt-4o"},
@@ -154,7 +161,7 @@ class ModelFetcherTest {
                     {"id": "o1"}
                 ]
             }
-        """.trimIndent()
+            """.trimIndent()
 
         val models = ModelFetcher.parseModels(json, ModelListFormat.OPENAI_COMPATIBLE)
         assertEquals(listOf("gpt-4o", "o1"), models)

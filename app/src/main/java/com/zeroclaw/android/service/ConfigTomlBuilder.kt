@@ -122,9 +122,6 @@ data class GlobalTomlConfig(
  */
 @Suppress("TooManyFunctions")
 object ConfigTomlBuilder {
-
-    private const val DEFAULT_TEMPERATURE = "0.7"
-
     /**
      * Placeholder API key injected for self-hosted providers (LM Studio,
      * vLLM, LocalAI, Ollama) that don't require authentication.
@@ -140,12 +137,13 @@ object ConfigTomlBuilder {
     private const val OLLAMA_DEFAULT_URL = "http://localhost:11434"
 
     /** Android provider IDs that map to `custom:URL` in the TOML. */
-    private val OPENAI_COMPATIBLE_SELF_HOSTED = setOf(
-        "lmstudio",
-        "vllm",
-        "localai",
-        "custom-openai",
-    )
+    private val OPENAI_COMPATIBLE_SELF_HOSTED =
+        setOf(
+            "lmstudio",
+            "vllm",
+            "localai",
+            "custom-openai",
+        )
 
     /**
      * Builds a TOML configuration string from the given parameters.
@@ -165,14 +163,15 @@ object ConfigTomlBuilder {
         model: String,
         apiKey: String,
         baseUrl: String,
-    ): String = build(
-        GlobalTomlConfig(
-            provider = provider,
-            model = model,
-            apiKey = apiKey,
-            baseUrl = baseUrl,
-        ),
-    )
+    ): String =
+        build(
+            GlobalTomlConfig(
+                provider = provider,
+                model = model,
+                apiKey = apiKey,
+                baseUrl = baseUrl,
+            ),
+        )
 
     /**
      * Builds a complete TOML configuration string from a [GlobalTomlConfig].
@@ -184,58 +183,61 @@ object ConfigTomlBuilder {
      * @param config Aggregated global configuration values.
      * @return A valid TOML configuration string.
      */
-    fun build(config: GlobalTomlConfig): String = buildString {
-        appendLine("default_temperature = ${config.temperature}")
+    @Suppress("CognitiveComplexMethod")
+    fun build(config: GlobalTomlConfig): String =
+        buildString {
+            appendLine("default_temperature = ${config.temperature}")
 
-        val resolvedProvider = resolveProvider(config.provider, config.baseUrl)
-        if (resolvedProvider.isNotBlank()) {
-            appendLine("default_provider = ${tomlString(resolvedProvider)}")
-        }
+            val resolvedProvider = resolveProvider(config.provider, config.baseUrl)
+            if (resolvedProvider.isNotBlank()) {
+                appendLine("default_provider = ${tomlString(resolvedProvider)}")
+            }
 
-        if (config.model.isNotBlank()) {
-            appendLine("default_model = ${tomlString(config.model)}")
-        }
+            if (config.model.isNotBlank()) {
+                appendLine("default_model = ${tomlString(config.model)}")
+            }
 
-        val effectiveKey = config.apiKey.ifBlank {
-            if (needsPlaceholderKey(resolvedProvider)) PLACEHOLDER_API_KEY else ""
-        }
-        if (effectiveKey.isNotBlank()) {
-            appendLine("api_key = ${tomlString(effectiveKey)}")
-        }
+            val effectiveKey =
+                config.apiKey.ifBlank {
+                    if (needsPlaceholderKey(resolvedProvider)) PLACEHOLDER_API_KEY else ""
+                }
+            if (effectiveKey.isNotBlank()) {
+                appendLine("api_key = ${tomlString(effectiveKey)}")
+            }
 
-        appendLine()
-        appendLine("[gateway]")
-        appendLine("require_pairing = false")
-
-        if (config.compactContext) {
             appendLine()
-            appendLine("[agent]")
-            appendLine("compact_context = true")
-        }
+            appendLine("[gateway]")
+            appendLine("require_pairing = false")
 
-        appendLine()
-        appendLine("[memory]")
-        appendLine("backend = ${tomlString(config.memoryBackend)}")
-        appendLine("auto_save = ${config.memoryAutoSave}")
+            if (config.compactContext) {
+                appendLine()
+                appendLine("[agent]")
+                appendLine("compact_context = true")
+            }
 
-        if (config.identityJson.isNotBlank()) {
             appendLine()
-            appendLine("[identity]")
-            appendLine("format = \"aieos\"")
-            appendLine("aieos_inline = ${tomlString(config.identityJson)}")
-        }
+            appendLine("[memory]")
+            appendLine("backend = ${tomlString(config.memoryBackend)}")
+            appendLine("auto_save = ${config.memoryAutoSave}")
 
-        if (config.costEnabled) {
-            appendLine()
-            appendLine("[cost]")
-            appendLine("enabled = true")
-            appendLine("daily_limit_usd = ${config.dailyLimitUsd}")
-            appendLine("monthly_limit_usd = ${config.monthlyLimitUsd}")
-            appendLine("warn_at_percent = ${config.costWarnAtPercent}")
-        }
+            if (config.identityJson.isNotBlank()) {
+                appendLine()
+                appendLine("[identity]")
+                appendLine("format = \"aieos\"")
+                appendLine("aieos_inline = ${tomlString(config.identityJson)}")
+            }
 
-        appendReliabilitySection(config)
-    }
+            if (config.costEnabled) {
+                appendLine()
+                appendLine("[cost]")
+                appendLine("enabled = true")
+                appendLine("daily_limit_usd = ${config.dailyLimitUsd}")
+                appendLine("monthly_limit_usd = ${config.monthlyLimitUsd}")
+                appendLine("warn_at_percent = ${config.costWarnAtPercent}")
+            }
+
+            appendReliabilitySection(config)
+        }
 
     /**
      * Appends the `[reliability]` TOML section when non-default values exist.
@@ -254,8 +256,9 @@ object ConfigTomlBuilder {
             appendLine("provider_retries = ${config.providerRetries}")
         }
         if (hasFallbacks) {
-            val list = config.fallbackProviders
-                .joinToString(", ") { tomlString(it) }
+            val list =
+                config.fallbackProviders
+                    .joinToString(", ") { tomlString(it) }
             appendLine("fallback_providers = [$list]")
         }
     }
@@ -301,6 +304,7 @@ object ConfigTomlBuilder {
      * @return TOML string with one `[agents.<name>]` section per entry,
      *   or empty if [agents] is empty.
      */
+    @Suppress("CognitiveComplexMethod")
     fun buildAgentsToml(agents: List<AgentTomlEntry>): String {
         if (agents.isEmpty()) return ""
         return buildString {
@@ -312,9 +316,10 @@ object ConfigTomlBuilder {
                 if (entry.systemPrompt.isNotBlank()) {
                     appendLine("system_prompt = ${tomlString(entry.systemPrompt)}")
                 }
-                val effectiveKey = entry.apiKey.ifBlank {
-                    if (needsPlaceholderKey(entry.provider)) PLACEHOLDER_API_KEY else ""
-                }
+                val effectiveKey =
+                    entry.apiKey.ifBlank {
+                        if (needsPlaceholderKey(entry.provider)) PLACEHOLDER_API_KEY else ""
+                    }
                 if (effectiveKey.isNotBlank()) {
                     appendLine("api_key = ${tomlString(effectiveKey)}")
                 }
@@ -344,10 +349,12 @@ object ConfigTomlBuilder {
             FieldInputType.NUMBER -> appendLine("$key = ${value.ifBlank { "0" }}")
             FieldInputType.BOOLEAN -> appendLine("$key = ${value.lowercase()}")
             FieldInputType.LIST -> {
-                val items = value.split(",")
-                    .map { it.trim() }
-                    .filter { it.isNotEmpty() }
-                    .joinToString(", ") { tomlString(it) }
+                val items =
+                    value
+                        .split(",")
+                        .map { it.trim() }
+                        .filter { it.isNotEmpty() }
+                        .joinToString(", ") { tomlString(it) }
                 appendLine("$key = [$items]")
             }
             else -> appendLine("$key = ${tomlString(value)}")
@@ -363,7 +370,10 @@ object ConfigTomlBuilder {
      * @return The resolved provider string for the TOML, or blank if
      *   [provider] is blank.
      */
-    internal fun resolveProvider(provider: String, baseUrl: String): String {
+    internal fun resolveProvider(
+        provider: String,
+        baseUrl: String,
+    ): String {
         if (provider.isBlank()) return ""
 
         val trimmedUrl = baseUrl.trim()
@@ -394,8 +404,7 @@ object ConfigTomlBuilder {
      * @param resolvedProvider The resolved TOML provider string.
      * @return True if [PLACEHOLDER_API_KEY] should be injected.
      */
-    private fun needsPlaceholderKey(resolvedProvider: String): Boolean =
-        resolvedProvider.startsWith("custom:") || resolvedProvider == "ollama"
+    private fun needsPlaceholderKey(resolvedProvider: String): Boolean = resolvedProvider.startsWith("custom:") || resolvedProvider == "ollama"
 
     /**
      * Formats a value as a quoted TOML key.
@@ -407,24 +416,26 @@ object ConfigTomlBuilder {
      * @return The key suitable for use in a TOML table header or dotted key.
      */
     private fun tomlKey(key: String): String {
-        val isBareKey = key.isNotEmpty() && key.all { it.isLetterOrDigit() || it == '-' || it == '_' }
+        val isBareKey =
+            key.isNotEmpty() && key.all { it.isLetterOrDigit() || it == '-' || it == '_' }
         return if (isBareKey) key else tomlString(key)
     }
 
-    internal fun tomlString(value: String): String = buildString {
-        append('"')
-        for (ch in value) {
-            when (ch) {
-                '\\' -> append("\\\\")
-                '"' -> append("\\\"")
-                '\n' -> append("\\n")
-                '\r' -> append("\\r")
-                '\t' -> append("\\t")
-                '\b' -> append("\\b")
-                '\u000C' -> append("\\f")
-                else -> append(ch)
+    internal fun tomlString(value: String): String =
+        buildString {
+            append('"')
+            for (ch in value) {
+                when (ch) {
+                    '\\' -> append("\\\\")
+                    '"' -> append("\\\"")
+                    '\n' -> append("\\n")
+                    '\r' -> append("\\r")
+                    '\t' -> append("\\t")
+                    '\b' -> append("\\b")
+                    '\u000C' -> append("\\f")
+                    else -> append(ch)
+                }
             }
+            append('"')
         }
-        append('"')
-    }
 }

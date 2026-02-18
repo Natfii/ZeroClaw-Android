@@ -45,15 +45,15 @@ class LogViewerViewModel(
     /** Whether the live log stream is paused. */
     val isPaused: StateFlow<Boolean> = _isPaused.asStateFlow()
 
-    private val _snapshot = MutableStateFlow<List<LogEntry>>(emptyList())
-    private val _liveEntries = MutableStateFlow<List<LogEntry>>(emptyList())
+    private val snapshotEntries = MutableStateFlow<List<LogEntry>>(emptyList())
+    private val liveEntries = MutableStateFlow<List<LogEntry>>(emptyList())
 
     init {
         viewModelScope.launch {
             repository.entries.collect { entries ->
-                _liveEntries.value = entries
+                liveEntries.value = entries
                 if (!_isPaused.value) {
-                    _snapshot.value = entries
+                    snapshotEntries.value = entries
                 }
             }
         }
@@ -61,7 +61,7 @@ class LogViewerViewModel(
 
     /** Filtered log entries based on severity selection and pause state. */
     val filteredEntries: StateFlow<List<LogEntry>> =
-        combine(_snapshot, _selectedSeverities) { entries, severities ->
+        combine(snapshotEntries, _selectedSeverities) { entries, severities ->
             entries.filter { it.severity in severities }
         }.stateIn(
             scope = viewModelScope,
@@ -89,7 +89,7 @@ class LogViewerViewModel(
     /** Resumes the live log stream. */
     fun resume() {
         _isPaused.value = false
-        _snapshot.value = _liveEntries.value
+        snapshotEntries.value = liveEntries.value
     }
 
     /** Clears all log entries. */

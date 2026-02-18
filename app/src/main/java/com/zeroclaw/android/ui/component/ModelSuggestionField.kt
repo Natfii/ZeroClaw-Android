@@ -62,19 +62,21 @@ fun ModelSuggestionField(
 ) {
     var expanded by remember { mutableStateOf(false) }
 
-    val activeSuggestions = if (isLiveData && liveSuggestions.isNotEmpty()) {
-        liveSuggestions
-    } else {
-        suggestions
-    }
-
-    val filteredSuggestions = remember(value, activeSuggestions) {
-        if (value.isBlank()) {
-            activeSuggestions
+    val activeSuggestions =
+        if (isLiveData && liveSuggestions.isNotEmpty()) {
+            liveSuggestions
         } else {
-            activeSuggestions.filter { it.lowercase().contains(value.lowercase()) }
+            suggestions
         }
-    }
+
+    val filteredSuggestions =
+        remember(value, activeSuggestions) {
+            if (value.isBlank()) {
+                activeSuggestions
+            } else {
+                activeSuggestions.filter { it.lowercase().contains(value.lowercase()) }
+            }
+        }
 
     val showStaticHint = !isLiveData && suggestions.isNotEmpty()
 
@@ -100,16 +102,18 @@ fun ModelSuggestionField(
                     ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
                 }
             },
-            supportingText = if (showStaticHint) {
-                { Text("Suggestions as of Feb 2026") }
-            } else {
-                null
-            },
+            supportingText =
+                if (showStaticHint) {
+                    { Text("Suggestions as of Feb 2026") }
+                } else {
+                    null
+                },
             singleLine = true,
-            modifier = Modifier
-                .fillMaxWidth()
-                .menuAnchor(MenuAnchorType.PrimaryEditable)
-                .semantics { contentDescription = "$label field with suggestions" },
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .menuAnchor(MenuAnchorType.PrimaryEditable)
+                    .semantics { contentDescription = "$label field with suggestions" },
         )
 
         if (filteredSuggestions.isNotEmpty()) {

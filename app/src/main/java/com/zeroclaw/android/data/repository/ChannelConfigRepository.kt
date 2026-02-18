@@ -42,7 +42,10 @@ interface ChannelConfigRepository {
      * @param channel The channel to persist (non-secret config in [ConnectedChannel.configValues]).
      * @param secrets Map of secret field keys to their plaintext values.
      */
-    suspend fun save(channel: ConnectedChannel, secrets: Map<String, String>)
+    suspend fun save(
+        channel: ConnectedChannel,
+        secrets: Map<String, String>,
+    )
 
     /**
      * Deletes the channel with the given [id] and all associated secrets.

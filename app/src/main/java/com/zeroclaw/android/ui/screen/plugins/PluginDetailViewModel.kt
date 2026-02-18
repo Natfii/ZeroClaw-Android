@@ -88,7 +88,11 @@ class PluginDetailViewModel(
      * @param key Configuration field key.
      * @param value New value for the field.
      */
-    fun updateConfig(pluginId: String, key: String, value: String) {
+    fun updateConfig(
+        pluginId: String,
+        key: String,
+        value: String,
+    ) {
         viewModelScope.launch {
             repository.updateConfig(pluginId, key, value)
             _plugin.value = repository.getById(pluginId)

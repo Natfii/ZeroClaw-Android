@@ -162,11 +162,12 @@ fun ZeroClawNavHost(
         composable<ApiKeysRoute> {
             val context = LocalContext.current
             val apiKeysViewModel: ApiKeysViewModel = viewModel()
-            val credentialsLauncher = rememberLauncherForActivityResult(
-                contract = ActivityResultContracts.OpenDocument(),
-            ) { uri ->
-                uri?.let { apiKeysViewModel.importCredentialsFile(context, it) }
-            }
+            val credentialsLauncher =
+                rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.OpenDocument(),
+                ) { uri ->
+                    uri?.let { apiKeysViewModel.importCredentialsFile(context, it) }
+                }
             ApiKeysScreen(
                 onNavigateToDetail = { keyId ->
                     navController.navigate(ApiKeyDetailRoute(keyId = keyId))
@@ -175,36 +176,40 @@ fun ZeroClawNavHost(
                     val activity = context as? FragmentActivity
                     if (activity != null) {
                         val executor = ContextCompat.getMainExecutor(context)
-                        val biometricPrompt = BiometricPrompt(
-                            activity,
-                            executor,
-                            object : BiometricPrompt.AuthenticationCallback() {
-                                override fun onAuthenticationSucceeded(
-                                    result: BiometricPrompt.AuthenticationResult,
-                                ) {
-                                    apiKeysViewModel.revealKey(keyId)
-                                }
-                            },
-                        )
-                        val promptInfo = BiometricPrompt.PromptInfo.Builder()
-                            .setTitle("Reveal API Key")
-                            .setSubtitle("Authenticate to view the full key")
-                            .setNegativeButtonText("Cancel")
-                            .build()
+                        val biometricPrompt =
+                            BiometricPrompt(
+                                activity,
+                                executor,
+                                object : BiometricPrompt.AuthenticationCallback() {
+                                    override fun onAuthenticationSucceeded(
+                                        result: BiometricPrompt.AuthenticationResult,
+                                    ) {
+                                        apiKeysViewModel.revealKey(keyId)
+                                    }
+                                },
+                            )
+                        val promptInfo =
+                            BiometricPrompt.PromptInfo
+                                .Builder()
+                                .setTitle("Reveal API Key")
+                                .setSubtitle("Authenticate to view the full key")
+                                .setNegativeButtonText("Cancel")
+                                .build()
                         biometricPrompt.authenticate(promptInfo)
                     } else {
                         apiKeysViewModel.revealKey(keyId)
                     }
                 },
                 onExportResult = { payload ->
-                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_TEXT, payload)
-                        putExtra(
-                            Intent.EXTRA_SUBJECT,
-                            "ZeroClaw API Keys (encrypted)",
-                        )
-                    }
+                    val shareIntent =
+                        Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, payload)
+                            putExtra(
+                                Intent.EXTRA_SUBJECT,
+                                "ZeroClaw API Keys (encrypted)",
+                            )
+                        }
                     context.startActivity(
                         Intent.createChooser(
                             shareIntent,

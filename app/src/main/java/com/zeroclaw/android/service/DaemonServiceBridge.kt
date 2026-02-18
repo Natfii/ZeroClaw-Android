@@ -266,11 +266,12 @@ class DaemonServiceBridge(
  * @receiver the [FfiException] to extract the detail from.
  * @return the error detail string.
  */
-private fun FfiException.errorDetail(): String = when (this) {
-    is FfiException.ConfigException -> detail
-    is FfiException.StateException -> detail
-    is FfiException.SpawnException -> detail
-    is FfiException.ShutdownException -> detail
-    is FfiException.InternalPanic -> detail
-    is FfiException.StateCorrupted -> detail
-}
+private fun FfiException.errorDetail(): String =
+    when (this) {
+        is FfiException.ConfigException -> detail
+        is FfiException.StateException -> detail
+        is FfiException.SpawnException -> detail
+        is FfiException.ShutdownException -> detail
+        is FfiException.InternalPanic -> detail
+        is FfiException.StateCorrupted -> detail
+    }

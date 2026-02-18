@@ -113,7 +113,7 @@ fun PluginDetailScreen(
                         Modifier.semantics {
                             contentDescription =
                                 "${loadedPlugin.name} " +
-                                    if (loadedPlugin.isEnabled) "enabled" else "disabled"
+                                if (loadedPlugin.isEnabled) "enabled" else "disabled"
                         },
                 )
             }

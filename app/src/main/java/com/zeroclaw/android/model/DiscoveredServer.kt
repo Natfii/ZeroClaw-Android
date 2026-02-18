@@ -11,7 +11,9 @@ package com.zeroclaw.android.model
  *
  * @property label Human-readable name for display in scan results.
  */
-enum class LocalServerType(val label: String) {
+enum class LocalServerType(
+    val label: String,
+) {
     /** Ollama server detected via `/api/tags` endpoint. */
     OLLAMA("Ollama"),
 
@@ -39,10 +41,11 @@ data class DiscoveredServer(
      * Ollama uses the root URL, while OpenAI-compatible servers use the `/v1` path.
      */
     val baseUrl: String
-        get() = when (serverType) {
-            LocalServerType.OLLAMA -> "http://$host:$port"
-            LocalServerType.OPENAI_COMPATIBLE -> "http://$host:$port/v1"
-        }
+        get() =
+            when (serverType) {
+                LocalServerType.OLLAMA -> "http://$host:$port"
+                LocalServerType.OPENAI_COMPATIBLE -> "http://$host:$port/v1"
+            }
 
     /** Short display string combining server type, host, and port. */
     val displayLabel: String
@@ -57,11 +60,17 @@ sealed interface ScanState {
     data object Idle : ScanState
 
     /** Scan is in progress with the given fractional [progress] (0.0 to 1.0). */
-    data class Scanning(val progress: Float) : ScanState
+    data class Scanning(
+        val progress: Float,
+    ) : ScanState
 
     /** Scan completed with [servers] found on the network. */
-    data class Completed(val servers: List<DiscoveredServer>) : ScanState
+    data class Completed(
+        val servers: List<DiscoveredServer>,
+    ) : ScanState
 
     /** Scan failed with a human-readable [message]. */
-    data class Error(val message: String) : ScanState
+    data class Error(
+        val message: String,
+    ) : ScanState
 }

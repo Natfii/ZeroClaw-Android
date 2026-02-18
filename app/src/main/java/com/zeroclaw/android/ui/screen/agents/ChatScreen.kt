@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -118,9 +117,10 @@ fun ChatScreen(
                 actions = {
                     IconButton(
                         onClick = { onNavigateToEdit(agentId) },
-                        modifier = Modifier.semantics {
-                            contentDescription = "Edit agent settings"
-                        },
+                        modifier =
+                            Modifier.semantics {
+                                contentDescription = "Edit agent settings"
+                            },
                     ) {
                         Icon(Icons.Outlined.Settings, contentDescription = null)
                     }
@@ -130,16 +130,18 @@ fun ChatScreen(
         modifier = modifier,
     ) { innerPadding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .imePadding(),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .imePadding(),
         ) {
             LazyColumn(
                 state = listState,
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = edgeMargin),
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .padding(horizontal = edgeMargin),
                 verticalArrangement = Arrangement.spacedBy(MESSAGE_SPACING_DP.dp),
             ) {
                 items(
@@ -165,10 +167,11 @@ fun ChatScreen(
                     inputText = ""
                 },
                 isLoading = isLoading,
-                modifier = Modifier.padding(
-                    horizontal = edgeMargin,
-                    vertical = INPUT_BAR_PADDING_DP.dp,
-                ),
+                modifier =
+                    Modifier.padding(
+                        horizontal = edgeMargin,
+                        vertical = INPUT_BAR_PADDING_DP.dp,
+                    ),
             )
         }
     }
@@ -186,31 +189,35 @@ fun ChatScreen(
 private fun ChatBubble(message: ChatMessage) {
     Box(
         modifier = Modifier.fillMaxWidth(),
-        contentAlignment = if (message.isFromUser) {
-            Alignment.CenterEnd
-        } else {
-            Alignment.CenterStart
-        },
+        contentAlignment =
+            if (message.isFromUser) {
+                Alignment.CenterEnd
+            } else {
+                Alignment.CenterStart
+            },
     ) {
         Surface(
             shape = RoundedCornerShape(BUBBLE_CORNER_DP.dp),
-            color = if (message.isFromUser) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant
-            },
-            modifier = Modifier.widthIn(
-                max = MAX_BUBBLE_WIDTH_FRACTION.dp * 400,
-            ),
+            color =
+                if (message.isFromUser) {
+                    MaterialTheme.colorScheme.primaryContainer
+                } else {
+                    MaterialTheme.colorScheme.surfaceVariant
+                },
+            modifier =
+                Modifier.widthIn(
+                    max = MAX_BUBBLE_WIDTH_FRACTION.dp * 400,
+                ),
         ) {
             Text(
                 text = message.content,
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (message.isFromUser) {
-                    MaterialTheme.colorScheme.onPrimaryContainer
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
+                color =
+                    if (message.isFromUser) {
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
                 modifier = Modifier.padding(BUBBLE_PADDING_DP.dp),
             )
         }
@@ -271,18 +278,20 @@ private fun ChatInputBar(
         IconButton(
             onClick = onSend,
             enabled = value.isNotBlank() && !isLoading,
-            modifier = Modifier.semantics {
-                contentDescription = "Send message"
-            },
+            modifier =
+                Modifier.semantics {
+                    contentDescription = "Send message"
+                },
         ) {
             Icon(
                 Icons.AutoMirrored.Filled.Send,
                 contentDescription = null,
-                tint = if (value.isNotBlank() && !isLoading) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
+                tint =
+                    if (value.isNotBlank() && !isLoading) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
             )
         }
     }

@@ -64,10 +64,11 @@ fun IdentityScreen(
     }
 
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(horizontal = edgeMargin)
-            .verticalScroll(rememberScrollState()),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .padding(horizontal = edgeMargin)
+                .verticalScroll(rememberScrollState()),
     ) {
         Spacer(modifier = Modifier.height(SECTION_SPACING_DP.dp))
 
@@ -78,9 +79,10 @@ fun IdentityScreen(
         Spacer(modifier = Modifier.height(SECTION_SPACING_DP.dp))
 
         Text(
-            text = "Paste an AIEOS v1.1 identity JSON document below. " +
-                "This defines your agent's personality, name, and capabilities " +
-                "for upstream identity resolution.",
+            text =
+                "Paste an AIEOS v1.1 identity JSON document below. " +
+                    "This defines your agent's personality, name, and capabilities " +
+                    "for upstream identity resolution.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -97,10 +99,11 @@ fun IdentityScreen(
 
         FilledTonalButton(
             onClick = { settingsViewModel.updateIdentityJson(jsonText) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .defaultMinSize(minHeight = MIN_TOUCH_TARGET_DP.dp)
-                .semantics { contentDescription = "Save identity" },
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .defaultMinSize(minHeight = MIN_TOUCH_TARGET_DP.dp)
+                    .semantics { contentDescription = "Save identity" },
         ) {
             Text("Save")
         }

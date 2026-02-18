@@ -18,11 +18,11 @@ import org.junit.jupiter.api.Test
  */
 @DisplayName("CredentialsJsonParser")
 class CredentialsJsonParserTest {
-
     @Test
     @DisplayName("parses valid credentials.json with all fields")
     fun `parses valid credentials json with all fields`() {
-        val json = """
+        val json =
+            """
             {
               "claudeAiOauth": {
                 "accessToken": "sk-ant-oat01-test-access-token",
@@ -32,7 +32,7 @@ class CredentialsJsonParserTest {
                 "subscriptionType": "pro"
               }
             }
-        """.trimIndent()
+            """.trimIndent()
 
         val result = CredentialsJsonParser.parse(json)
 
@@ -46,14 +46,15 @@ class CredentialsJsonParserTest {
     @Test
     @DisplayName("parses credentials without expiresAt")
     fun `parses credentials without expiresAt`() {
-        val json = """
+        val json =
+            """
             {
               "claudeAiOauth": {
                 "accessToken": "sk-ant-oat01-access",
                 "refreshToken": "sk-ant-ort01-refresh"
               }
             }
-        """.trimIndent()
+            """.trimIndent()
 
         val result = CredentialsJsonParser.parse(json)
 
@@ -66,13 +67,14 @@ class CredentialsJsonParserTest {
     @Test
     @DisplayName("parses credentials without refreshToken")
     fun `parses credentials without refreshToken`() {
-        val json = """
+        val json =
+            """
             {
               "claudeAiOauth": {
                 "accessToken": "sk-ant-oat01-access"
               }
             }
-        """.trimIndent()
+            """.trimIndent()
 
         val result = CredentialsJsonParser.parse(json)
 
@@ -92,14 +94,15 @@ class CredentialsJsonParserTest {
     @Test
     @DisplayName("returns null for empty accessToken")
     fun `returns null for empty accessToken`() {
-        val json = """
+        val json =
+            """
             {
               "claudeAiOauth": {
                 "accessToken": "",
                 "refreshToken": "sk-ant-ort01-refresh"
               }
             }
-        """.trimIndent()
+            """.trimIndent()
 
         assertNull(CredentialsJsonParser.parse(json))
     }
@@ -119,7 +122,8 @@ class CredentialsJsonParserTest {
     @Test
     @DisplayName("handles invalid expiresAt timestamp gracefully")
     fun `handles invalid expiresAt timestamp gracefully`() {
-        val json = """
+        val json =
+            """
             {
               "claudeAiOauth": {
                 "accessToken": "sk-ant-oat01-access",
@@ -127,7 +131,7 @@ class CredentialsJsonParserTest {
                 "expiresAt": "not-a-timestamp"
               }
             }
-        """.trimIndent()
+            """.trimIndent()
 
         val result = CredentialsJsonParser.parse(json)
 

@@ -183,5 +183,4 @@ private fun LogEntryRow(entry: LogEntry) {
 
 private val timeFormat = SimpleDateFormat("HH:mm:ss.SSS", Locale.US)
 
-private fun formatTimestamp(epochMs: Long): String =
-    timeFormat.format(Date(epochMs))
+private fun formatTimestamp(epochMs: Long): String = timeFormat.format(Date(epochMs))

@@ -18,6 +18,9 @@ import com.zeroclaw.android.data.CredentialsJsonParser
 import com.zeroclaw.android.data.ProviderRegistry
 import com.zeroclaw.android.data.StorageHealth
 import com.zeroclaw.android.model.ApiKey
+import java.io.IOException
+import java.security.GeneralSecurityException
+import java.util.UUID
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,9 +30,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.io.IOException
-import java.security.GeneralSecurityException
-import java.util.UUID
 
 /**
  * Persistence state for save/update operations on API keys.
@@ -49,7 +49,9 @@ sealed interface SaveState {
      *
      * @property message Human-readable error description.
      */
-    data class Error(val message: String) : SaveState
+    data class Error(
+        val message: String,
+    ) : SaveState
 }
 
 /**
@@ -85,15 +87,19 @@ class ApiKeysViewModel(
      */
     val unusedKeyIds: StateFlow<Set<String>> =
         combine(keys, agentRepository.agents) { keyList, agentList ->
-            val agentProviderIds = agentList.map { agent ->
-                val resolved = ProviderRegistry.findById(agent.provider)
-                resolved?.id ?: agent.provider.lowercase()
-            }.toSet()
-            keyList.filter { key ->
-                val resolved = ProviderRegistry.findById(key.provider)
-                val keyProviderId = resolved?.id ?: key.provider.lowercase()
-                keyProviderId !in agentProviderIds
-            }.map { it.id }.toSet()
+            val agentProviderIds =
+                agentList
+                    .map { agent ->
+                        val resolved = ProviderRegistry.findById(agent.provider)
+                        resolved?.id ?: agent.provider.lowercase()
+                    }.toSet()
+            keyList
+                .filter { key ->
+                    val resolved = ProviderRegistry.findById(key.provider)
+                    val keyProviderId = resolved?.id ?: key.provider.lowercase()
+                    keyProviderId !in agentProviderIds
+                }.map { it.id }
+                .toSet()
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS),
@@ -220,10 +226,11 @@ class ApiKeysViewModel(
     fun revealKey(id: String) {
         revealJob?.cancel()
         _revealedKeyId.value = id
-        revealJob = viewModelScope.launch {
-            delay(REVEAL_TIMEOUT_MS)
-            _revealedKeyId.value = null
-        }
+        revealJob =
+            viewModelScope.launch {
+                delay(REVEAL_TIMEOUT_MS)
+                _revealedKeyId.value = null
+            }
     }
 
     /**
@@ -321,12 +328,17 @@ class ApiKeysViewModel(
      * @param uri Content URI of the selected `.credentials.json` file.
      */
     @Suppress("TooGenericExceptionCaught")
-    fun importCredentialsFile(context: Context, uri: Uri) {
+    fun importCredentialsFile(
+        context: Context,
+        uri: Uri,
+    ) {
         viewModelScope.launch {
             try {
-                val jsonContent = context.contentResolver.openInputStream(uri)
-                    ?.bufferedReader()
-                    ?.readText()
+                val jsonContent =
+                    context.contentResolver
+                        .openInputStream(uri)
+                        ?.bufferedReader()
+                        ?.readText()
                 if (jsonContent.isNullOrBlank()) {
                     _snackbarMessage.value = "File is empty"
                     return@launch
@@ -354,12 +366,13 @@ class ApiKeysViewModel(
      * @param e The caught exception.
      * @return A safe, human-readable error description.
      */
-    private fun safeErrorMessage(e: Exception): String = when (e) {
-        is GeneralSecurityException -> "Encrypted storage error"
-        is IOException -> "Storage I/O error"
-        is org.json.JSONException -> "Invalid data format"
-        else -> "Operation failed"
-    }
+    private fun safeErrorMessage(e: Exception): String =
+        when (e) {
+            is GeneralSecurityException -> "Encrypted storage error"
+            is IOException -> "Storage I/O error"
+            is org.json.JSONException -> "Invalid data format"
+            else -> "Operation failed"
+        }
 
     /** Constants for [ApiKeysViewModel]. */
     companion object {

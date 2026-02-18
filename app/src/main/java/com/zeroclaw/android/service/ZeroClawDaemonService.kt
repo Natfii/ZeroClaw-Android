@@ -150,31 +150,34 @@ class ZeroClawDaemonService : Service() {
             val settings = settingsRepository.settings.first()
             val apiKey = apiKeyRepository.getByProviderFresh(settings.defaultProvider)
 
-            val fallbackList = settings.fallbackProviders
-                .split(",")
-                .map { it.trim() }
-                .filter { it.isNotEmpty() }
-            val globalConfig = GlobalTomlConfig(
-                provider = settings.defaultProvider,
-                model = settings.defaultModel,
-                apiKey = apiKey?.key.orEmpty(),
-                baseUrl = apiKey?.baseUrl.orEmpty(),
-                temperature = settings.defaultTemperature,
-                compactContext = settings.compactContext,
-                costEnabled = settings.costEnabled,
-                dailyLimitUsd = settings.dailyLimitUsd,
-                monthlyLimitUsd = settings.monthlyLimitUsd,
-                costWarnAtPercent = settings.costWarnAtPercent,
-                providerRetries = settings.providerRetries,
-                fallbackProviders = fallbackList,
-                memoryBackend = settings.memoryBackend,
-                memoryAutoSave = settings.memoryAutoSave,
-                identityJson = settings.identityJson,
-            )
+            val fallbackList =
+                settings.fallbackProviders
+                    .split(",")
+                    .map { it.trim() }
+                    .filter { it.isNotEmpty() }
+            val globalConfig =
+                GlobalTomlConfig(
+                    provider = settings.defaultProvider,
+                    model = settings.defaultModel,
+                    apiKey = apiKey?.key.orEmpty(),
+                    baseUrl = apiKey?.baseUrl.orEmpty(),
+                    temperature = settings.defaultTemperature,
+                    compactContext = settings.compactContext,
+                    costEnabled = settings.costEnabled,
+                    dailyLimitUsd = settings.dailyLimitUsd,
+                    monthlyLimitUsd = settings.monthlyLimitUsd,
+                    costWarnAtPercent = settings.costWarnAtPercent,
+                    providerRetries = settings.providerRetries,
+                    fallbackProviders = fallbackList,
+                    memoryBackend = settings.memoryBackend,
+                    memoryAutoSave = settings.memoryAutoSave,
+                    identityJson = settings.identityJson,
+                )
             val baseToml = ConfigTomlBuilder.build(globalConfig)
-            val channelsToml = ConfigTomlBuilder.buildChannelsToml(
-                channelConfigRepository.getEnabledWithSecrets(),
-            )
+            val channelsToml =
+                ConfigTomlBuilder.buildChannelsToml(
+                    channelConfigRepository.getEnabledWithSecrets(),
+                )
             val agentsToml = buildAgentsToml()
             val configToml = baseToml + channelsToml + agentsToml
 
@@ -199,23 +202,25 @@ class ZeroClawDaemonService : Service() {
      */
     private suspend fun buildAgentsToml(): String {
         val allAgents = agentRepository.agents.first()
-        val entries = allAgents
-            .filter { it.isEnabled && it.provider.isNotBlank() && it.modelName.isNotBlank() }
-            .map { agent ->
-                val agentKey = apiKeyRepository.getByProviderFresh(agent.provider)
-                AgentTomlEntry(
-                    name = agent.name,
-                    provider = ConfigTomlBuilder.resolveProvider(
-                        agent.provider,
-                        agentKey?.baseUrl.orEmpty(),
-                    ),
-                    model = agent.modelName,
-                    apiKey = agentKey?.key.orEmpty(),
-                    systemPrompt = agent.systemPrompt,
-                    temperature = agent.temperature,
-                    maxDepth = agent.maxDepth,
-                )
-            }
+        val entries =
+            allAgents
+                .filter { it.isEnabled && it.provider.isNotBlank() && it.modelName.isNotBlank() }
+                .map { agent ->
+                    val agentKey = apiKeyRepository.getByProviderFresh(agent.provider)
+                    AgentTomlEntry(
+                        name = agent.name,
+                        provider =
+                            ConfigTomlBuilder.resolveProvider(
+                                agent.provider,
+                                agentKey?.baseUrl.orEmpty(),
+                            ),
+                        model = agent.modelName,
+                        apiKey = agentKey?.key.orEmpty(),
+                        systemPrompt = agent.systemPrompt,
+                        temperature = agent.temperature,
+                        maxDepth = agent.maxDepth,
+                    )
+                }
         return ConfigTomlBuilder.buildAgentsToml(entries)
     }
 

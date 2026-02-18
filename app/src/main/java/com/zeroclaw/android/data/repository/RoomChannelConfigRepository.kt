@@ -30,19 +30,19 @@ class RoomChannelConfigRepository(
     private val dao: ConnectedChannelDao,
     private val securePrefs: SharedPreferences,
 ) : ChannelConfigRepository {
-
     override val channels: Flow<List<ConnectedChannel>> =
         dao.observeAll().map { entities ->
             entities.mapNotNull { it.toModel() }
         }
 
-    override suspend fun getById(id: String): ConnectedChannel? =
-        dao.getById(id)?.toModel()
+    override suspend fun getById(id: String): ConnectedChannel? = dao.getById(id)?.toModel()
 
-    override suspend fun existsForType(type: ChannelType): Boolean =
-        dao.getByType(type.name) != null
+    override suspend fun existsForType(type: ChannelType): Boolean = dao.getByType(type.name) != null
 
-    override suspend fun save(channel: ConnectedChannel, secrets: Map<String, String>) {
+    override suspend fun save(
+        channel: ConnectedChannel,
+        secrets: Map<String, String>,
+    ) {
         dao.upsert(channel.toEntity())
         val editor = securePrefs.edit()
         secrets.forEach { (key, value) ->
@@ -83,7 +83,9 @@ class RoomChannelConfigRepository(
     }
 
     override suspend fun getEnabledWithSecrets(): List<Pair<ConnectedChannel, Map<String, String>>> =
-        dao.observeAll().first()
+        dao
+            .observeAll()
+            .first()
             .mapNotNull { it.toModel() }
             .filter { it.isEnabled }
             .map { channel ->
@@ -99,6 +101,8 @@ class RoomChannelConfigRepository(
      * @param fieldKey Field key from the channel type spec.
      * @return Composite key string.
      */
-    private fun secretKey(channelId: String, fieldKey: String): String =
-        "channel_${channelId}_$fieldKey"
+    private fun secretKey(
+        channelId: String,
+        fieldKey: String,
+    ): String = "channel_${channelId}_$fieldKey"
 }

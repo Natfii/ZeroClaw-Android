@@ -56,7 +56,10 @@ internal object KeyExportCrypto {
      * @throws GeneralSecurityException if the platform does not support the
      *   required cryptographic algorithms.
      */
-    fun encrypt(plaintext: String, passphrase: String): String {
+    fun encrypt(
+        plaintext: String,
+        passphrase: String,
+    ): String {
         val salt = ByteArray(SALT_LENGTH_BYTES)
         val iv = ByteArray(IV_LENGTH_BYTES)
         val random = SecureRandom()
@@ -99,7 +102,10 @@ internal object KeyExportCrypto {
      * @throws GeneralSecurityException if decryption fails, which
      *   typically indicates a wrong passphrase or tampered data.
      */
-    fun decrypt(encryptedPayload: String, passphrase: String): String {
+    fun decrypt(
+        encryptedPayload: String,
+        passphrase: String,
+    ): String {
         val payload = Base64.getDecoder().decode(encryptedPayload)
         require(payload.size >= MIN_PAYLOAD_BYTES) {
             "Encrypted payload is too short to contain valid data"
@@ -126,13 +132,17 @@ internal object KeyExportCrypto {
      * @param salt Random salt bytes.
      * @return An AES [SecretKeySpec] suitable for encryption or decryption.
      */
-    private fun deriveKey(passphrase: String, salt: ByteArray): SecretKeySpec {
-        val keySpec = PBEKeySpec(
-            passphrase.toCharArray(),
-            salt,
-            PBKDF2_ITERATIONS,
-            KEY_LENGTH_BITS,
-        )
+    private fun deriveKey(
+        passphrase: String,
+        salt: ByteArray,
+    ): SecretKeySpec {
+        val keySpec =
+            PBEKeySpec(
+                passphrase.toCharArray(),
+                salt,
+                PBKDF2_ITERATIONS,
+                KEY_LENGTH_BITS,
+            )
         val factory = SecretKeyFactory.getInstance(KEY_DERIVATION_ALGORITHM)
         val keyBytes = factory.generateSecret(keySpec).encoded
         return SecretKeySpec(keyBytes, KEY_ALGORITHM)
