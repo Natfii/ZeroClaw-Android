@@ -1,6 +1,6 @@
 # ZeroClaw-Android
 
-An Android wrapper for [ZeroClaw](https://github.com/theonlyhenrygod/zeroclaw), a Rust-native AI agent framework. The app runs ZeroClaw's distributed router as an always-on Android foreground service.
+An Android wrapper for [ZeroClaw](https://github.com/zeroclaw-labs/zeroclaw), a Rust-native AI agent framework. The app runs ZeroClaw's distributed router as an always-on Android foreground service.
 
 > Copy this file to `CLAUDE.md` or `agents.md` and customize for your environment.
 

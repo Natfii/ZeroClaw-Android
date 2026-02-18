@@ -57,6 +57,9 @@ jobs:
       - name: Build release APK
         run: ./gradlew :app:assembleRelease
 
+      - name: Rename APK
+        run: mv app/build/outputs/apk/release/app-release-unsigned.apk app/build/outputs/apk/release/zeroclaw_android.apk
+
       - name: Publish AAR to GitHub Packages
         env:
           GITHUB_ACTOR: ${{ github.actor }}
@@ -97,4 +100,4 @@ jobs:
             --generate-notes \
             ${{ steps.prerelease.outputs.flag }} \
             lib/build/outputs/aar/lib-release.aar \
-            app/build/outputs/apk/release/app-release-unsigned.apk
+            app/build/outputs/apk/release/zeroclaw_android.apk
