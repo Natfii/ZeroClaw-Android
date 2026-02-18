@@ -42,7 +42,10 @@ import com.zeroclaw.android.data.repository.RoomChatMessageRepository
 import com.zeroclaw.android.data.repository.RoomLogRepository
 import com.zeroclaw.android.data.repository.RoomPluginRepository
 import com.zeroclaw.android.data.repository.SettingsRepository
+import com.zeroclaw.android.service.CostBridge
 import com.zeroclaw.android.service.DaemonServiceBridge
+import com.zeroclaw.android.service.EventBridge
+import com.zeroclaw.android.service.HealthBridge
 import com.zeroclaw.android.service.PluginSyncWorker
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineDispatcher
@@ -116,6 +119,18 @@ class ZeroClawApplication :
     lateinit var chatMessageRepository: ChatMessageRepository
         private set
 
+    /** Bridge for structured health detail FFI calls. */
+    lateinit var healthBridge: HealthBridge
+        private set
+
+    /** Bridge for cost-tracking FFI calls. */
+    lateinit var costBridge: CostBridge
+        private set
+
+    /** Bridge for daemon event callbacks from the native layer. */
+    lateinit var eventBridge: EventBridge
+        private set
+
     override fun onCreate() {
         super.onCreate()
         System.loadLibrary("zeroclaw")
@@ -135,6 +150,9 @@ class ZeroClawApplication :
         pluginRepository = RoomPluginRepository(database.pluginDao())
         channelConfigRepository = createChannelConfigRepository()
         chatMessageRepository = RoomChatMessageRepository(database.chatMessageDao(), ioScope)
+        healthBridge = HealthBridge()
+        costBridge = CostBridge()
+        eventBridge = EventBridge(activityRepository, ioScope)
 
         schedulePluginSyncIfEnabled(ioScope)
     }
