@@ -83,6 +83,42 @@ interface PluginDao {
     )
 
     /**
+     * Updates remote metadata for a plugin without touching local state.
+     *
+     * Preserves `is_installed`, `is_enabled`, and `config_json`.
+     *
+     * @param id Unique plugin identifier.
+     * @param name Updated display name.
+     * @param description Updated description.
+     * @param version Updated current version.
+     * @param author Updated author.
+     * @param category Updated category name.
+     * @param remoteVersion Latest version available in the remote registry.
+     */
+    @Suppress("LongParameterList")
+    @Query(
+        """
+        UPDATE plugins SET
+            name = :name,
+            description = :description,
+            version = :version,
+            author = :author,
+            category = :category,
+            remote_version = :remoteVersion
+        WHERE id = :id
+        """,
+    )
+    suspend fun updateMetadata(
+        id: String,
+        name: String,
+        description: String,
+        version: String,
+        author: String,
+        category: String,
+        remoteVersion: String?,
+    )
+
+    /**
      * Returns the total number of plugins.
      *
      * @return Plugin count.

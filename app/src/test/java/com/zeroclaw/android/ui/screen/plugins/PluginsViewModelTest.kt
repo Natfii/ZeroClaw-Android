@@ -174,4 +174,8 @@ private class TestPluginRepository(
             }
         }
     }
+
+    override suspend fun mergeRemotePlugins(remotePlugins: List<com.zeroclaw.android.model.RemotePlugin>) {
+        // no-op
+    }
 }

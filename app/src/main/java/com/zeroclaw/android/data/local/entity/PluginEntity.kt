@@ -25,6 +25,7 @@ import androidx.room.PrimaryKey
  * @property isInstalled Whether the plugin is installed locally.
  * @property isEnabled Whether the plugin is active.
  * @property configJson JSON-serialized map of configuration keys to values.
+ * @property remoteVersion Latest version available in the remote registry.
  */
 @Entity(tableName = "plugins")
 data class PluginEntity(
@@ -41,4 +42,6 @@ data class PluginEntity(
     val isEnabled: Boolean,
     @ColumnInfo(name = "config_json")
     val configJson: String,
+    @ColumnInfo(name = "remote_version")
+    val remoteVersion: String? = null,
 )

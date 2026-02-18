@@ -7,8 +7,10 @@
 package com.zeroclaw.android.data.repository
 
 import com.zeroclaw.android.data.local.dao.PluginDao
+import com.zeroclaw.android.data.local.entity.PluginEntity
 import com.zeroclaw.android.data.local.entity.toModel
 import com.zeroclaw.android.model.Plugin
+import com.zeroclaw.android.model.RemotePlugin
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.encodeToString
@@ -57,5 +59,37 @@ class RoomPluginRepository(
             }.getOrDefault(emptyMap())
         val updatedConfig = currentConfig + (key to value)
         dao.updateConfigJson(pluginId, json.encodeToString(updatedConfig))
+    }
+
+    override suspend fun mergeRemotePlugins(remotePlugins: List<RemotePlugin>) {
+        for (remote in remotePlugins) {
+            val existing = dao.getById(remote.id)
+            if (existing != null) {
+                dao.updateMetadata(
+                    id = remote.id,
+                    name = remote.name,
+                    description = remote.description,
+                    version = remote.version,
+                    author = remote.author,
+                    category = remote.category,
+                    remoteVersion = remote.version,
+                )
+            } else {
+                dao.upsert(
+                    PluginEntity(
+                        id = remote.id,
+                        name = remote.name,
+                        description = remote.description,
+                        version = remote.version,
+                        author = remote.author,
+                        category = remote.category,
+                        isInstalled = false,
+                        isEnabled = false,
+                        configJson = "{}",
+                        remoteVersion = remote.version,
+                    ),
+                )
+            }
+        }
     }
 }

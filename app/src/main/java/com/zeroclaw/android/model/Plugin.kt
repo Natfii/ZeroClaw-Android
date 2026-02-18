@@ -18,6 +18,7 @@ package com.zeroclaw.android.model
  * @property isInstalled Whether the plugin is installed locally.
  * @property isEnabled Whether the plugin is active (only relevant if installed).
  * @property configFields Map of configuration keys to their current values.
+ * @property remoteVersion Latest version available in the remote registry, or null if unknown.
  */
 data class Plugin(
     val id: String,
@@ -29,6 +30,7 @@ data class Plugin(
     val isInstalled: Boolean = false,
     val isEnabled: Boolean = false,
     val configFields: Map<String, String> = emptyMap(),
+    val remoteVersion: String? = null,
 )
 
 /**

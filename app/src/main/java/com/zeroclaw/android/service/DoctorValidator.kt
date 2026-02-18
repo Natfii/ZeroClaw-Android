@@ -118,6 +118,7 @@ class DoctorValidator(
      *
      * @return List of diagnostic checks for the connectivity category.
      */
+    @Suppress("RedundantSuspendModifier")
     suspend fun runConnectivityChecks(): List<DiagnosticCheck> {
         val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val network = cm.activeNetwork

@@ -61,6 +61,7 @@ import kotlinx.coroutines.launch
  */
 @Suppress("TooManyFunctions")
 class ZeroClawDaemonService : Service() {
+    @Suppress("InjectDispatcher")
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 

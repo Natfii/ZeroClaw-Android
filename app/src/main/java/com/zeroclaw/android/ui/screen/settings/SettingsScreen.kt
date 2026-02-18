@@ -30,6 +30,7 @@ import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Speed
+import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.VerifiedUser
@@ -79,6 +80,7 @@ import com.zeroclaw.android.ui.component.SectionHeader
  * @param onNavigateToScheduler Navigate to scheduler and heartbeat screen.
  * @param onNavigateToObservability Navigate to observability backend screen.
  * @param onNavigateToSecurityOverview Navigate to security posture overview screen.
+ * @param onNavigateToPluginRegistry Navigate to plugin registry sync settings.
  * @param onRerunWizard Callback to reset onboarding and navigate to the setup wizard.
  * @param edgeMargin Horizontal padding based on window width size class.
  * @param settingsViewModel ViewModel providing current settings for dynamic subtitles.
@@ -105,6 +107,7 @@ fun SettingsScreen(
     onNavigateToScheduler: () -> Unit,
     onNavigateToObservability: () -> Unit,
     onNavigateToSecurityOverview: () -> Unit,
+    onNavigateToPluginRegistry: () -> Unit = {},
     onRerunWizard: () -> Unit,
     edgeMargin: androidx.compose.ui.unit.Dp,
     settingsViewModel: SettingsViewModel = viewModel(),
@@ -187,6 +190,13 @@ fun SettingsScreen(
             title = "Tunnel",
             subtitle = settings.tunnelProvider,
             onClick = onNavigateToTunnel,
+        )
+        SettingsItem(
+            icon = Icons.Outlined.Sync,
+            title = "Plugin Registry",
+            subtitle =
+                if (settings.pluginSyncEnabled) "Auto-sync enabled" else "Manual only",
+            onClick = onNavigateToPluginRegistry,
         )
 
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))

@@ -27,6 +27,10 @@ ksp = "2.0.20-1.0.25"
 dokka = "2.1.0"
 biometric = "1.1.0"
 kotlinx-serialization = "1.7.3"
+okhttp = "4.12.0"
+work-runtime = "2.9.1"
+camerax = "1.4.1"
+mlkit-barcode = "17.3.0"
 
 [libraries]
 compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "compose-bom" }
@@ -64,6 +68,13 @@ coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-
 json = { group = "org.json", name = "json", version.ref = "json" }
 test-core = { group = "androidx.test", name = "core", version.ref = "test-core" }
 test-ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "test-ext-junit" }
+okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
+work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "work-runtime" }
+camera-core = { group = "androidx.camera", name = "camera-core", version.ref = "camerax" }
+camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camerax" }
+camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camerax" }
+camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "camerax" }
+mlkit-barcode = { group = "com.google.mlkit", name = "barcode-scanning", version.ref = "mlkit-barcode" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

@@ -7,6 +7,7 @@
 package com.zeroclaw.android.ui.screen.plugins
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,8 +21,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Extension
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material3.Badge
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
@@ -45,6 +51,10 @@ import com.zeroclaw.android.ui.component.EmptyState
 /**
  * Plugin list and management screen with Installed/Available tabs.
  *
+ * Includes a sync button in the header area that triggers a manual
+ * registry sync. Shows a progress indicator during sync and "update
+ * available" badges on plugins with newer remote versions.
+ *
  * @param onNavigateToDetail Callback to navigate to plugin detail.
  * @param edgeMargin Horizontal padding based on window width size class.
  * @param pluginsViewModel The [PluginsViewModel] for plugin list state.
@@ -60,6 +70,7 @@ fun PluginsScreen(
     val plugins by pluginsViewModel.plugins.collectAsStateWithLifecycle()
     val selectedTab by pluginsViewModel.selectedTab.collectAsStateWithLifecycle()
     val searchQuery by pluginsViewModel.searchQuery.collectAsStateWithLifecycle()
+    val syncState by pluginsViewModel.syncState.collectAsStateWithLifecycle()
 
     Column(
         modifier =
@@ -67,17 +78,42 @@ fun PluginsScreen(
                 .fillMaxSize()
                 .padding(horizontal = edgeMargin),
     ) {
-        TabRow(selectedTabIndex = selectedTab) {
-            Tab(
-                selected = selectedTab == TAB_INSTALLED,
-                onClick = { pluginsViewModel.selectTab(TAB_INSTALLED) },
-                text = { Text("Installed") },
-            )
-            Tab(
-                selected = selectedTab == TAB_AVAILABLE,
-                onClick = { pluginsViewModel.selectTab(TAB_AVAILABLE) },
-                text = { Text("Available") },
-            )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TabRow(
+                selectedTabIndex = selectedTab,
+                modifier = Modifier.weight(1f),
+            ) {
+                Tab(
+                    selected = selectedTab == TAB_INSTALLED,
+                    onClick = { pluginsViewModel.selectTab(TAB_INSTALLED) },
+                    text = { Text("Installed") },
+                )
+                Tab(
+                    selected = selectedTab == TAB_AVAILABLE,
+                    onClick = { pluginsViewModel.selectTab(TAB_AVAILABLE) },
+                    text = { Text("Available") },
+                )
+            }
+            IconButton(
+                onClick = { pluginsViewModel.syncNow() },
+                enabled = syncState !is SyncUiState.Syncing,
+                modifier =
+                    Modifier.semantics {
+                        contentDescription = "Sync plugin registry"
+                    },
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Refresh,
+                    contentDescription = null,
+                )
+            }
+        }
+
+        if (syncState is SyncUiState.Syncing) {
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
         Spacer(modifier = Modifier.height(12.dp))
 
@@ -128,6 +164,9 @@ fun PluginsScreen(
 /**
  * Single plugin row in the list.
  *
+ * Shows an "Update available" badge when the plugin is installed and
+ * a newer remote version exists.
+ *
  * @param plugin The plugin to display.
  * @param onToggle Callback when the enable switch is toggled.
  * @param onInstall Callback when the Install button is tapped.
@@ -140,6 +179,11 @@ private fun PluginListItem(
     onInstall: () -> Unit,
     onClick: () -> Unit,
 ) {
+    val hasUpdate =
+        plugin.isInstalled &&
+            plugin.remoteVersion != null &&
+            plugin.remoteVersion != plugin.version
+
     Card(
         onClick = onClick,
         modifier =
@@ -159,6 +203,20 @@ private fun PluginListItem(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     CategoryBadge(category = plugin.category)
+                    if (hasUpdate) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Box(
+                            modifier =
+                                Modifier.semantics {
+                                    contentDescription =
+                                        "Update available: ${plugin.remoteVersion}"
+                                },
+                        ) {
+                            Badge {
+                                Text("Update")
+                            }
+                        }
+                    }
                 }
                 Text(
                     text = plugin.description,

@@ -357,4 +357,16 @@ private class InMemorySettingsRepository : SettingsRepository {
     override suspend fun setHttpRequestEnabled(enabled: Boolean) { /* no-op */ }
 
     override suspend fun setHttpRequestAllowedDomains(domains: String) { /* no-op */ }
+
+    override suspend fun setBiometricForService(enabled: Boolean) { /* no-op */ }
+
+    override suspend fun setBiometricForSettings(enabled: Boolean) { /* no-op */ }
+
+    override suspend fun setPluginRegistryUrl(url: String) { /* no-op */ }
+
+    override suspend fun setPluginSyncEnabled(enabled: Boolean) { /* no-op */ }
+
+    override suspend fun setPluginSyncIntervalHours(hours: Int) { /* no-op */ }
+
+    override suspend fun setLastPluginSyncTimestamp(timestamp: Long) { /* no-op */ }
 }

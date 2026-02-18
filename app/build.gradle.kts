@@ -131,6 +131,13 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
+    implementation(libs.okhttp)
+    implementation(libs.work.runtime.ktx)
+    implementation(libs.camera.core)
+    implementation(libs.camera.camera2)
+    implementation(libs.camera.lifecycle)
+    implementation(libs.camera.view)
+    implementation(libs.mlkit.barcode)
     ksp(libs.room.compiler)
 
     debugImplementation(libs.compose.ui.tooling)

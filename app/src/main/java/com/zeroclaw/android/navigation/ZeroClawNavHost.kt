@@ -9,13 +9,14 @@ package com.zeroclaw.android.navigation
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.biometric.BiometricPrompt
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
-import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -37,6 +38,7 @@ import com.zeroclaw.android.ui.screen.settings.IdentityScreen
 import com.zeroclaw.android.ui.screen.settings.MemoryAdvancedScreen
 import com.zeroclaw.android.ui.screen.settings.ModelRoutesScreen
 import com.zeroclaw.android.ui.screen.settings.ObservabilityScreen
+import com.zeroclaw.android.ui.screen.settings.PluginRegistryScreen
 import com.zeroclaw.android.ui.screen.settings.SchedulerScreen
 import com.zeroclaw.android.ui.screen.settings.SecurityOverviewScreen
 import com.zeroclaw.android.ui.screen.settings.ServiceConfigScreen
@@ -51,7 +53,12 @@ import com.zeroclaw.android.ui.screen.settings.apikeys.ApiKeysViewModel
 import com.zeroclaw.android.ui.screen.settings.channels.ChannelDetailScreen
 import com.zeroclaw.android.ui.screen.settings.channels.ConnectedChannelsScreen
 import com.zeroclaw.android.ui.screen.settings.doctor.DoctorScreen
+import com.zeroclaw.android.ui.screen.settings.gateway.QrScannerScreen
 import com.zeroclaw.android.ui.screen.settings.logs.LogViewerScreen
+import com.zeroclaw.android.util.AuthResult
+import com.zeroclaw.android.util.BiometricGatekeeper
+import com.zeroclaw.android.viewmodel.BiometricAction
+import com.zeroclaw.android.viewmodel.DaemonViewModel
 
 /**
  * Single [NavHost] mapping all route objects to their screen composables.
@@ -68,6 +75,35 @@ fun ZeroClawNavHost(
     edgeMargin: Dp,
     modifier: Modifier = Modifier,
 ) {
+    val daemonViewModel: DaemonViewModel = viewModel()
+    val pendingBiometricAction by daemonViewModel.pendingBiometricAction
+        .collectAsStateWithLifecycle()
+    val biometricActivity = LocalContext.current as? FragmentActivity
+
+    LaunchedEffect(pendingBiometricAction) {
+        val action = pendingBiometricAction ?: return@LaunchedEffect
+        val activity =
+            biometricActivity ?: run {
+                daemonViewModel.confirmBiometricAction()
+                return@LaunchedEffect
+            }
+        BiometricGatekeeper.authenticate(
+            activity = activity,
+            title =
+                when (action) {
+                    BiometricAction.StartDaemon -> "Start Daemon"
+                    BiometricAction.StopDaemon -> "Stop Daemon"
+                },
+            subtitle = "Authenticate to control the daemon service",
+            negativeButtonText = "Cancel",
+        ) { result ->
+            when (result) {
+                is AuthResult.Success -> daemonViewModel.confirmBiometricAction()
+                else -> daemonViewModel.cancelBiometricAction()
+            }
+        }
+    }
+
     NavHost(
         navController = navController,
         startDestination = startDestination,
@@ -153,6 +189,7 @@ fun ZeroClawNavHost(
                 onNavigateToScheduler = { navController.navigate(SchedulerRoute) },
                 onNavigateToObservability = { navController.navigate(ObservabilityRoute) },
                 onNavigateToSecurityOverview = { navController.navigate(SecurityOverviewRoute) },
+                onNavigateToPluginRegistry = { navController.navigate(PluginRegistryRoute) },
                 onRerunWizard = {
                     settingsViewModel.resetOnboarding()
                     navController.navigate(OnboardingRoute) {
@@ -191,27 +228,16 @@ fun ZeroClawNavHost(
                 onRequestBiometric = { keyId ->
                     val activity = context as? FragmentActivity
                     if (activity != null) {
-                        val executor = ContextCompat.getMainExecutor(context)
-                        val biometricPrompt =
-                            BiometricPrompt(
-                                activity,
-                                executor,
-                                object : BiometricPrompt.AuthenticationCallback() {
-                                    override fun onAuthenticationSucceeded(
-                                        result: BiometricPrompt.AuthenticationResult,
-                                    ) {
-                                        apiKeysViewModel.revealKey(keyId)
-                                    }
-                                },
-                            )
-                        val promptInfo =
-                            BiometricPrompt.PromptInfo
-                                .Builder()
-                                .setTitle("Reveal API Key")
-                                .setSubtitle("Authenticate to view the full key")
-                                .setNegativeButtonText("Cancel")
-                                .build()
-                        biometricPrompt.authenticate(promptInfo)
+                        BiometricGatekeeper.authenticate(
+                            activity = activity,
+                            title = "Reveal API Key",
+                            subtitle = "Authenticate to view the full key",
+                            negativeButtonText = "Cancel",
+                        ) { result ->
+                            if (result is AuthResult.Success) {
+                                apiKeysViewModel.revealKey(keyId)
+                            }
+                        }
                     } else {
                         apiKeysViewModel.revealKey(keyId)
                     }
@@ -319,8 +345,32 @@ fun ZeroClawNavHost(
             TunnelScreen(edgeMargin = edgeMargin)
         }
 
-        composable<GatewayRoute> {
-            GatewayScreen(edgeMargin = edgeMargin)
+        composable<GatewayRoute> { backStackEntry ->
+            val settingsVm: SettingsViewModel = viewModel()
+            val scannedToken by backStackEntry.savedStateHandle
+                .getStateFlow("scanned_token", "")
+                .collectAsStateWithLifecycle()
+
+            LaunchedEffect(scannedToken) {
+                if (scannedToken.isNotBlank()) {
+                    val currentSettings = settingsVm.settings.value
+                    val existingTokens = currentSettings.gatewayPairedTokens
+                    val merged =
+                        if (existingTokens.isBlank()) {
+                            scannedToken
+                        } else {
+                            "$existingTokens,$scannedToken"
+                        }
+                    settingsVm.updateGatewayPairedTokens(merged)
+                    backStackEntry.savedStateHandle["scanned_token"] = ""
+                }
+            }
+
+            GatewayScreen(
+                edgeMargin = edgeMargin,
+                onNavigateToQrScanner = { navController.navigate(QrScannerRoute) },
+                settingsViewModel = settingsVm,
+            )
         }
 
         composable<ToolManagementRoute> {
@@ -341,6 +391,22 @@ fun ZeroClawNavHost(
 
         composable<ObservabilityRoute> {
             ObservabilityScreen(edgeMargin = edgeMargin)
+        }
+
+        composable<PluginRegistryRoute> {
+            PluginRegistryScreen(edgeMargin = edgeMargin)
+        }
+
+        composable<QrScannerRoute> {
+            QrScannerScreen(
+                onTokenScanned = { token ->
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("scanned_token", token)
+                    navController.popBackStack()
+                },
+                onBack = { navController.popBackStack() },
+            )
         }
 
         composable<OnboardingRoute> {

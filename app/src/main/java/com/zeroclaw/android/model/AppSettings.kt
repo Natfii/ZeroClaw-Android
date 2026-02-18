@@ -72,6 +72,12 @@ package com.zeroclaw.android.model
  * @property browserAllowedDomains Comma-separated list of allowed browser domains.
  * @property httpRequestEnabled Whether the HTTP request tool is enabled.
  * @property httpRequestAllowedDomains Comma-separated list of allowed HTTP domains.
+ * @property biometricForService Whether biometric auth is required for service start/stop.
+ * @property biometricForSettings Whether biometric auth is required for sensitive settings.
+ * @property pluginRegistryUrl URL of the remote plugin registry catalog.
+ * @property pluginSyncEnabled Whether automatic plugin registry sync is active.
+ * @property pluginSyncIntervalHours Interval in hours between automatic syncs.
+ * @property lastPluginSyncTimestamp Unix timestamp of the most recent successful sync.
  */
 @Suppress("LongParameterList")
 data class AppSettings(
@@ -138,6 +144,12 @@ data class AppSettings(
     val browserAllowedDomains: String = "",
     val httpRequestEnabled: Boolean = false,
     val httpRequestAllowedDomains: String = "",
+    val biometricForService: Boolean = false,
+    val biometricForSettings: Boolean = false,
+    val pluginRegistryUrl: String = DEFAULT_PLUGIN_REGISTRY_URL,
+    val pluginSyncEnabled: Boolean = false,
+    val pluginSyncIntervalHours: Int = DEFAULT_PLUGIN_SYNC_INTERVAL,
+    val lastPluginSyncTimestamp: Long = 0L,
 ) {
     /** Constants for [AppSettings]. */
     companion object {
@@ -220,6 +232,12 @@ data class AppSettings(
 
         /** Default keyword weight for memory recall. */
         const val DEFAULT_KEYWORD_WEIGHT = 0.3f
+
+        /** Default plugin registry URL. */
+        const val DEFAULT_PLUGIN_REGISTRY_URL = "https://registry.zeroclaw.dev/plugins.json"
+
+        /** Default plugin sync interval in hours. */
+        const val DEFAULT_PLUGIN_SYNC_INTERVAL = 24
     }
 }
 

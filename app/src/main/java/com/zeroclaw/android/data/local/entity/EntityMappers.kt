@@ -82,6 +82,7 @@ fun PluginEntity.toModel(): Plugin =
         isInstalled = isInstalled,
         isEnabled = isEnabled,
         configFields = deserializeConfigMap(configJson),
+        remoteVersion = remoteVersion,
     )
 
 /**
@@ -101,6 +102,7 @@ fun Plugin.toEntity(): PluginEntity =
         isInstalled = isInstalled,
         isEnabled = isEnabled,
         configJson = mapperJson.encodeToString(configFields),
+        remoteVersion = remoteVersion,
     )
 
 /**

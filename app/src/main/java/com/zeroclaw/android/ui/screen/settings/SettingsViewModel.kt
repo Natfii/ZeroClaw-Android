@@ -339,6 +339,36 @@ class SettingsViewModel(
         viewModelScope.launch { repository.setHttpRequestAllowedDomains(domains) }
     }
 
+    /** @see com.zeroclaw.android.data.repository.SettingsRepository.setBiometricForService */
+    fun updateBiometricForService(enabled: Boolean) {
+        viewModelScope.launch { repository.setBiometricForService(enabled) }
+    }
+
+    /** @see com.zeroclaw.android.data.repository.SettingsRepository.setBiometricForSettings */
+    fun updateBiometricForSettings(enabled: Boolean) {
+        viewModelScope.launch { repository.setBiometricForSettings(enabled) }
+    }
+
+    /** @see com.zeroclaw.android.data.repository.SettingsRepository.setPluginRegistryUrl */
+    fun updatePluginRegistryUrl(url: String) {
+        viewModelScope.launch { repository.setPluginRegistryUrl(url) }
+    }
+
+    /** @see com.zeroclaw.android.data.repository.SettingsRepository.setPluginSyncEnabled */
+    fun updatePluginSyncEnabled(enabled: Boolean) {
+        viewModelScope.launch { repository.setPluginSyncEnabled(enabled) }
+    }
+
+    /** @see com.zeroclaw.android.data.repository.SettingsRepository.setPluginSyncIntervalHours */
+    fun updatePluginSyncIntervalHours(hours: Int) {
+        viewModelScope.launch { repository.setPluginSyncIntervalHours(hours) }
+    }
+
+    /** @see com.zeroclaw.android.data.repository.SettingsRepository.setLastPluginSyncTimestamp */
+    fun updateLastPluginSyncTimestamp(timestamp: Long) {
+        viewModelScope.launch { repository.setLastPluginSyncTimestamp(timestamp) }
+    }
+
     /**
      * Resets onboarding completion state so the setup wizard is shown again.
      *

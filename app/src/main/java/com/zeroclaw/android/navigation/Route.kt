@@ -147,6 +147,14 @@ data object SchedulerRoute
 @Serializable
 data object ObservabilityRoute
 
+/** Plugin registry sync settings screen. */
+@Serializable
+data object PluginRegistryRoute
+
+/** QR code scanner screen for gateway pairing. */
+@Serializable
+data object QrScannerRoute
+
 /** First-run onboarding wizard. */
 @Serializable
 data object OnboardingRoute

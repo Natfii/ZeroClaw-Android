@@ -461,4 +461,46 @@ interface SettingsRepository {
      * @param domains Comma-separated domain names.
      */
     suspend fun setHttpRequestAllowedDomains(domains: String)
+
+    /**
+     * Toggles biometric requirement for service start/stop.
+     *
+     * @param enabled Whether biometric auth is required.
+     */
+    suspend fun setBiometricForService(enabled: Boolean)
+
+    /**
+     * Toggles biometric requirement for sensitive settings.
+     *
+     * @param enabled Whether biometric auth is required.
+     */
+    suspend fun setBiometricForSettings(enabled: Boolean)
+
+    /**
+     * Updates the remote plugin registry URL.
+     *
+     * @param url Registry URL string.
+     */
+    suspend fun setPluginRegistryUrl(url: String)
+
+    /**
+     * Toggles automatic plugin registry syncing.
+     *
+     * @param enabled Whether auto-sync is active.
+     */
+    suspend fun setPluginSyncEnabled(enabled: Boolean)
+
+    /**
+     * Updates the plugin sync interval.
+     *
+     * @param hours Interval in hours.
+     */
+    suspend fun setPluginSyncIntervalHours(hours: Int)
+
+    /**
+     * Updates the last successful plugin sync timestamp.
+     *
+     * @param timestamp Unix timestamp in milliseconds.
+     */
+    suspend fun setLastPluginSyncTimestamp(timestamp: Long)
 }

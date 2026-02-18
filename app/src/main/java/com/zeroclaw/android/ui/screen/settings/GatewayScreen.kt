@@ -17,6 +17,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CameraAlt
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
@@ -32,6 +36,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.zeroclaw.android.model.AppSettings
+import com.zeroclaw.android.ui.component.BiometricSettingsGate
 import com.zeroclaw.android.ui.component.SectionHeader
 
 /**
@@ -40,18 +46,51 @@ import com.zeroclaw.android.ui.component.SectionHeader
  * Maps to the upstream `[gateway]` TOML section: pairing requirement,
  * public bind, paired tokens, and rate limiting settings.
  *
+ * When biometric settings gating is enabled, the screen content is
+ * protected behind a [BiometricSettingsGate] overlay.
+ *
  * @param edgeMargin Horizontal padding based on window width size class.
+ * @param onNavigateToQrScanner Callback to navigate to the QR code scanner.
  * @param settingsViewModel The shared [SettingsViewModel].
  * @param modifier Modifier applied to the root layout.
  */
 @Composable
 fun GatewayScreen(
     edgeMargin: Dp,
+    onNavigateToQrScanner: () -> Unit = {},
     settingsViewModel: SettingsViewModel = viewModel(),
     modifier: Modifier = Modifier,
 ) {
     val settings by settingsViewModel.settings.collectAsStateWithLifecycle()
 
+    BiometricSettingsGate(requireBiometric = settings.biometricForSettings) {
+        GatewayScreenContent(
+            settings = settings,
+            onNavigateToQrScanner = onNavigateToQrScanner,
+            settingsViewModel = settingsViewModel,
+            edgeMargin = edgeMargin,
+            modifier = modifier,
+        )
+    }
+}
+
+/**
+ * Inner content of the gateway screen, separated for biometric gating.
+ *
+ * @param settings Current application settings snapshot.
+ * @param onNavigateToQrScanner Callback to navigate to the QR code scanner.
+ * @param settingsViewModel ViewModel for settings mutations.
+ * @param edgeMargin Horizontal padding based on window width size class.
+ * @param modifier Modifier applied to the root layout.
+ */
+@Composable
+private fun GatewayScreenContent(
+    settings: AppSettings,
+    onNavigateToQrScanner: () -> Unit,
+    settingsViewModel: SettingsViewModel,
+    edgeMargin: Dp,
+    modifier: Modifier = Modifier,
+) {
     Column(
         modifier =
             modifier
@@ -80,15 +119,33 @@ fun GatewayScreen(
             description = "Allow public bind",
         )
 
-        OutlinedTextField(
-            value = settings.gatewayPairedTokens,
-            onValueChange = { settingsViewModel.updateGatewayPairedTokens(it) },
-            label = { Text("Paired tokens") },
-            supportingText = { Text("Comma-separated authorized tokens") },
-            enabled = settings.gatewayRequirePairing,
-            minLines = 2,
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(),
-        )
+        ) {
+            OutlinedTextField(
+                value = settings.gatewayPairedTokens,
+                onValueChange = { settingsViewModel.updateGatewayPairedTokens(it) },
+                label = { Text("Paired tokens") },
+                supportingText = { Text("Comma-separated authorized tokens") },
+                enabled = settings.gatewayRequirePairing,
+                minLines = 2,
+                modifier = Modifier.weight(1f),
+            )
+            IconButton(
+                onClick = onNavigateToQrScanner,
+                enabled = settings.gatewayRequirePairing,
+                modifier =
+                    Modifier.semantics {
+                        contentDescription = "Scan QR code to add pairing token"
+                    },
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.CameraAlt,
+                    contentDescription = null,
+                )
+            }
+        }
 
         SectionHeader(title = "Rate Limits")
 

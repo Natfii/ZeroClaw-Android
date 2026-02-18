@@ -14,6 +14,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.zeroclaw.android.model.AppSettings
@@ -160,6 +161,16 @@ class DataStoreSettingsRepository(
             browserAllowedDomains = prefs[KEY_BROWSER_DOMAINS] ?: "",
             httpRequestEnabled = prefs[KEY_HTTP_REQ_ENABLED] ?: false,
             httpRequestAllowedDomains = prefs[KEY_HTTP_REQ_DOMAINS] ?: "",
+            biometricForService = prefs[KEY_BIOMETRIC_SERVICE] ?: false,
+            biometricForSettings = prefs[KEY_BIOMETRIC_SETTINGS] ?: false,
+            pluginRegistryUrl =
+                prefs[KEY_PLUGIN_REGISTRY_URL]
+                    ?: AppSettings.DEFAULT_PLUGIN_REGISTRY_URL,
+            pluginSyncEnabled = prefs[KEY_PLUGIN_SYNC_ENABLED] ?: false,
+            pluginSyncIntervalHours =
+                prefs[KEY_PLUGIN_SYNC_INTERVAL]
+                    ?: AppSettings.DEFAULT_PLUGIN_SYNC_INTERVAL,
+            lastPluginSyncTimestamp = prefs[KEY_LAST_PLUGIN_SYNC] ?: 0L,
         )
 
     override suspend fun setHost(host: String) = edit { it[KEY_HOST] = host }
@@ -288,6 +299,18 @@ class DataStoreSettingsRepository(
 
     override suspend fun setHttpRequestAllowedDomains(domains: String) = edit { it[KEY_HTTP_REQ_DOMAINS] = domains }
 
+    override suspend fun setBiometricForService(enabled: Boolean) = edit { it[KEY_BIOMETRIC_SERVICE] = enabled }
+
+    override suspend fun setBiometricForSettings(enabled: Boolean) = edit { it[KEY_BIOMETRIC_SETTINGS] = enabled }
+
+    override suspend fun setPluginRegistryUrl(url: String) = edit { it[KEY_PLUGIN_REGISTRY_URL] = url }
+
+    override suspend fun setPluginSyncEnabled(enabled: Boolean) = edit { it[KEY_PLUGIN_SYNC_ENABLED] = enabled }
+
+    override suspend fun setPluginSyncIntervalHours(hours: Int) = edit { it[KEY_PLUGIN_SYNC_INTERVAL] = hours }
+
+    override suspend fun setLastPluginSyncTimestamp(timestamp: Long) = edit { it[KEY_LAST_PLUGIN_SYNC] = timestamp }
+
     private suspend fun edit(transform: (MutablePreferences) -> Unit) {
         context.settingsDataStore.edit { prefs -> transform(prefs) }
     }
@@ -359,5 +382,11 @@ class DataStoreSettingsRepository(
         val KEY_BROWSER_DOMAINS = stringPreferencesKey("browser_domains")
         val KEY_HTTP_REQ_ENABLED = booleanPreferencesKey("http_req_enabled")
         val KEY_HTTP_REQ_DOMAINS = stringPreferencesKey("http_req_domains")
+        val KEY_BIOMETRIC_SERVICE = booleanPreferencesKey("biometric_for_service")
+        val KEY_BIOMETRIC_SETTINGS = booleanPreferencesKey("biometric_for_settings")
+        val KEY_PLUGIN_REGISTRY_URL = stringPreferencesKey("plugin_registry_url")
+        val KEY_PLUGIN_SYNC_ENABLED = booleanPreferencesKey("plugin_sync_enabled")
+        val KEY_PLUGIN_SYNC_INTERVAL = intPreferencesKey("plugin_sync_interval_hours")
+        val KEY_LAST_PLUGIN_SYNC = longPreferencesKey("last_plugin_sync_timestamp")
     }
 }

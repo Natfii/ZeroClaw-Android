@@ -9,6 +9,11 @@ package com.zeroclaw.android
 import android.app.Application
 import android.content.Context
 import android.util.Log
+import androidx.work.Constraints
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
 import coil3.disk.DiskCache
@@ -38,10 +43,13 @@ import com.zeroclaw.android.data.repository.RoomLogRepository
 import com.zeroclaw.android.data.repository.RoomPluginRepository
 import com.zeroclaw.android.data.repository.SettingsRepository
 import com.zeroclaw.android.service.DaemonServiceBridge
+import com.zeroclaw.android.service.PluginSyncWorker
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /**
  * Application subclass that initialises the native ZeroClaw library and
@@ -112,6 +120,7 @@ class ZeroClawApplication :
         super.onCreate()
         System.loadLibrary("zeroclaw")
 
+        @Suppress("InjectDispatcher")
         val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
         val ioScope = CoroutineScope(SupervisorJob() + ioDispatcher)
 
@@ -126,6 +135,42 @@ class ZeroClawApplication :
         pluginRepository = RoomPluginRepository(database.pluginDao())
         channelConfigRepository = createChannelConfigRepository()
         chatMessageRepository = RoomChatMessageRepository(database.chatMessageDao(), ioScope)
+
+        schedulePluginSyncIfEnabled(ioScope)
+    }
+
+    /**
+     * Observes the plugin sync setting and schedules/cancels the
+     * periodic sync worker accordingly.
+     *
+     * @param scope Background scope for observing settings.
+     */
+    private fun schedulePluginSyncIfEnabled(scope: CoroutineScope) {
+        scope.launch {
+            settingsRepository.settings.collect { settings ->
+                val workManager = WorkManager.getInstance(this@ZeroClawApplication)
+                if (settings.pluginSyncEnabled) {
+                    val constraints =
+                        Constraints
+                            .Builder()
+                            .setRequiredNetworkType(NetworkType.CONNECTED)
+                            .build()
+                    val request =
+                        PeriodicWorkRequestBuilder<PluginSyncWorker>(
+                            settings.pluginSyncIntervalHours.toLong(),
+                            TimeUnit.HOURS,
+                        ).setConstraints(constraints)
+                            .build()
+                    workManager.enqueueUniquePeriodicWork(
+                        PluginSyncWorker.WORK_NAME,
+                        ExistingPeriodicWorkPolicy.KEEP,
+                        request,
+                    )
+                } else {
+                    workManager.cancelUniqueWork(PluginSyncWorker.WORK_NAME)
+                }
+            }
+        }
     }
 
     /**

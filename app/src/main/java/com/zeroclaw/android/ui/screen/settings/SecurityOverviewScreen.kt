@@ -27,6 +27,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SuggestionChip
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -48,6 +49,7 @@ import com.zeroclaw.android.ZeroClawApplication
 import com.zeroclaw.android.data.StorageHealth
 import com.zeroclaw.android.ui.component.CollapsibleSection
 import com.zeroclaw.android.ui.component.SectionHeader
+import com.zeroclaw.android.util.BiometricGatekeeper
 
 /**
  * Security overview screen displaying the current security posture.
@@ -125,6 +127,15 @@ fun SecurityOverviewScreen(
         ApiKeyHealthSection(
             keyCount = apiKeys.size,
             storageHealth = storageHealth,
+        )
+
+        Spacer(modifier = Modifier.height(SPACING_LARGE))
+
+        BiometricProtectionSection(
+            biometricForService = settings.biometricForService,
+            biometricForSettings = settings.biometricForSettings,
+            onBiometricForServiceChange = { settingsViewModel.updateBiometricForService(it) },
+            onBiometricForSettingsChange = { settingsViewModel.updateBiometricForSettings(it) },
         )
 
         Spacer(modifier = Modifier.height(SPACING_LARGE))
@@ -416,6 +427,114 @@ private fun AllowedForbiddenSection(
                 }
             }
         }
+    }
+}
+
+/**
+ * Section displaying biometric protection toggles for service and settings.
+ *
+ * Toggles are disabled with helper text when biometric hardware is
+ * not available or not enrolled on the device.
+ *
+ * @param biometricForService Whether biometric is required for service control.
+ * @param biometricForSettings Whether biometric is required for sensitive settings.
+ * @param onBiometricForServiceChange Callback for service toggle changes.
+ * @param onBiometricForSettingsChange Callback for settings toggle changes.
+ */
+@Composable
+private fun BiometricProtectionSection(
+    biometricForService: Boolean,
+    biometricForSettings: Boolean,
+    onBiometricForServiceChange: (Boolean) -> Unit,
+    onBiometricForSettingsChange: (Boolean) -> Unit,
+) {
+    val context = LocalContext.current
+    val isBiometricAvailable = BiometricGatekeeper.isAvailable(context)
+
+    SectionHeader(title = "Biometric Protection")
+
+    BiometricToggleItem(
+        label = "Require biometric for service control",
+        subtitle = "Authenticate before starting or stopping the daemon",
+        checked = biometricForService,
+        onCheckedChange = onBiometricForServiceChange,
+        enabled = isBiometricAvailable,
+    )
+
+    BiometricToggleItem(
+        label = "Require biometric for sensitive settings",
+        subtitle = "Authenticate before modifying security-related settings",
+        checked = biometricForSettings,
+        onCheckedChange = onBiometricForSettingsChange,
+        enabled = isBiometricAvailable,
+    )
+
+    if (!isBiometricAvailable) {
+        Text(
+            text = "Biometric hardware not available or not enrolled",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(vertical = SPACING_SMALL),
+        )
+    }
+}
+
+/**
+ * Toggle row for a biometric protection setting.
+ *
+ * @param label Primary label text.
+ * @param subtitle Descriptive text below the label.
+ * @param checked Current toggle state.
+ * @param onCheckedChange Callback for state changes.
+ * @param enabled Whether the toggle is interactive.
+ */
+@Composable
+private fun BiometricToggleItem(
+    label: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    enabled: Boolean,
+) {
+    val stateText = if (checked) "enabled" else "disabled"
+    val a11yDescription = "$label: $stateText"
+
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = SPACING_SMALL)
+                .semantics(mergeDescendants = true) {
+                    contentDescription = a11yDescription
+                },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyLarge,
+                color =
+                    if (enabled) {
+                        MaterialTheme.colorScheme.onSurface
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            enabled = enabled,
+            modifier =
+                Modifier.semantics {
+                    contentDescription = "$label toggle"
+                },
+        )
     }
 }
 

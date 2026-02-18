@@ -20,9 +20,23 @@ import com.zeroclaw.ffi.FfiException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+
+/**
+ * Actions that may require biometric authentication before execution.
+ */
+sealed interface BiometricAction {
+    /** Starting the daemon requires authentication. */
+    data object StartDaemon : BiometricAction
+
+    /** Stopping the daemon requires authentication. */
+    data object StopDaemon : BiometricAction
+}
 
 /**
  * Represents the possible states of an asynchronous daemon UI operation.
@@ -76,8 +90,25 @@ sealed interface DaemonUiState<out T> {
 class DaemonViewModel(
     application: Application,
 ) : AndroidViewModel(application) {
-    private val bridge: DaemonServiceBridge =
-        (application as ZeroClawApplication).daemonBridge
+    private val app = application as ZeroClawApplication
+    private val bridge: DaemonServiceBridge = app.daemonBridge
+    private val settingsRepository = app.settingsRepository
+
+    private val biometricForService: StateFlow<Boolean> =
+        settingsRepository.settings
+            .map { it.biometricForService }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    private val _pendingBiometricAction = MutableStateFlow<BiometricAction?>(null)
+
+    /**
+     * Pending action that requires biometric authentication before execution.
+     *
+     * When non-null, the UI layer should present a biometric prompt and call
+     * [confirmBiometricAction] on success or [cancelBiometricAction] on failure.
+     */
+    val pendingBiometricAction: StateFlow<BiometricAction?> =
+        _pendingBiometricAction.asStateFlow()
 
     /** Current lifecycle state of the daemon service. */
     val serviceState: StateFlow<ServiceState> = bridge.serviceState
@@ -145,13 +176,59 @@ class DaemonViewModel(
     }
 
     /**
-     * Requests the daemon to start by sending [ZeroClawDaemonService.ACTION_START]
-     * to the foreground service.
+     * Requests the daemon to start.
      *
-     * The service handles daemon initialisation and foreground notification
-     * setup. Observe [serviceState] for progress updates.
+     * If biometric auth is required for service control, emits a
+     * [BiometricAction.StartDaemon] via [pendingBiometricAction] instead
+     * of starting immediately. The UI layer observes this and presents
+     * a biometric prompt, then calls [confirmBiometricAction].
      */
     fun requestStart() {
+        if (biometricForService.value) {
+            _pendingBiometricAction.value = BiometricAction.StartDaemon
+        } else {
+            performStart()
+        }
+    }
+
+    /**
+     * Requests the daemon to stop.
+     *
+     * If biometric auth is required for service control, emits a
+     * [BiometricAction.StopDaemon] via [pendingBiometricAction] instead
+     * of stopping immediately. The UI layer observes this and presents
+     * a biometric prompt, then calls [confirmBiometricAction].
+     */
+    fun requestStop() {
+        if (biometricForService.value) {
+            _pendingBiometricAction.value = BiometricAction.StopDaemon
+        } else {
+            performStop()
+        }
+    }
+
+    /**
+     * Confirms the pending biometric action after successful authentication.
+     *
+     * Executes the action stored in [pendingBiometricAction] and clears it.
+     */
+    fun confirmBiometricAction() {
+        when (_pendingBiometricAction.value) {
+            BiometricAction.StartDaemon -> performStart()
+            BiometricAction.StopDaemon -> performStop()
+            null -> { /* nothing pending */ }
+        }
+        _pendingBiometricAction.value = null
+    }
+
+    /**
+     * Cancels the pending biometric action after failed or cancelled authentication.
+     */
+    fun cancelBiometricAction() {
+        _pendingBiometricAction.value = null
+    }
+
+    private fun performStart() {
         val intent =
             Intent(
                 getApplication(),
@@ -162,14 +239,7 @@ class DaemonViewModel(
         getApplication<Application>().startForegroundService(intent)
     }
 
-    /**
-     * Requests the daemon to stop by sending [ZeroClawDaemonService.ACTION_STOP]
-     * to the foreground service.
-     *
-     * The service handles shutdown and removes the foreground notification.
-     * Observe [serviceState] for progress updates.
-     */
-    fun requestStop() {
+    private fun performStop() {
         val intent =
             Intent(
                 getApplication(),

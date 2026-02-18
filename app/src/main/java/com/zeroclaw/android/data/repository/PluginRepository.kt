@@ -7,6 +7,7 @@
 package com.zeroclaw.android.data.repository
 
 import com.zeroclaw.android.model.Plugin
+import com.zeroclaw.android.model.RemotePlugin
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -57,4 +58,15 @@ interface PluginRepository {
         key: String,
         value: String,
     )
+
+    /**
+     * Merges remote plugin metadata into the local database.
+     *
+     * For existing plugins, updates name/description/version/author/category
+     * and sets [Plugin.remoteVersion] without touching local install state
+     * or config. For new plugins, inserts them as uninstalled.
+     *
+     * @param remotePlugins List of plugin metadata from the remote registry.
+     */
+    suspend fun mergeRemotePlugins(remotePlugins: List<RemotePlugin>)
 }

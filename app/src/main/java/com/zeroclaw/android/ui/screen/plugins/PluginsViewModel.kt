@@ -10,12 +10,15 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.zeroclaw.android.ZeroClawApplication
+import com.zeroclaw.android.data.remote.OkHttpPluginRegistryClient
 import com.zeroclaw.android.model.Plugin
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -29,14 +32,17 @@ const val TAB_AVAILABLE = 1
  * ViewModel for the plugin list screen.
  *
  * Provides tab-filtered and search-filtered plugin lists along with
- * install/uninstall and toggle operations.
+ * install/uninstall and toggle operations. Also supports manual
+ * and automatic plugin registry synchronisation.
  *
  * @param application Application context for accessing the plugin repository.
  */
 class PluginsViewModel(
     application: Application,
 ) : AndroidViewModel(application) {
-    private val repository = (application as ZeroClawApplication).pluginRepository
+    private val app = application as ZeroClawApplication
+    private val repository = app.pluginRepository
+    private val settingsRepository = app.settingsRepository
 
     private val _selectedTab = MutableStateFlow(TAB_INSTALLED)
 
@@ -47,6 +53,11 @@ class PluginsViewModel(
 
     /** Current search query text. */
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    private val _syncState = MutableStateFlow<SyncUiState>(SyncUiState.Idle)
+
+    /** Current state of the plugin registry sync operation. */
+    val syncState: StateFlow<SyncUiState> = _syncState.asStateFlow()
 
     /** Filtered plugin list based on tab and search query. */
     val plugins: StateFlow<List<Plugin>> =
@@ -65,6 +76,17 @@ class PluginsViewModel(
                 }
             }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), emptyList())
+
+    /** Number of installed plugins that have a newer version available. */
+    val updatesAvailableCount: StateFlow<Int> =
+        repository.plugins
+            .map { all ->
+                all.count { plugin ->
+                    plugin.isInstalled &&
+                        plugin.remoteVersion != null &&
+                        plugin.remoteVersion != plugin.version
+                }
+            }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), 0)
 
     /**
      * Selects the tab at the given index.
@@ -114,6 +136,32 @@ class PluginsViewModel(
     fun togglePlugin(pluginId: String) {
         viewModelScope.launch {
             repository.toggleEnabled(pluginId)
+        }
+    }
+
+    /**
+     * Triggers an immediate plugin registry sync.
+     *
+     * Fetches the remote plugin catalog and merges it into the local
+     * database. Updates [syncState] throughout the operation.
+     */
+    @Suppress("TooGenericExceptionCaught")
+    fun syncNow() {
+        if (_syncState.value is SyncUiState.Syncing) return
+        _syncState.value = SyncUiState.Syncing
+
+        viewModelScope.launch {
+            try {
+                val settings = settingsRepository.settings.first()
+                val client = OkHttpPluginRegistryClient()
+                val remotePlugins = client.fetchPlugins(settings.pluginRegistryUrl)
+                repository.mergeRemotePlugins(remotePlugins)
+                settingsRepository.setLastPluginSyncTimestamp(System.currentTimeMillis())
+                _syncState.value = SyncUiState.Success(remotePlugins.size)
+            } catch (e: Exception) {
+                _syncState.value =
+                    SyncUiState.Error(e.message ?: "Sync failed")
+            }
         }
     }
 }
