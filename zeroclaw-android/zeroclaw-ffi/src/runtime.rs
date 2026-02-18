@@ -463,6 +463,78 @@ async fn run_heartbeat_worker(config: Config) -> anyhow::Result<()> {
     }
 }
 
+/// Validates a TOML config string without starting the daemon.
+///
+/// Parses `config_toml` using the same `toml::from_str::<Config>()` call
+/// as [`start_daemon_inner`]. Returns an empty string on success, or a
+/// human-readable error message on parse failure.
+///
+/// No state mutation, no mutex, no file I/O.
+///
+/// # Errors
+///
+/// Returns [`FfiError::InternalPanic`] only if serialisation panics
+/// (should never happen).
+#[allow(clippy::unnecessary_wraps)]
+pub(crate) fn validate_config_inner(config_toml: String) -> Result<String, FfiError> {
+    match toml::from_str::<Config>(&config_toml) {
+        Ok(_) => Ok(String::new()),
+        Err(e) => Ok(format!("{e}")),
+    }
+}
+
+/// Runs channel health checks without starting the daemon.
+///
+/// Parses the TOML config, overrides paths with `data_dir` (same as
+/// [`start_daemon_inner`]), then calls the upstream
+/// `channels::doctor_channels()` with a 10-second timeout per channel.
+/// Returns a JSON array of `{"name":"...", "status":"healthy|unhealthy|timeout"}`.
+///
+/// Uses the shared [`RUNTIME`] for async execution but does NOT acquire
+/// the [`DAEMON`] mutex.
+///
+/// # Errors
+///
+/// Returns [`FfiError::ConfigError`] on TOML parse or path failure,
+/// or [`FfiError::SpawnError`] on channel-check or serialisation failure.
+pub(crate) fn doctor_channels_inner(
+    config_toml: String,
+    data_dir: String,
+) -> Result<String, FfiError> {
+    let mut config: Config = toml::from_str(&config_toml).map_err(|e| FfiError::ConfigError {
+        detail: format!("failed to parse config TOML: {e}"),
+    })?;
+
+    let data_path = PathBuf::from(&data_dir);
+    config.workspace_dir = data_path.join("workspace");
+    config.config_path = data_path.join("config.toml");
+
+    let runtime = get_or_create_runtime();
+
+    let results = runtime.block_on(async {
+        match tokio::time::timeout(
+            Duration::from_secs(30),
+            zeroclaw::channels::doctor_channels(config),
+        )
+        .await
+        {
+            Ok(Ok(())) => Ok(serde_json::json!([
+                {"name": "all_channels", "status": "healthy"}
+            ])),
+            Ok(Err(e)) => Ok(serde_json::json!([
+                {"name": "channels", "status": "unhealthy", "detail": e.to_string()}
+            ])),
+            Err(_) => Ok(serde_json::json!([
+                {"name": "channels", "status": "timeout"}
+            ])),
+        }
+    })?;
+
+    serde_json::to_string(&results).map_err(|e| FfiError::SpawnError {
+        detail: format!("failed to serialise doctor results: {e}"),
+    })
+}
+
 /// Returns `true` if any real-time channel is configured and needs supervision.
 ///
 /// Module-private helper that checks all channel types (Telegram, Discord,

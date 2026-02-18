@@ -19,6 +19,7 @@ import androidx.compose.material.icons.automirrored.outlined.Subject
 import androidx.compose.material.icons.outlined.BatteryAlert
 import androidx.compose.material.icons.outlined.Fingerprint
 import androidx.compose.material.icons.outlined.Forum
+import androidx.compose.material.icons.outlined.HealthAndSafety
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.Refresh
@@ -54,6 +55,7 @@ import com.zeroclaw.android.ui.component.SectionHeader
  * @param onNavigateToApiKeys Navigate to API key management.
  * @param onNavigateToChannels Navigate to connected channels management.
  * @param onNavigateToLogViewer Navigate to log viewer.
+ * @param onNavigateToDoctor Navigate to ZeroClaw Doctor diagnostics.
  * @param onNavigateToIdentity Navigate to agent identity editor.
  * @param onNavigateToAbout Navigate to about screen.
  * @param onNavigateToUpdates Navigate to updates screen.
@@ -68,6 +70,7 @@ fun SettingsScreen(
     onNavigateToApiKeys: () -> Unit,
     onNavigateToChannels: () -> Unit,
     onNavigateToLogViewer: () -> Unit,
+    onNavigateToDoctor: () -> Unit,
     onNavigateToIdentity: () -> Unit,
     onNavigateToAbout: () -> Unit,
     onNavigateToUpdates: () -> Unit,
@@ -130,6 +133,12 @@ fun SettingsScreen(
             title = "Log Viewer",
             subtitle = "View daemon and service logs",
             onClick = onNavigateToLogViewer,
+        )
+        SettingsItem(
+            icon = Icons.Outlined.HealthAndSafety,
+            title = "ZeroClaw Doctor",
+            subtitle = "Validate config, keys, and connectivity",
+            onClick = onNavigateToDoctor,
         )
 
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))

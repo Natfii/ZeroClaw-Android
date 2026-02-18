@@ -10,7 +10,8 @@
 //!
 //! This crate provides a thin FFI layer over the `ZeroClaw` daemon,
 //! exposing `start_daemon`, `stop_daemon`, `get_status`, `send_message`,
-//! and `get_version` to Kotlin via UniFFI-generated bindings.
+//! `get_version`, `validate_config`, and `doctor_channels` to Kotlin
+//! via UniFFI-generated bindings.
 
 uniffi::setup_scaffolding!();
 
@@ -117,6 +118,46 @@ pub fn send_message(message: String) -> Result<String, FfiError> {
     })
 }
 
+/// Validates a TOML config string without starting the daemon.
+///
+/// Parses `config_toml` using the same `toml::from_str::<Config>()` path
+/// as [`start_daemon`]. Returns an empty string on success, or a
+/// human-readable error message on parse failure.
+///
+/// No state mutation, no mutex acquisition, no file I/O.
+///
+/// # Errors
+///
+/// Returns [`FfiError::InternalPanic`] if native code panics.
+#[uniffi::export]
+pub fn validate_config(config_toml: String) -> Result<String, FfiError> {
+    catch_unwind(|| runtime::validate_config_inner(config_toml)).unwrap_or_else(|e| {
+        Err(FfiError::InternalPanic {
+            detail: panic_detail(&e),
+        })
+    })
+}
+
+/// Runs channel health checks without starting the daemon.
+///
+/// Parses the TOML config, overrides paths with `data_dir`, then
+/// instantiates each configured channel and calls `health_check()` with
+/// a timeout. Returns a JSON array of channel statuses.
+///
+/// # Errors
+///
+/// Returns [`FfiError::ConfigError`] on TOML parse failure,
+/// [`FfiError::SpawnError`] on channel-check or serialisation failure,
+/// or [`FfiError::InternalPanic`] if native code panics.
+#[uniffi::export]
+pub fn doctor_channels(config_toml: String, data_dir: String) -> Result<String, FfiError> {
+    catch_unwind(|| runtime::doctor_channels_inner(config_toml, data_dir)).unwrap_or_else(|e| {
+        Err(FfiError::InternalPanic {
+            detail: panic_detail(&e),
+        })
+    })
+}
+
 /// Returns the version string of the native library.
 ///
 /// Reads from the crate version set at compile time via `CARGO_PKG_VERSION`.
@@ -188,5 +229,37 @@ mod tests {
         let status = get_status().unwrap();
         let parsed: serde_json::Value = serde_json::from_str(&status).unwrap();
         assert!(parsed.get("daemon_running").is_some());
+    }
+
+    #[test]
+    fn test_validate_config_valid() {
+        let toml = "default_temperature = 0.7\n";
+        let result = validate_config(toml.to_string()).unwrap();
+        assert!(
+            result.is_empty(),
+            "expected empty string for valid config, got: {result}"
+        );
+    }
+
+    #[test]
+    fn test_validate_config_invalid() {
+        let toml = "this is not valid {{{{";
+        let result = validate_config(toml.to_string()).unwrap();
+        assert!(
+            !result.is_empty(),
+            "expected non-empty error message for invalid config"
+        );
+    }
+
+    #[test]
+    fn test_doctor_channels_invalid_toml() {
+        let result = doctor_channels("not valid {{".to_string(), "/tmp/test".to_string());
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            FfiError::ConfigError { detail } => {
+                assert!(detail.contains("failed to parse config TOML"));
+            }
+            other => panic!("expected ConfigError, got {other:?}"),
+        }
     }
 }

@@ -41,6 +41,7 @@ import com.zeroclaw.android.ui.screen.settings.apikeys.ApiKeysScreen
 import com.zeroclaw.android.ui.screen.settings.apikeys.ApiKeysViewModel
 import com.zeroclaw.android.ui.screen.settings.channels.ChannelDetailScreen
 import com.zeroclaw.android.ui.screen.settings.channels.ConnectedChannelsScreen
+import com.zeroclaw.android.ui.screen.settings.doctor.DoctorScreen
 import com.zeroclaw.android.ui.screen.settings.logs.LogViewerScreen
 
 /**
@@ -134,6 +135,7 @@ fun ZeroClawNavHost(
                 onNavigateToApiKeys = { navController.navigate(ApiKeysRoute) },
                 onNavigateToChannels = { navController.navigate(ConnectedChannelsRoute) },
                 onNavigateToLogViewer = { navController.navigate(LogViewerRoute) },
+                onNavigateToDoctor = { navController.navigate(DoctorRoute) },
                 onNavigateToIdentity = { navController.navigate(IdentityRoute) },
                 onNavigateToAbout = { navController.navigate(AboutRoute) },
                 onNavigateToUpdates = { navController.navigate(UpdatesRoute) },
@@ -260,6 +262,10 @@ fun ZeroClawNavHost(
 
         composable<LogViewerRoute> {
             LogViewerScreen(edgeMargin = edgeMargin)
+        }
+
+        composable<DoctorRoute> {
+            DoctorScreen(edgeMargin = edgeMargin)
         }
 
         composable<AboutRoute> {

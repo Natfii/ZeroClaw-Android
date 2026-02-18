@@ -113,6 +113,10 @@ data class AgentChatRoute(
     val agentId: String,
 )
 
+/** ZeroClaw Doctor diagnostics screen. */
+@Serializable
+data object DoctorRoute
+
 /** First-run onboarding wizard. */
 @Serializable
 data object OnboardingRoute
