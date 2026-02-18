@@ -16,6 +16,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.BatteryAlert
+import androidx.compose.material.icons.outlined.Fingerprint
 import androidx.compose.material.icons.outlined.Forum
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Key
@@ -53,6 +54,7 @@ import com.zeroclaw.android.ui.component.SectionHeader
  * @param onNavigateToApiKeys Navigate to API key management.
  * @param onNavigateToChannels Navigate to connected channels management.
  * @param onNavigateToLogViewer Navigate to log viewer.
+ * @param onNavigateToIdentity Navigate to agent identity editor.
  * @param onNavigateToAbout Navigate to about screen.
  * @param onNavigateToUpdates Navigate to updates screen.
  * @param onRerunWizard Callback to reset onboarding and navigate to the setup wizard.
@@ -66,6 +68,7 @@ fun SettingsScreen(
     onNavigateToApiKeys: () -> Unit,
     onNavigateToChannels: () -> Unit,
     onNavigateToLogViewer: () -> Unit,
+    onNavigateToIdentity: () -> Unit,
     onNavigateToAbout: () -> Unit,
     onNavigateToUpdates: () -> Unit,
     onRerunWizard: () -> Unit,
@@ -95,6 +98,12 @@ fun SettingsScreen(
             title = "Battery Settings",
             subtitle = "Optimization exemptions",
             onClick = onNavigateToBattery,
+        )
+        SettingsItem(
+            icon = Icons.Outlined.Fingerprint,
+            title = "Agent Identity",
+            subtitle = "AIEOS identity document",
+            onClick = onNavigateToIdentity,
         )
 
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))

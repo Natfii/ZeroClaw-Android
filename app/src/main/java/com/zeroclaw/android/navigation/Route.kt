@@ -83,6 +83,10 @@ data class ApiKeyDetailRoute(
 @Serializable
 data object LogViewerRoute
 
+/** Agent identity (AIEOS) editor sub-screen. */
+@Serializable
+data object IdentityRoute
+
 /** Connected channels management sub-screen. */
 @Serializable
 data object ConnectedChannelsRoute

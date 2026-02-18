@@ -150,12 +150,28 @@ class ZeroClawDaemonService : Service() {
             val settings = settingsRepository.settings.first()
             val apiKey = apiKeyRepository.getByProviderFresh(settings.defaultProvider)
 
-            val baseToml = ConfigTomlBuilder.build(
+            val fallbackList = settings.fallbackProviders
+                .split(",")
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+            val globalConfig = GlobalTomlConfig(
                 provider = settings.defaultProvider,
                 model = settings.defaultModel,
                 apiKey = apiKey?.key.orEmpty(),
                 baseUrl = apiKey?.baseUrl.orEmpty(),
+                temperature = settings.defaultTemperature,
+                compactContext = settings.compactContext,
+                costEnabled = settings.costEnabled,
+                dailyLimitUsd = settings.dailyLimitUsd,
+                monthlyLimitUsd = settings.monthlyLimitUsd,
+                costWarnAtPercent = settings.costWarnAtPercent,
+                providerRetries = settings.providerRetries,
+                fallbackProviders = fallbackList,
+                memoryBackend = settings.memoryBackend,
+                memoryAutoSave = settings.memoryAutoSave,
+                identityJson = settings.identityJson,
             )
+            val baseToml = ConfigTomlBuilder.build(globalConfig)
             val channelsToml = ConfigTomlBuilder.buildChannelsToml(
                 channelConfigRepository.getEnabledWithSecrets(),
             )
@@ -196,6 +212,8 @@ class ZeroClawDaemonService : Service() {
                     model = agent.modelName,
                     apiKey = agentKey?.key.orEmpty(),
                     systemPrompt = agent.systemPrompt,
+                    temperature = agent.temperature,
+                    maxDepth = agent.maxDepth,
                 )
             }
         return ConfigTomlBuilder.buildAgentsToml(entries)

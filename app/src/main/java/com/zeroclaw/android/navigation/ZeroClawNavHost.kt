@@ -31,6 +31,7 @@ import com.zeroclaw.android.ui.screen.plugins.PluginDetailScreen
 import com.zeroclaw.android.ui.screen.plugins.PluginsScreen
 import com.zeroclaw.android.ui.screen.settings.AboutScreen
 import com.zeroclaw.android.ui.screen.settings.BatterySettingsScreen
+import com.zeroclaw.android.ui.screen.settings.IdentityScreen
 import com.zeroclaw.android.ui.screen.settings.ServiceConfigScreen
 import com.zeroclaw.android.ui.screen.settings.SettingsScreen
 import com.zeroclaw.android.ui.screen.settings.SettingsViewModel
@@ -133,6 +134,7 @@ fun ZeroClawNavHost(
                 onNavigateToApiKeys = { navController.navigate(ApiKeysRoute) },
                 onNavigateToChannels = { navController.navigate(ConnectedChannelsRoute) },
                 onNavigateToLogViewer = { navController.navigate(LogViewerRoute) },
+                onNavigateToIdentity = { navController.navigate(IdentityRoute) },
                 onNavigateToAbout = { navController.navigate(AboutRoute) },
                 onNavigateToUpdates = { navController.navigate(UpdatesRoute) },
                 onRerunWizard = {
@@ -147,6 +149,10 @@ fun ZeroClawNavHost(
 
         composable<ServiceConfigRoute> {
             ServiceConfigScreen(edgeMargin = edgeMargin)
+        }
+
+        composable<IdentityRoute> {
+            IdentityScreen(edgeMargin = edgeMargin)
         }
 
         composable<BatterySettingsRoute> {

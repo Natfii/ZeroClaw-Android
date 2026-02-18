@@ -6,6 +6,7 @@
 
 package com.zeroclaw.android.service
 
+import com.zeroclaw.android.model.Agent
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -170,6 +171,219 @@ class ConfigTomlBuilderTest {
     }
 
     @Nested
+    @DisplayName("build(GlobalTomlConfig)")
+    inner class BuildGlobalConfig {
+
+        @Test
+        @DisplayName("custom temperature is emitted")
+        fun `custom temperature is emitted`() {
+            val toml = ConfigTomlBuilder.build(
+                GlobalTomlConfig(
+                    provider = "openai",
+                    model = "gpt-4o",
+                    apiKey = "sk-test",
+                    baseUrl = "",
+                    temperature = 1.2f,
+                ),
+            )
+            assertTrue(toml.contains("default_temperature = 1.2"))
+            assertFalse(toml.contains("default_temperature = 0.7"))
+        }
+
+        @Test
+        @DisplayName("compact context enabled emits agent section")
+        fun `compact context enabled emits agent section`() {
+            val toml = ConfigTomlBuilder.build(
+                GlobalTomlConfig(
+                    provider = "",
+                    model = "",
+                    apiKey = "",
+                    baseUrl = "",
+                    compactContext = true,
+                ),
+            )
+            assertTrue(toml.contains("[agent]"))
+            assertTrue(toml.contains("compact_context = true"))
+        }
+
+        @Test
+        @DisplayName("compact context disabled omits agent section")
+        fun `compact context disabled omits agent section`() {
+            val toml = ConfigTomlBuilder.build(
+                GlobalTomlConfig(
+                    provider = "",
+                    model = "",
+                    apiKey = "",
+                    baseUrl = "",
+                    compactContext = false,
+                ),
+            )
+            assertFalse(toml.contains("[agent]"))
+        }
+
+        @Test
+        @DisplayName("cost enabled emits cost section")
+        fun `cost enabled emits cost section`() {
+            val toml = ConfigTomlBuilder.build(
+                GlobalTomlConfig(
+                    provider = "",
+                    model = "",
+                    apiKey = "",
+                    baseUrl = "",
+                    costEnabled = true,
+                    dailyLimitUsd = 5f,
+                    monthlyLimitUsd = 50f,
+                    costWarnAtPercent = 75,
+                ),
+            )
+            assertTrue(toml.contains("[cost]"))
+            assertTrue(toml.contains("enabled = true"))
+            assertTrue(toml.contains("daily_limit_usd = 5.0"))
+            assertTrue(toml.contains("monthly_limit_usd = 50.0"))
+            assertTrue(toml.contains("warn_at_percent = 75"))
+        }
+
+        @Test
+        @DisplayName("cost disabled omits cost section")
+        fun `cost disabled omits cost section`() {
+            val toml = ConfigTomlBuilder.build(
+                GlobalTomlConfig(
+                    provider = "",
+                    model = "",
+                    apiKey = "",
+                    baseUrl = "",
+                    costEnabled = false,
+                ),
+            )
+            assertFalse(toml.contains("[cost]"))
+        }
+
+        @Test
+        @DisplayName("identity JSON emits identity section")
+        fun `identity JSON emits identity section`() {
+            val json = """{"name":"TestBot"}"""
+            val toml = ConfigTomlBuilder.build(
+                GlobalTomlConfig(
+                    provider = "",
+                    model = "",
+                    apiKey = "",
+                    baseUrl = "",
+                    identityJson = json,
+                ),
+            )
+            assertTrue(toml.contains("[identity]"))
+            assertTrue(toml.contains("""format = "aieos""""))
+            assertTrue(toml.contains("aieos_inline"))
+        }
+
+        @Test
+        @DisplayName("blank identity JSON omits identity section")
+        fun `blank identity JSON omits identity section`() {
+            val toml = ConfigTomlBuilder.build(
+                GlobalTomlConfig(
+                    provider = "",
+                    model = "",
+                    apiKey = "",
+                    baseUrl = "",
+                    identityJson = "",
+                ),
+            )
+            assertFalse(toml.contains("[identity]"))
+        }
+
+        @Test
+        @DisplayName("memory backend is always emitted")
+        fun `memory backend is always emitted`() {
+            val toml = ConfigTomlBuilder.build(
+                GlobalTomlConfig(
+                    provider = "",
+                    model = "",
+                    apiKey = "",
+                    baseUrl = "",
+                    memoryBackend = "lucid",
+                ),
+            )
+            assertTrue(toml.contains("[memory]"))
+            assertTrue(toml.contains("""backend = "lucid""""))
+        }
+
+        @Test
+        @DisplayName("memory auto_save defaults to true")
+        fun `memory auto_save defaults to true`() {
+            val toml = ConfigTomlBuilder.build(
+                GlobalTomlConfig(
+                    provider = "",
+                    model = "",
+                    apiKey = "",
+                    baseUrl = "",
+                ),
+            )
+            assertTrue(toml.contains("auto_save = true"))
+        }
+
+        @Test
+        @DisplayName("memory auto_save false is emitted")
+        fun `memory auto_save false is emitted`() {
+            val toml = ConfigTomlBuilder.build(
+                GlobalTomlConfig(
+                    provider = "",
+                    model = "",
+                    apiKey = "",
+                    baseUrl = "",
+                    memoryAutoSave = false,
+                ),
+            )
+            assertTrue(toml.contains("auto_save = false"))
+        }
+
+        @Test
+        @DisplayName("non-default retries emit reliability section")
+        fun `non-default retries emit reliability section`() {
+            val toml = ConfigTomlBuilder.build(
+                GlobalTomlConfig(
+                    provider = "",
+                    model = "",
+                    apiKey = "",
+                    baseUrl = "",
+                    providerRetries = 5,
+                ),
+            )
+            assertTrue(toml.contains("[reliability]"))
+            assertTrue(toml.contains("provider_retries = 5"))
+        }
+
+        @Test
+        @DisplayName("fallback providers emit reliability section")
+        fun `fallback providers emit reliability section`() {
+            val toml = ConfigTomlBuilder.build(
+                GlobalTomlConfig(
+                    provider = "",
+                    model = "",
+                    apiKey = "",
+                    baseUrl = "",
+                    fallbackProviders = listOf("groq", "anthropic"),
+                ),
+            )
+            assertTrue(toml.contains("[reliability]"))
+            assertTrue(toml.contains("""fallback_providers = ["groq", "anthropic"]"""))
+        }
+
+        @Test
+        @DisplayName("default retries and no fallbacks omit reliability section")
+        fun `default values omit reliability section`() {
+            val toml = ConfigTomlBuilder.build(
+                GlobalTomlConfig(
+                    provider = "",
+                    model = "",
+                    apiKey = "",
+                    baseUrl = "",
+                ),
+            )
+            assertFalse(toml.contains("[reliability]"))
+        }
+    }
+
+    @Nested
     @DisplayName("buildAgentsToml()")
     inner class BuildAgentsToml {
 
@@ -291,6 +505,66 @@ class ConfigTomlBuilderTest {
             assertTrue(toml.contains("""\n"""))
             assertTrue(toml.contains("""\t"""))
             assertTrue(toml.contains("""\""""))
+        }
+
+        @Test
+        @DisplayName("agent with temperature emits temperature field")
+        fun `agent with temperature emits temperature field`() {
+            val entries = listOf(
+                AgentTomlEntry(
+                    name = "warm",
+                    provider = "openai",
+                    model = "gpt-4o",
+                    temperature = 1.5f,
+                ),
+            )
+            val toml = ConfigTomlBuilder.buildAgentsToml(entries)
+            assertTrue(toml.contains("temperature = 1.5"))
+        }
+
+        @Test
+        @DisplayName("agent without temperature omits temperature field")
+        fun `agent without temperature omits temperature field`() {
+            val entries = listOf(
+                AgentTomlEntry(
+                    name = "default",
+                    provider = "openai",
+                    model = "gpt-4o",
+                    temperature = null,
+                ),
+            )
+            val toml = ConfigTomlBuilder.buildAgentsToml(entries)
+            assertFalse(toml.contains("temperature"))
+        }
+
+        @Test
+        @DisplayName("agent with non-default maxDepth emits max_depth field")
+        fun `agent with non-default maxDepth emits max_depth field`() {
+            val entries = listOf(
+                AgentTomlEntry(
+                    name = "deep",
+                    provider = "openai",
+                    model = "gpt-4o",
+                    maxDepth = 7,
+                ),
+            )
+            val toml = ConfigTomlBuilder.buildAgentsToml(entries)
+            assertTrue(toml.contains("max_depth = 7"))
+        }
+
+        @Test
+        @DisplayName("agent with default maxDepth omits max_depth field")
+        fun `agent with default maxDepth omits max_depth field`() {
+            val entries = listOf(
+                AgentTomlEntry(
+                    name = "shallow",
+                    provider = "openai",
+                    model = "gpt-4o",
+                    maxDepth = Agent.DEFAULT_MAX_DEPTH,
+                ),
+            )
+            val toml = ConfigTomlBuilder.buildAgentsToml(entries)
+            assertFalse(toml.contains("max_depth"))
         }
     }
 

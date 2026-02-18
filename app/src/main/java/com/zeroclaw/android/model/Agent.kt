@@ -18,6 +18,8 @@ import kotlinx.serialization.Serializable
  * @property isEnabled Whether the agent is active and available.
  * @property systemPrompt Optional system prompt for the agent.
  * @property channels Communication channels configured for this agent.
+ * @property temperature Per-agent temperature override; null inherits the global default.
+ * @property maxDepth Maximum reasoning depth for the agent.
  */
 data class Agent(
     val id: String,
@@ -27,7 +29,15 @@ data class Agent(
     val isEnabled: Boolean = true,
     val systemPrompt: String = "",
     val channels: List<ChannelConfig> = emptyList(),
-)
+    val temperature: Float? = null,
+    val maxDepth: Int = DEFAULT_MAX_DEPTH,
+) {
+    /** Constants for [Agent]. */
+    companion object {
+        /** Default maximum reasoning depth. */
+        const val DEFAULT_MAX_DEPTH = 3
+    }
+}
 
 /**
  * Configuration for a single communication channel on an agent.

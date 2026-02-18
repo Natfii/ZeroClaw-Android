@@ -6,6 +6,7 @@
 
 package com.zeroclaw.android.service
 
+import com.zeroclaw.android.model.Agent
 import com.zeroclaw.android.model.ConnectedChannel
 import com.zeroclaw.android.model.FieldInputType
 
@@ -15,11 +16,16 @@ import com.zeroclaw.android.model.FieldInputType
  * All provider/URL resolution is performed before constructing this class
  * so that [ConfigTomlBuilder.buildAgentsToml] only needs to emit values.
  *
+ * Upstream `[agents.<name>]` supports `temperature` (`Option<f64>`) and
+ * `max_depth` (`u32`) — see `.claude/submodule-api-map.md` lines 235–236.
+ *
  * @property name Agent name used as the TOML table key (`[agents.<name>]`).
  * @property provider Resolved upstream factory name (e.g. `"custom:http://host/v1"`).
  * @property model Model identifier (e.g. `"google/gemma-3-12b"`).
  * @property apiKey Decrypted API key value; blank if the provider needs none.
  * @property systemPrompt Agent system prompt; blank if not configured.
+ * @property temperature Per-agent temperature override; null omits the field.
+ * @property maxDepth Maximum reasoning depth; default omits the field.
  */
 data class AgentTomlEntry(
     val name: String,
@@ -27,7 +33,78 @@ data class AgentTomlEntry(
     val model: String,
     val apiKey: String = "",
     val systemPrompt: String = "",
+    val temperature: Float? = null,
+    val maxDepth: Int = Agent.DEFAULT_MAX_DEPTH,
 )
+
+/**
+ * Aggregated global configuration values for TOML generation.
+ *
+ * Grouping these fields into a single data class avoids exceeding the
+ * detekt `LongParameterList` threshold (6 parameters).
+ *
+ * Upstream sections mapped (see `.claude/submodule-api-map.md`):
+ * - `default_temperature` (line 219)
+ * - `[agent]` compact_context (line 225)
+ * - `[cost]` (lines 414–420)
+ * - `[reliability]` provider_retries, fallback_providers (lines 286–289)
+ * - `[memory]` backend (line 315)
+ * - `[identity]` aieos_inline (lines 405–410)
+ *
+ * @property provider Android provider ID (e.g. "openai", "lmstudio").
+ * @property model Model name (e.g. "gpt-4o").
+ * @property apiKey Secret API key value.
+ * @property baseUrl Provider endpoint URL.
+ * @property temperature Default inference temperature (0.0–2.0).
+ * @property compactContext Whether compact context mode is enabled.
+ * @property costEnabled Whether cost limits are enforced.
+ * @property dailyLimitUsd Daily spending cap in USD.
+ * @property monthlyLimitUsd Monthly spending cap in USD.
+ * @property costWarnAtPercent Percentage of limit at which to warn.
+ * @property providerRetries Number of retries before fallback.
+ * @property fallbackProviders Ordered list of fallback provider IDs.
+ * @property memoryBackend Memory backend name.
+ * @property memoryAutoSave Whether the memory backend auto-saves conversation context.
+ * @property identityJson AIEOS v1.1 identity JSON blob.
+ */
+data class GlobalTomlConfig(
+    val provider: String,
+    val model: String,
+    val apiKey: String,
+    val baseUrl: String,
+    val temperature: Float = DEFAULT_GLOBAL_TEMPERATURE,
+    val compactContext: Boolean = false,
+    val costEnabled: Boolean = false,
+    val dailyLimitUsd: Float = DEFAULT_DAILY_LIMIT,
+    val monthlyLimitUsd: Float = DEFAULT_MONTHLY_LIMIT,
+    val costWarnAtPercent: Int = DEFAULT_WARN_PERCENT,
+    val providerRetries: Int = DEFAULT_RETRIES,
+    val fallbackProviders: List<String> = emptyList(),
+    val memoryBackend: String = DEFAULT_MEMORY,
+    val memoryAutoSave: Boolean = true,
+    val identityJson: String = "",
+) {
+    /** Constants for [GlobalTomlConfig]. */
+    companion object {
+        /** Default inference temperature. */
+        const val DEFAULT_GLOBAL_TEMPERATURE = 0.7f
+
+        /** Default daily cost limit in USD. */
+        const val DEFAULT_DAILY_LIMIT = 10f
+
+        /** Default monthly cost limit in USD. */
+        const val DEFAULT_MONTHLY_LIMIT = 100f
+
+        /** Default cost warning threshold percentage. */
+        const val DEFAULT_WARN_PERCENT = 80
+
+        /** Default number of provider retries. */
+        const val DEFAULT_RETRIES = 2
+
+        /** Default memory backend. */
+        const val DEFAULT_MEMORY = "sqlite"
+    }
+}
 
 /**
  * Builds a valid TOML configuration string for the ZeroClaw daemon.
@@ -88,19 +165,38 @@ object ConfigTomlBuilder {
         model: String,
         apiKey: String,
         baseUrl: String,
-    ): String = buildString {
-        appendLine("default_temperature = $DEFAULT_TEMPERATURE")
+    ): String = build(
+        GlobalTomlConfig(
+            provider = provider,
+            model = model,
+            apiKey = apiKey,
+            baseUrl = baseUrl,
+        ),
+    )
 
-        val resolvedProvider = resolveProvider(provider, baseUrl)
+    /**
+     * Builds a complete TOML configuration string from a [GlobalTomlConfig].
+     *
+     * Emits all upstream-supported sections conditionally based on the
+     * config values. Sections with only default values are omitted to
+     * keep the TOML output minimal.
+     *
+     * @param config Aggregated global configuration values.
+     * @return A valid TOML configuration string.
+     */
+    fun build(config: GlobalTomlConfig): String = buildString {
+        appendLine("default_temperature = ${config.temperature}")
+
+        val resolvedProvider = resolveProvider(config.provider, config.baseUrl)
         if (resolvedProvider.isNotBlank()) {
             appendLine("default_provider = ${tomlString(resolvedProvider)}")
         }
 
-        if (model.isNotBlank()) {
-            appendLine("default_model = ${tomlString(model)}")
+        if (config.model.isNotBlank()) {
+            appendLine("default_model = ${tomlString(config.model)}")
         }
 
-        val effectiveKey = apiKey.ifBlank {
+        val effectiveKey = config.apiKey.ifBlank {
             if (needsPlaceholderKey(resolvedProvider)) PLACEHOLDER_API_KEY else ""
         }
         if (effectiveKey.isNotBlank()) {
@@ -110,6 +206,58 @@ object ConfigTomlBuilder {
         appendLine()
         appendLine("[gateway]")
         appendLine("require_pairing = false")
+
+        if (config.compactContext) {
+            appendLine()
+            appendLine("[agent]")
+            appendLine("compact_context = true")
+        }
+
+        appendLine()
+        appendLine("[memory]")
+        appendLine("backend = ${tomlString(config.memoryBackend)}")
+        appendLine("auto_save = ${config.memoryAutoSave}")
+
+        if (config.identityJson.isNotBlank()) {
+            appendLine()
+            appendLine("[identity]")
+            appendLine("format = \"aieos\"")
+            appendLine("aieos_inline = ${tomlString(config.identityJson)}")
+        }
+
+        if (config.costEnabled) {
+            appendLine()
+            appendLine("[cost]")
+            appendLine("enabled = true")
+            appendLine("daily_limit_usd = ${config.dailyLimitUsd}")
+            appendLine("monthly_limit_usd = ${config.monthlyLimitUsd}")
+            appendLine("warn_at_percent = ${config.costWarnAtPercent}")
+        }
+
+        appendReliabilitySection(config)
+    }
+
+    /**
+     * Appends the `[reliability]` TOML section when non-default values exist.
+     *
+     * @param config Configuration to read reliability values from.
+     */
+    private fun StringBuilder.appendReliabilitySection(config: GlobalTomlConfig) {
+        val hasCustomRetries =
+            config.providerRetries != GlobalTomlConfig.DEFAULT_RETRIES
+        val hasFallbacks = config.fallbackProviders.isNotEmpty()
+        if (!hasCustomRetries && !hasFallbacks) return
+
+        appendLine()
+        appendLine("[reliability]")
+        if (hasCustomRetries) {
+            appendLine("provider_retries = ${config.providerRetries}")
+        }
+        if (hasFallbacks) {
+            val list = config.fallbackProviders
+                .joinToString(", ") { tomlString(it) }
+            appendLine("fallback_providers = [$list]")
+        }
     }
 
     /**
@@ -169,6 +317,12 @@ object ConfigTomlBuilder {
                 }
                 if (effectiveKey.isNotBlank()) {
                     appendLine("api_key = ${tomlString(effectiveKey)}")
+                }
+                if (entry.temperature != null) {
+                    appendLine("temperature = ${entry.temperature}")
+                }
+                if (entry.maxDepth != Agent.DEFAULT_MAX_DEPTH) {
+                    appendLine("max_depth = ${entry.maxDepth}")
                 }
             }
         }

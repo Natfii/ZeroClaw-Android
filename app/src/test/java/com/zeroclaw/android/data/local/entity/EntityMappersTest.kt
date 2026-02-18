@@ -83,6 +83,48 @@ class EntityMappersTest {
     }
 
     @Test
+    fun `agent with temperature round-trips correctly`() {
+        val agent = Agent(
+            id = "a5",
+            name = "Warm Agent",
+            provider = "OpenAI",
+            modelName = "gpt-4o",
+            temperature = 1.5f,
+        )
+
+        val roundTripped = agent.toEntity().toModel()
+        assertEquals(1.5f, roundTripped.temperature)
+    }
+
+    @Test
+    fun `agent with null temperature round-trips correctly`() {
+        val agent = Agent(
+            id = "a6",
+            name = "Default Agent",
+            provider = "OpenAI",
+            modelName = "gpt-4o",
+            temperature = null,
+        )
+
+        val roundTripped = agent.toEntity().toModel()
+        assertEquals(null, roundTripped.temperature)
+    }
+
+    @Test
+    fun `agent with custom maxDepth round-trips correctly`() {
+        val agent = Agent(
+            id = "a7",
+            name = "Deep Agent",
+            provider = "OpenAI",
+            modelName = "gpt-4o",
+            maxDepth = 7,
+        )
+
+        val roundTripped = agent.toEntity().toModel()
+        assertEquals(7, roundTripped.maxDepth)
+    }
+
+    @Test
     fun `plugin round-trip preserves all fields`() {
         val plugin = Plugin(
             id = "p1",

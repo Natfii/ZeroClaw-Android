@@ -11,6 +11,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -47,6 +48,23 @@ class DataStoreSettingsRepository(
                     } ?: LogLevel.INFO,
                 defaultProvider = prefs[KEY_DEFAULT_PROVIDER] ?: "",
                 defaultModel = prefs[KEY_DEFAULT_MODEL] ?: "",
+                defaultTemperature = prefs[KEY_DEFAULT_TEMPERATURE]
+                    ?: AppSettings.DEFAULT_TEMPERATURE,
+                compactContext = prefs[KEY_COMPACT_CONTEXT] ?: false,
+                costEnabled = prefs[KEY_COST_ENABLED] ?: false,
+                dailyLimitUsd = prefs[KEY_DAILY_LIMIT_USD]
+                    ?: AppSettings.DEFAULT_DAILY_LIMIT_USD,
+                monthlyLimitUsd = prefs[KEY_MONTHLY_LIMIT_USD]
+                    ?: AppSettings.DEFAULT_MONTHLY_LIMIT_USD,
+                costWarnAtPercent = prefs[KEY_COST_WARN_PERCENT]
+                    ?: AppSettings.DEFAULT_COST_WARN_PERCENT,
+                providerRetries = prefs[KEY_PROVIDER_RETRIES]
+                    ?: AppSettings.DEFAULT_PROVIDER_RETRIES,
+                fallbackProviders = prefs[KEY_FALLBACK_PROVIDERS] ?: "",
+                memoryBackend = prefs[KEY_MEMORY_BACKEND]
+                    ?: AppSettings.DEFAULT_MEMORY_BACKEND,
+                memoryAutoSave = prefs[KEY_MEMORY_AUTO_SAVE] ?: true,
+                identityJson = prefs[KEY_IDENTITY_JSON] ?: "",
             )
         }
 
@@ -86,6 +104,72 @@ class DataStoreSettingsRepository(
         }
     }
 
+    override suspend fun setDefaultTemperature(temperature: Float) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[KEY_DEFAULT_TEMPERATURE] = temperature
+        }
+    }
+
+    override suspend fun setCompactContext(enabled: Boolean) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[KEY_COMPACT_CONTEXT] = enabled
+        }
+    }
+
+    override suspend fun setCostEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[KEY_COST_ENABLED] = enabled
+        }
+    }
+
+    override suspend fun setDailyLimitUsd(limit: Float) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[KEY_DAILY_LIMIT_USD] = limit
+        }
+    }
+
+    override suspend fun setMonthlyLimitUsd(limit: Float) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[KEY_MONTHLY_LIMIT_USD] = limit
+        }
+    }
+
+    override suspend fun setCostWarnAtPercent(percent: Int) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[KEY_COST_WARN_PERCENT] = percent
+        }
+    }
+
+    override suspend fun setProviderRetries(retries: Int) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[KEY_PROVIDER_RETRIES] = retries
+        }
+    }
+
+    override suspend fun setFallbackProviders(providers: String) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[KEY_FALLBACK_PROVIDERS] = providers
+        }
+    }
+
+    override suspend fun setMemoryBackend(backend: String) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[KEY_MEMORY_BACKEND] = backend
+        }
+    }
+
+    override suspend fun setMemoryAutoSave(enabled: Boolean) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[KEY_MEMORY_AUTO_SAVE] = enabled
+        }
+    }
+
+    override suspend fun setIdentityJson(json: String) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[KEY_IDENTITY_JSON] = json
+        }
+    }
+
     /** DataStore preference keys for [DataStoreSettingsRepository]. */
     companion object {
         /** Preference key for the gateway host address. */
@@ -105,5 +189,38 @@ class DataStoreSettingsRepository(
 
         /** Preference key for the default model name. */
         val KEY_DEFAULT_MODEL = stringPreferencesKey("default_model")
+
+        /** Preference key for the default inference temperature. */
+        val KEY_DEFAULT_TEMPERATURE = floatPreferencesKey("default_temperature")
+
+        /** Preference key for compact context mode. */
+        val KEY_COMPACT_CONTEXT = booleanPreferencesKey("compact_context")
+
+        /** Preference key for cost limit enforcement. */
+        val KEY_COST_ENABLED = booleanPreferencesKey("cost_enabled")
+
+        /** Preference key for daily cost limit. */
+        val KEY_DAILY_LIMIT_USD = floatPreferencesKey("daily_limit_usd")
+
+        /** Preference key for monthly cost limit. */
+        val KEY_MONTHLY_LIMIT_USD = floatPreferencesKey("monthly_limit_usd")
+
+        /** Preference key for cost warning threshold. */
+        val KEY_COST_WARN_PERCENT = intPreferencesKey("cost_warn_at_percent")
+
+        /** Preference key for provider retries. */
+        val KEY_PROVIDER_RETRIES = intPreferencesKey("provider_retries")
+
+        /** Preference key for fallback providers. */
+        val KEY_FALLBACK_PROVIDERS = stringPreferencesKey("fallback_providers")
+
+        /** Preference key for memory backend. */
+        val KEY_MEMORY_BACKEND = stringPreferencesKey("memory_backend")
+
+        /** Preference key for memory auto-save. */
+        val KEY_MEMORY_AUTO_SAVE = booleanPreferencesKey("memory_auto_save")
+
+        /** Preference key for AIEOS identity JSON. */
+        val KEY_IDENTITY_JSON = stringPreferencesKey("identity_json")
     }
 }

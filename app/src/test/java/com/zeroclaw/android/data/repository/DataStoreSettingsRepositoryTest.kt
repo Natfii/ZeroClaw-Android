@@ -81,6 +81,94 @@ class DataStoreSettingsRepositoryTest {
         assertEquals(true, settings.autoStartOnBoot)
         assertEquals(LogLevel.DEBUG, settings.logLevel)
     }
+
+    @Test
+    @DisplayName("setDefaultTemperature persists and emits updated value")
+    fun `setDefaultTemperature persists and emits updated value`() = runTest {
+        val repo = InMemorySettingsRepository()
+        repo.setDefaultTemperature(1.5f)
+        assertEquals(1.5f, repo.settings.first().defaultTemperature)
+    }
+
+    @Test
+    @DisplayName("setCompactContext persists and emits updated value")
+    fun `setCompactContext persists and emits updated value`() = runTest {
+        val repo = InMemorySettingsRepository()
+        repo.setCompactContext(true)
+        assertEquals(true, repo.settings.first().compactContext)
+    }
+
+    @Test
+    @DisplayName("setCostEnabled persists and emits updated value")
+    fun `setCostEnabled persists and emits updated value`() = runTest {
+        val repo = InMemorySettingsRepository()
+        repo.setCostEnabled(true)
+        assertEquals(true, repo.settings.first().costEnabled)
+    }
+
+    @Test
+    @DisplayName("setDailyLimitUsd persists and emits updated value")
+    fun `setDailyLimitUsd persists and emits updated value`() = runTest {
+        val repo = InMemorySettingsRepository()
+        repo.setDailyLimitUsd(25f)
+        assertEquals(25f, repo.settings.first().dailyLimitUsd)
+    }
+
+    @Test
+    @DisplayName("setMonthlyLimitUsd persists and emits updated value")
+    fun `setMonthlyLimitUsd persists and emits updated value`() = runTest {
+        val repo = InMemorySettingsRepository()
+        repo.setMonthlyLimitUsd(200f)
+        assertEquals(200f, repo.settings.first().monthlyLimitUsd)
+    }
+
+    @Test
+    @DisplayName("setCostWarnAtPercent persists and emits updated value")
+    fun `setCostWarnAtPercent persists and emits updated value`() = runTest {
+        val repo = InMemorySettingsRepository()
+        repo.setCostWarnAtPercent(90)
+        assertEquals(90, repo.settings.first().costWarnAtPercent)
+    }
+
+    @Test
+    @DisplayName("setProviderRetries persists and emits updated value")
+    fun `setProviderRetries persists and emits updated value`() = runTest {
+        val repo = InMemorySettingsRepository()
+        repo.setProviderRetries(5)
+        assertEquals(5, repo.settings.first().providerRetries)
+    }
+
+    @Test
+    @DisplayName("setFallbackProviders persists and emits updated value")
+    fun `setFallbackProviders persists and emits updated value`() = runTest {
+        val repo = InMemorySettingsRepository()
+        repo.setFallbackProviders("groq, anthropic")
+        assertEquals("groq, anthropic", repo.settings.first().fallbackProviders)
+    }
+
+    @Test
+    @DisplayName("setMemoryBackend persists and emits updated value")
+    fun `setMemoryBackend persists and emits updated value`() = runTest {
+        val repo = InMemorySettingsRepository()
+        repo.setMemoryBackend("markdown")
+        assertEquals("markdown", repo.settings.first().memoryBackend)
+    }
+
+    @Test
+    @DisplayName("setMemoryAutoSave persists and emits updated value")
+    fun `setMemoryAutoSave persists and emits updated value`() = runTest {
+        val repo = InMemorySettingsRepository()
+        repo.setMemoryAutoSave(false)
+        assertEquals(false, repo.settings.first().memoryAutoSave)
+    }
+
+    @Test
+    @DisplayName("setIdentityJson persists and emits updated value")
+    fun `setIdentityJson persists and emits updated value`() = runTest {
+        val repo = InMemorySettingsRepository()
+        repo.setIdentityJson("""{"name":"TestBot"}""")
+        assertEquals("""{"name":"TestBot"}""", repo.settings.first().identityJson)
+    }
 }
 
 /**
@@ -115,5 +203,49 @@ private class InMemorySettingsRepository : SettingsRepository {
 
     override suspend fun setDefaultModel(model: String) {
         _settings.update { it.copy(defaultModel = model) }
+    }
+
+    override suspend fun setDefaultTemperature(temperature: Float) {
+        _settings.update { it.copy(defaultTemperature = temperature) }
+    }
+
+    override suspend fun setCompactContext(enabled: Boolean) {
+        _settings.update { it.copy(compactContext = enabled) }
+    }
+
+    override suspend fun setCostEnabled(enabled: Boolean) {
+        _settings.update { it.copy(costEnabled = enabled) }
+    }
+
+    override suspend fun setDailyLimitUsd(limit: Float) {
+        _settings.update { it.copy(dailyLimitUsd = limit) }
+    }
+
+    override suspend fun setMonthlyLimitUsd(limit: Float) {
+        _settings.update { it.copy(monthlyLimitUsd = limit) }
+    }
+
+    override suspend fun setCostWarnAtPercent(percent: Int) {
+        _settings.update { it.copy(costWarnAtPercent = percent) }
+    }
+
+    override suspend fun setProviderRetries(retries: Int) {
+        _settings.update { it.copy(providerRetries = retries) }
+    }
+
+    override suspend fun setFallbackProviders(providers: String) {
+        _settings.update { it.copy(fallbackProviders = providers) }
+    }
+
+    override suspend fun setMemoryBackend(backend: String) {
+        _settings.update { it.copy(memoryBackend = backend) }
+    }
+
+    override suspend fun setMemoryAutoSave(enabled: Boolean) {
+        _settings.update { it.copy(memoryAutoSave = enabled) }
+    }
+
+    override suspend fun setIdentityJson(json: String) {
+        _settings.update { it.copy(identityJson = json) }
     }
 }

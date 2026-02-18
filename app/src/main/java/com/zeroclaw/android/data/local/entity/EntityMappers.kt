@@ -41,6 +41,8 @@ fun AgentEntity.toModel(): Agent =
         isEnabled = isEnabled,
         systemPrompt = systemPrompt,
         channels = deserializeChannels(channelsJson),
+        temperature = temperature,
+        maxDepth = maxDepth,
     )
 
 /**
@@ -58,6 +60,8 @@ fun Agent.toEntity(): AgentEntity =
         isEnabled = isEnabled,
         systemPrompt = systemPrompt,
         channelsJson = mapperJson.encodeToString(channels),
+        temperature = temperature,
+        maxDepth = maxDepth,
     )
 
 /**

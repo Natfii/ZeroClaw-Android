@@ -17,12 +17,21 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
@@ -32,10 +41,27 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.zeroclaw.android.model.AppSettings
 import com.zeroclaw.android.ui.component.SectionHeader
 
+/** Maximum slider value for temperature. */
+private const val TEMPERATURE_MAX = 2.0f
+
+/** Step size for temperature slider. */
+private const val TEMPERATURE_STEP = 0.1f
+
+/** Number of steps for temperature slider. */
+private const val TEMPERATURE_STEPS = 20
+
+/** Minimum touch target height for interactive rows. */
+private const val MIN_TOUCH_TARGET_DP = 48
+
+/** Available memory backend options. */
+private val MEMORY_BACKENDS = listOf("sqlite", "none", "markdown", "lucid")
+
 /**
- * Service configuration sub-screen for host, port, and auto-start settings.
+ * Service configuration sub-screen for host, port, auto-start,
+ * inference, memory, reliability, and cost settings.
  *
  * @param edgeMargin Horizontal padding based on window width size class.
  * @param settingsViewModel The shared [SettingsViewModel].
@@ -108,6 +134,233 @@ fun ServiceConfigScreen(
             )
         }
 
+        InferenceSection(settings = settings, viewModel = settingsViewModel)
+        MemorySection(settings = settings, viewModel = settingsViewModel)
+        ReliabilitySection(settings = settings, viewModel = settingsViewModel)
+        CostLimitsSection(settings = settings, viewModel = settingsViewModel)
+
         Spacer(modifier = Modifier.height(16.dp))
+    }
+}
+
+/**
+ * Inference settings section: temperature slider and compact context toggle.
+ *
+ * @param settings Current application settings.
+ * @param viewModel The [SettingsViewModel] for persisting changes.
+ */
+@Composable
+private fun InferenceSection(
+    settings: AppSettings,
+    viewModel: SettingsViewModel,
+) {
+    SectionHeader(title = "Inference")
+
+    Text(
+        text = "Temperature: ${"%.1f".format(settings.defaultTemperature)}",
+        style = MaterialTheme.typography.bodyLarge,
+    )
+    Slider(
+        value = settings.defaultTemperature,
+        onValueChange = { viewModel.updateDefaultTemperature(it) },
+        valueRange = 0f..TEMPERATURE_MAX,
+        steps = TEMPERATURE_STEPS - 1,
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics { contentDescription = "Temperature slider" },
+    )
+
+    ToggleRow(
+        title = "Compact context",
+        subtitle = "Reduce token usage by compressing conversation context",
+        checked = settings.compactContext,
+        onCheckedChange = { viewModel.updateCompactContext(it) },
+        description = "Compact context",
+    )
+}
+
+/**
+ * Memory backend dropdown section.
+ *
+ * @param settings Current application settings.
+ * @param viewModel The [SettingsViewModel] for persisting changes.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MemorySection(
+    settings: AppSettings,
+    viewModel: SettingsViewModel,
+) {
+    SectionHeader(title = "Memory")
+
+    var expanded by remember { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+    ) {
+        OutlinedTextField(
+            value = settings.memoryBackend,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("Backend") },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+            modifier = Modifier
+                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                .fillMaxWidth(),
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            for (backend in MEMORY_BACKENDS) {
+                DropdownMenuItem(
+                    text = { Text(backend) },
+                    onClick = {
+                        viewModel.updateMemoryBackend(backend)
+                        expanded = false
+                    },
+                )
+            }
+        }
+    }
+
+    ToggleRow(
+        title = "Auto-save",
+        subtitle = "Automatically save conversation context to memory",
+        checked = settings.memoryAutoSave,
+        onCheckedChange = { viewModel.updateMemoryAutoSave(it) },
+        description = "Memory auto-save",
+    )
+}
+
+/**
+ * Reliability settings section: retries and fallback providers.
+ *
+ * @param settings Current application settings.
+ * @param viewModel The [SettingsViewModel] for persisting changes.
+ */
+@Composable
+private fun ReliabilitySection(
+    settings: AppSettings,
+    viewModel: SettingsViewModel,
+) {
+    SectionHeader(title = "Reliability")
+
+    OutlinedTextField(
+        value = settings.providerRetries.toString(),
+        onValueChange = { value ->
+            value.toIntOrNull()?.let { viewModel.updateProviderRetries(it) }
+        },
+        label = { Text("Provider retries") },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        modifier = Modifier.fillMaxWidth(),
+    )
+
+    OutlinedTextField(
+        value = settings.fallbackProviders,
+        onValueChange = { viewModel.updateFallbackProviders(it) },
+        label = { Text("Fallback providers") },
+        supportingText = { Text("Comma-separated (e.g. groq, anthropic)") },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
+/**
+ * Cost limits settings section: enable toggle, daily/monthly limits, and
+ * warning threshold.
+ *
+ * @param settings Current application settings.
+ * @param viewModel The [SettingsViewModel] for persisting changes.
+ */
+@Composable
+private fun CostLimitsSection(
+    settings: AppSettings,
+    viewModel: SettingsViewModel,
+) {
+    SectionHeader(title = "Cost Limits")
+
+    ToggleRow(
+        title = "Enable cost limits",
+        subtitle = "Enforce daily and monthly spending caps",
+        checked = settings.costEnabled,
+        onCheckedChange = { viewModel.updateCostEnabled(it) },
+        description = "Enable cost limits",
+    )
+
+    OutlinedTextField(
+        value = settings.dailyLimitUsd.toString(),
+        onValueChange = { value ->
+            value.toFloatOrNull()?.let { viewModel.updateDailyLimitUsd(it) }
+        },
+        label = { Text("Daily limit (USD)") },
+        singleLine = true,
+        enabled = settings.costEnabled,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        modifier = Modifier.fillMaxWidth(),
+    )
+
+    OutlinedTextField(
+        value = settings.monthlyLimitUsd.toString(),
+        onValueChange = { value ->
+            value.toFloatOrNull()?.let { viewModel.updateMonthlyLimitUsd(it) }
+        },
+        label = { Text("Monthly limit (USD)") },
+        singleLine = true,
+        enabled = settings.costEnabled,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        modifier = Modifier.fillMaxWidth(),
+    )
+
+    OutlinedTextField(
+        value = settings.costWarnAtPercent.toString(),
+        onValueChange = { value ->
+            value.toIntOrNull()?.let { viewModel.updateCostWarnAtPercent(it) }
+        },
+        label = { Text("Warn at (%)") },
+        singleLine = true,
+        enabled = settings.costEnabled,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
+/**
+ * Reusable toggle row with title, subtitle, and switch.
+ *
+ * @param title Primary label.
+ * @param subtitle Secondary description.
+ * @param checked Current toggle state.
+ * @param onCheckedChange Callback for toggle changes.
+ * @param description Accessibility content description for the switch.
+ */
+@Composable
+private fun ToggleRow(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    description: String,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = title, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            modifier = Modifier.semantics { contentDescription = description },
+        )
     }
 }

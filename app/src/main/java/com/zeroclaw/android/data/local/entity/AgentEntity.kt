@@ -23,6 +23,8 @@ import androidx.room.PrimaryKey
  * @property isEnabled Whether the agent is active and available.
  * @property systemPrompt Optional system prompt for the agent.
  * @property channelsJson JSON-serialized list of [com.zeroclaw.android.model.ChannelConfig].
+ * @property temperature Per-agent temperature override; null inherits the global default.
+ * @property maxDepth Maximum reasoning depth for the agent.
  */
 @Entity(tableName = "agents")
 data class AgentEntity(
@@ -38,4 +40,8 @@ data class AgentEntity(
     val systemPrompt: String,
     @ColumnInfo(name = "channels_json")
     val channelsJson: String,
+    @ColumnInfo(name = "temperature")
+    val temperature: Float? = null,
+    @ColumnInfo(name = "max_depth", defaultValue = "3")
+    val maxDepth: Int = 3,
 )

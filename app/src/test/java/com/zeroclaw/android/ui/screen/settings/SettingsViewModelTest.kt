@@ -88,4 +88,48 @@ private class TestSettingsRepository : SettingsRepository {
     override suspend fun setDefaultModel(model: String) {
         _settings.update { it.copy(defaultModel = model) }
     }
+
+    override suspend fun setDefaultTemperature(temperature: Float) {
+        _settings.update { it.copy(defaultTemperature = temperature) }
+    }
+
+    override suspend fun setCompactContext(enabled: Boolean) {
+        _settings.update { it.copy(compactContext = enabled) }
+    }
+
+    override suspend fun setCostEnabled(enabled: Boolean) {
+        _settings.update { it.copy(costEnabled = enabled) }
+    }
+
+    override suspend fun setDailyLimitUsd(limit: Float) {
+        _settings.update { it.copy(dailyLimitUsd = limit) }
+    }
+
+    override suspend fun setMonthlyLimitUsd(limit: Float) {
+        _settings.update { it.copy(monthlyLimitUsd = limit) }
+    }
+
+    override suspend fun setCostWarnAtPercent(percent: Int) {
+        _settings.update { it.copy(costWarnAtPercent = percent) }
+    }
+
+    override suspend fun setProviderRetries(retries: Int) {
+        _settings.update { it.copy(providerRetries = retries) }
+    }
+
+    override suspend fun setFallbackProviders(providers: String) {
+        _settings.update { it.copy(fallbackProviders = providers) }
+    }
+
+    override suspend fun setMemoryBackend(backend: String) {
+        _settings.update { it.copy(memoryBackend = backend) }
+    }
+
+    override suspend fun setMemoryAutoSave(enabled: Boolean) {
+        _settings.update { it.copy(memoryAutoSave = enabled) }
+    }
+
+    override suspend fun setIdentityJson(json: String) {
+        _settings.update { it.copy(identityJson = json) }
+    }
 }

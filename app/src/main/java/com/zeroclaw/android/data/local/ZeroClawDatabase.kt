@@ -45,7 +45,7 @@ import kotlinx.coroutines.launch
         ActivityEventEntity::class,
         ConnectedChannelEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 abstract class ZeroClawDatabase : RoomDatabase() {
@@ -87,13 +87,23 @@ abstract class ZeroClawDatabase : RoomDatabase() {
             }
         }
 
+        /** Migration from schema version 2 to 3: adds temperature and max_depth to agents. */
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE agents ADD COLUMN temperature REAL")
+                db.execSQL(
+                    "ALTER TABLE agents ADD COLUMN max_depth INTEGER NOT NULL DEFAULT 3",
+                )
+            }
+        }
+
         /**
          * Ordered array of schema migrations.
          *
          * Add new [Migration] instances here as the schema evolves.
          * Each migration covers a single version increment (e.g. 1->2).
          */
-        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2)
+        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3)
 
         /**
          * Builds a [ZeroClawDatabase] instance with seed data inserted on first creation.
