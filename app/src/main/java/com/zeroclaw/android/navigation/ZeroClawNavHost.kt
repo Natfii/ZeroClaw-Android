@@ -269,10 +269,19 @@ fun ZeroClawNavHost(
 
         composable<ApiKeyDetailRoute> { backStackEntry ->
             val route = backStackEntry.toRoute<ApiKeyDetailRoute>()
+            val scannedKey by backStackEntry.savedStateHandle
+                .getStateFlow("scanned_token", "")
+                .collectAsStateWithLifecycle()
+
             ApiKeyDetailScreen(
                 keyId = route.keyId,
                 onSaved = { navController.popBackStack() },
+                onNavigateToQrScanner = { navController.navigate(QrScannerRoute) },
                 edgeMargin = edgeMargin,
+                scannedApiKey = scannedKey,
+                onScannedApiKeyConsumed = {
+                    backStackEntry.savedStateHandle["scanned_token"] = ""
+                },
             )
         }
 

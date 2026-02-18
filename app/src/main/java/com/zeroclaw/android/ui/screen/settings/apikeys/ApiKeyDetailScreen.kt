@@ -21,8 +21,10 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.WifiFind
+import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -35,6 +37,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -80,16 +84,22 @@ private const val BUTTON_INDICATOR_SPACING_DP = 12
  *
  * @param keyId Identifier of the key to edit, or null for a new key.
  * @param onSaved Callback invoked after successfully saving.
+ * @param onNavigateToQrScanner Callback to open the QR code scanner for key input.
  * @param edgeMargin Horizontal padding based on window width size class.
  * @param apiKeysViewModel The [ApiKeysViewModel] for key management.
+ * @param scannedApiKey API key value scanned via QR code, empty when none.
+ * @param onScannedApiKeyConsumed Callback to clear the scanned value after applying it.
  * @param modifier Modifier applied to the root layout.
  */
 @Composable
 fun ApiKeyDetailScreen(
     keyId: String?,
     onSaved: () -> Unit,
+    onNavigateToQrScanner: () -> Unit,
     edgeMargin: Dp,
     apiKeysViewModel: ApiKeysViewModel = viewModel(),
+    scannedApiKey: String = "",
+    onScannedApiKeyConsumed: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val keys by apiKeysViewModel.keys.collectAsStateWithLifecycle()
@@ -111,6 +121,13 @@ fun ApiKeyDetailScreen(
         if (saveState is SaveState.Saved) {
             apiKeysViewModel.resetSaveState()
             onSaved()
+        }
+    }
+
+    LaunchedEffect(scannedApiKey) {
+        if (scannedApiKey.isNotBlank()) {
+            key = scannedApiKey
+            onScannedApiKeyConsumed()
         }
     }
 
@@ -197,6 +214,21 @@ fun ApiKeyDetailScreen(
                 singleLine = true,
                 enabled = !isSaving,
                 visualTransformation = PasswordVisualTransformation(),
+                trailingIcon = {
+                    IconButton(
+                        onClick = onNavigateToQrScanner,
+                        enabled = !isSaving,
+                        modifier =
+                            Modifier.semantics {
+                                contentDescription = "Scan QR code to fill API key"
+                            },
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.CameraAlt,
+                            contentDescription = null,
+                        )
+                    }
+                },
                 keyboardOptions =
                     KeyboardOptions(
                         keyboardType = KeyboardType.Password,

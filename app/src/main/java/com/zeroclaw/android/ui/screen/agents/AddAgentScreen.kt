@@ -119,6 +119,17 @@ fun AddAgentScreen(
         )
         Spacer(modifier = Modifier.height(FIELD_SPACING_DP.dp))
 
+        ProviderDropdown(
+            selectedProviderId = providerId,
+            onProviderSelected = {
+                providerId = it.id
+                selectedConnectionId = null
+                modelName = it.suggestedModels.firstOrNull().orEmpty()
+            },
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(modifier = Modifier.height(FIELD_SPACING_DP.dp))
+
         ConnectionPickerSection(
             keys = apiKeys,
             selectedKeyId = selectedConnectionId,
@@ -126,27 +137,10 @@ fun AddAgentScreen(
                 selectedConnectionId = key.id
                 val resolved = ProviderRegistry.findById(key.provider)
                 providerId = resolved?.id ?: key.provider
-                if (modelName.isBlank()) {
-                    modelName = resolved?.suggestedModels?.firstOrNull().orEmpty()
-                }
+                modelName = resolved?.suggestedModels?.firstOrNull().orEmpty()
             },
             onAddNewConnection = onNavigateToAddConnection,
         )
-        Spacer(modifier = Modifier.height(FIELD_SPACING_DP.dp))
-
-        CollapsibleSection(title = "Use a different provider") {
-            ProviderDropdown(
-                selectedProviderId = providerId,
-                onProviderSelected = {
-                    providerId = it.id
-                    selectedConnectionId = null
-                    if (modelName.isBlank()) {
-                        modelName = it.suggestedModels.firstOrNull().orEmpty()
-                    }
-                },
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
         Spacer(modifier = Modifier.height(FIELD_SPACING_DP.dp))
 
         ModelSuggestionField(
