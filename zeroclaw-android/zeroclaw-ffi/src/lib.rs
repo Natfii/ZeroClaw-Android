@@ -24,6 +24,7 @@ mod runtime;
 mod skills;
 mod tools_browse;
 mod types;
+mod vision;
 mod workspace;
 
 use std::panic::{AssertUnwindSafe, catch_unwind};
@@ -681,6 +682,34 @@ pub fn recall_memory(
 #[uniffi::export]
 pub fn forget_memory(key: String) -> Result<bool, FfiError> {
     catch_unwind(AssertUnwindSafe(|| memory_browse::forget_memory_inner(key))).unwrap_or_else(|e| {
+        Err(FfiError::InternalPanic {
+            detail: panic_detail(&e),
+        })
+    })
+}
+
+/// Sends a vision (image + text) message directly to the configured provider.
+///
+/// Bypasses `ZeroClaw`'s text-only agent loop and calls the provider's
+/// multimodal API directly. `image_data` contains base64-encoded images
+/// and `mime_types` contains the corresponding MIME type for each image.
+///
+/// # Errors
+///
+/// Returns [`FfiError::ConfigError`] for validation failures,
+/// [`FfiError::StateError`] if the daemon is not running,
+/// [`FfiError::SpawnError`] for unsupported providers or HTTP failures, or
+/// [`FfiError::InternalPanic`] if native code panics.
+#[uniffi::export]
+pub fn send_vision_message(
+    text: String,
+    image_data: Vec<String>,
+    mime_types: Vec<String>,
+) -> Result<String, FfiError> {
+    catch_unwind(AssertUnwindSafe(|| {
+        vision::send_vision_message_inner(text, image_data, mime_types)
+    }))
+    .unwrap_or_else(|e| {
         Err(FfiError::InternalPanic {
             detail: panic_detail(&e),
         })

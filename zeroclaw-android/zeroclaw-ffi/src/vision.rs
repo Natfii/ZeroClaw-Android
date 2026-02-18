@@ -300,19 +300,11 @@ pub(crate) fn send_vision_message_inner(
                 detail: format!("failed to build HTTP client: {e}"),
             })?;
 
-        let (url, body, auth_header, extra_headers) = match &vision_provider {
+        let (url, body) = match &vision_provider {
             VisionProvider::Anthropic => {
                 let body = build_anthropic_body(&text, &image_data, &mime_types, &model);
                 let url = "https://api.anthropic.com/v1/messages".to_string();
-                (
-                    url,
-                    body,
-                    format!("x-api-key:{api_key}"),
-                    vec![
-                        ("anthropic-version".to_string(), "2023-06-01".to_string()),
-                        ("content-type".to_string(), "application/json".to_string()),
-                    ],
-                )
+                (url, body)
             }
             VisionProvider::OpenAi { base_url } => {
                 let base = base_url
@@ -320,45 +312,30 @@ pub(crate) fn send_vision_message_inner(
                     .unwrap_or("https://api.openai.com/v1");
                 let body = build_openai_body(&text, &image_data, &mime_types, &model);
                 let url = format!("{base}/chat/completions");
-                (
-                    url,
-                    body,
-                    format!("Bearer {api_key}"),
-                    vec![("content-type".to_string(), "application/json".to_string())],
-                )
+                (url, body)
             }
             VisionProvider::Gemini => {
                 let body = build_gemini_body(&text, &image_data, &mime_types);
                 let url = format!(
-                    "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+                    "https://generativelanguage.googleapis.com/v1beta/models/\
+                     {model}:generateContent?key={api_key}"
                 );
-                (
-                    url,
-                    body,
-                    String::new(),
-                    vec![("content-type".to_string(), "application/json".to_string())],
-                )
+                (url, body)
             }
         };
 
         let mut request = client.post(&url).json(&body);
 
-        // Apply auth header
         match &vision_provider {
             VisionProvider::Anthropic => {
-                request = request.header("x-api-key", &api_key);
+                request = request
+                    .header("x-api-key", &api_key)
+                    .header("anthropic-version", "2023-06-01");
             }
             VisionProvider::OpenAi { .. } => {
                 request = request.header("Authorization", format!("Bearer {api_key}"));
             }
-            VisionProvider::Gemini => {
-                // API key is in the URL query param
-            }
-        }
-
-        // Apply extra headers
-        for (name, value) in &extra_headers {
-            request = request.header(name.as_str(), value.as_str());
+            VisionProvider::Gemini => {}
         }
 
         let response = request.send().await.map_err(|e| FfiError::SpawnError {
