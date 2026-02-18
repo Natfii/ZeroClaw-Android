@@ -50,12 +50,13 @@ pub fn start_daemon(
     host: String,
     port: u16,
 ) -> Result<(), FfiError> {
-    catch_unwind(|| runtime::start_daemon_inner(config_toml, data_dir, host, port))
-        .unwrap_or_else(|e| {
+    catch_unwind(|| runtime::start_daemon_inner(config_toml, data_dir, host, port)).unwrap_or_else(
+        |e| {
             Err(FfiError::InternalPanic {
                 detail: panic_detail(&e),
             })
-        })
+        },
+    )
 }
 
 /// Stops the running `ZeroClaw` daemon.

@@ -94,10 +94,9 @@ pub(crate) fn start_daemon_inner(
         });
     }
 
-    let mut config: Config =
-        toml::from_str(&config_toml).map_err(|e| FfiError::ConfigError {
-            detail: format!("failed to parse config TOML: {e}"),
-        })?;
+    let mut config: Config = toml::from_str(&config_toml).map_err(|e| FfiError::ConfigError {
+        detail: format!("failed to parse config TOML: {e}"),
+    })?;
 
     let data_path = PathBuf::from(&data_dir);
     config.workspace_dir = data_path.join("workspace");
@@ -109,9 +108,11 @@ pub(crate) fn start_daemon_inner(
 
     let runtime = get_or_create_runtime();
 
-    let mut guard = daemon_mutex().lock().map_err(|e| FfiError::StateCorrupted {
-        detail: format!("daemon mutex poisoned: {e}"),
-    })?;
+    let mut guard = daemon_mutex()
+        .lock()
+        .map_err(|e| FfiError::StateCorrupted {
+            detail: format!("daemon mutex poisoned: {e}"),
+        })?;
 
     if guard.is_some() {
         return Err(FfiError::StateError {
@@ -219,9 +220,11 @@ pub(crate) fn start_daemon_inner(
 pub(crate) fn stop_daemon_inner() -> Result<(), FfiError> {
     let runtime = get_or_create_runtime();
 
-    let mut guard = daemon_mutex().lock().map_err(|e| FfiError::StateCorrupted {
-        detail: format!("daemon mutex poisoned: {e}"),
-    })?;
+    let mut guard = daemon_mutex()
+        .lock()
+        .map_err(|e| FfiError::StateCorrupted {
+            detail: format!("daemon mutex poisoned: {e}"),
+        })?;
 
     let state = guard.take().ok_or_else(|| FfiError::StateError {
         detail: "daemon not running".to_string(),
@@ -252,9 +255,11 @@ pub(crate) fn stop_daemon_inner() -> Result<(), FfiError> {
 /// Returns [`FfiError::StateCorrupted`] if the daemon mutex is poisoned,
 /// or [`FfiError::SpawnError`] if the health snapshot cannot be serialised.
 pub(crate) fn get_status_inner() -> Result<String, FfiError> {
-    let guard = daemon_mutex().lock().map_err(|e| FfiError::StateCorrupted {
-        detail: format!("daemon mutex poisoned: {e}"),
-    })?;
+    let guard = daemon_mutex()
+        .lock()
+        .map_err(|e| FfiError::StateCorrupted {
+            detail: format!("daemon mutex poisoned: {e}"),
+        })?;
 
     let daemon_running = guard.is_some();
     drop(guard);
@@ -293,9 +298,11 @@ pub(crate) fn send_message_inner(message: String) -> Result<String, FfiError> {
     let runtime = get_or_create_runtime();
 
     let gateway_port = {
-        let guard = daemon_mutex().lock().map_err(|e| FfiError::StateCorrupted {
-            detail: format!("daemon mutex poisoned: {e}"),
-        })?;
+        let guard = daemon_mutex()
+            .lock()
+            .map_err(|e| FfiError::StateCorrupted {
+                detail: format!("daemon mutex poisoned: {e}"),
+            })?;
         guard
             .as_ref()
             .ok_or_else(|| FfiError::StateError {
@@ -323,10 +330,9 @@ pub(crate) fn send_message_inner(message: String) -> Result<String, FfiError> {
             });
         }
 
-        let body: serde_json::Value =
-            response.json().await.map_err(|e| FfiError::SpawnError {
-                detail: format!("failed to parse gateway response: {e}"),
-            })?;
+        let body: serde_json::Value = response.json().await.map_err(|e| FfiError::SpawnError {
+            detail: format!("failed to parse gateway response: {e}"),
+        })?;
 
         body["response"]
             .as_str()
@@ -399,10 +405,7 @@ where
             zeroclaw::health::mark_component_ok(name);
             match run_component().await {
                 Ok(()) => {
-                    zeroclaw::health::mark_component_error(
-                        name,
-                        "component exited unexpectedly",
-                    );
+                    zeroclaw::health::mark_component_error(name, "component exited unexpectedly");
                     tracing::warn!("Daemon component '{name}' exited unexpectedly");
                     backoff = initial_backoff_secs.max(1);
                 }
@@ -425,10 +428,9 @@ where
 /// Collects heartbeat tasks at the configured interval and dispatches each
 /// through the agent runner.
 async fn run_heartbeat_worker(config: Config) -> anyhow::Result<()> {
-    let observer: std::sync::Arc<dyn zeroclaw::observability::Observer> =
-        std::sync::Arc::from(zeroclaw::observability::create_observer(
-            &config.observability,
-        ));
+    let observer: std::sync::Arc<dyn zeroclaw::observability::Observer> = std::sync::Arc::from(
+        zeroclaw::observability::create_observer(&config.observability),
+    );
     let engine = zeroclaw::heartbeat::engine::HeartbeatEngine::new(
         config.heartbeat.clone(),
         config.workspace_dir.clone(),
@@ -436,8 +438,7 @@ async fn run_heartbeat_worker(config: Config) -> anyhow::Result<()> {
     );
 
     let interval_mins = config.heartbeat.interval_minutes.max(5);
-    let mut interval =
-        tokio::time::interval(Duration::from_secs(u64::from(interval_mins) * 60));
+    let mut interval = tokio::time::interval(Duration::from_secs(u64::from(interval_mins) * 60));
 
     loop {
         interval.tick().await;
@@ -451,8 +452,7 @@ async fn run_heartbeat_worker(config: Config) -> anyhow::Result<()> {
             let prompt = format!("[Heartbeat Task] {task}");
             let temp = config.default_temperature;
             if let Err(e) =
-                zeroclaw::agent::run(config.clone(), Some(prompt), None, None, temp, vec![])
-                    .await
+                zeroclaw::agent::run(config.clone(), Some(prompt), None, None, temp, vec![]).await
             {
                 zeroclaw::health::mark_component_error("heartbeat", e.to_string());
                 tracing::warn!("Heartbeat task failed: {e}");

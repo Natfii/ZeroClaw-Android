@@ -5,8 +5,8 @@ targets = [
 ]
 
 [advisories]
-unmaintained = "warn"
-yanked = "warn"
+unmaintained = "workspace"
+yanked = "workspace"
 
 [licenses]
 allow = [
