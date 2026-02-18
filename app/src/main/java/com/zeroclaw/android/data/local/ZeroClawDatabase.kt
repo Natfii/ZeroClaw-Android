@@ -48,7 +48,7 @@ import kotlinx.coroutines.launch
         ConnectedChannelEntity::class,
         ChatMessageEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
 )
 abstract class ZeroClawDatabase : RoomDatabase() {
@@ -133,6 +133,16 @@ abstract class ZeroClawDatabase : RoomDatabase() {
                 }
             }
 
+        /** Migration from schema version 5 to 6: adds images_json column to chat_messages. */
+        private val MIGRATION_5_6 =
+            object : Migration(5, 6) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL(
+                        "ALTER TABLE chat_messages ADD COLUMN images_json TEXT DEFAULT NULL",
+                    )
+                }
+            }
+
         /**
          * Ordered array of schema migrations.
          *
@@ -140,7 +150,7 @@ abstract class ZeroClawDatabase : RoomDatabase() {
          * Each migration covers a single version increment (e.g. 1->2).
          */
         val MIGRATIONS: Array<Migration> =
-            arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+            arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
 
         /**
          * Builds a [ZeroClawDatabase] instance with seed data inserted on first creation.

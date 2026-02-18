@@ -20,6 +20,7 @@ import androidx.room.PrimaryKey
  * @property timestamp Epoch milliseconds when the message was created.
  * @property content The message text content.
  * @property isFromUser True if the message was sent by the user, false if from the daemon.
+ * @property imagesJson Nullable JSON array of image content URIs attached to this message.
  */
 @Entity(
     tableName = "chat_messages",
@@ -32,4 +33,6 @@ data class ChatMessageEntity(
     val content: String,
     @ColumnInfo(name = "is_from_user")
     val isFromUser: Boolean,
+    @ColumnInfo(name = "images_json")
+    val imagesJson: String? = null,
 )
