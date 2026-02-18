@@ -47,7 +47,10 @@ import com.zeroclaw.android.service.CronBridge
 import com.zeroclaw.android.service.DaemonServiceBridge
 import com.zeroclaw.android.service.EventBridge
 import com.zeroclaw.android.service.HealthBridge
+import com.zeroclaw.android.service.MemoryBridge
 import com.zeroclaw.android.service.PluginSyncWorker
+import com.zeroclaw.android.service.SkillsBridge
+import com.zeroclaw.android.service.ToolsBridge
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -136,6 +139,18 @@ class ZeroClawApplication :
     lateinit var cronBridge: CronBridge
         private set
 
+    /** Bridge for skills browsing and management FFI calls. */
+    lateinit var skillsBridge: SkillsBridge
+        private set
+
+    /** Bridge for tools inventory browsing FFI calls. */
+    lateinit var toolsBridge: ToolsBridge
+        private set
+
+    /** Bridge for memory browsing and management FFI calls. */
+    lateinit var memoryBridge: MemoryBridge
+        private set
+
     override fun onCreate() {
         super.onCreate()
         System.loadLibrary("zeroclaw")
@@ -158,6 +173,9 @@ class ZeroClawApplication :
         healthBridge = HealthBridge()
         costBridge = CostBridge()
         cronBridge = CronBridge()
+        skillsBridge = SkillsBridge()
+        toolsBridge = ToolsBridge()
+        memoryBridge = MemoryBridge()
         eventBridge = EventBridge(activityRepository, ioScope)
         daemonBridge.eventBridge = eventBridge
 
