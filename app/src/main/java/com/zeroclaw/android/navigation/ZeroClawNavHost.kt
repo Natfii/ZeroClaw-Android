@@ -30,11 +30,20 @@ import com.zeroclaw.android.ui.screen.onboarding.OnboardingScreen
 import com.zeroclaw.android.ui.screen.plugins.PluginDetailScreen
 import com.zeroclaw.android.ui.screen.plugins.PluginsScreen
 import com.zeroclaw.android.ui.screen.settings.AboutScreen
+import com.zeroclaw.android.ui.screen.settings.AutonomyScreen
 import com.zeroclaw.android.ui.screen.settings.BatterySettingsScreen
+import com.zeroclaw.android.ui.screen.settings.GatewayScreen
 import com.zeroclaw.android.ui.screen.settings.IdentityScreen
+import com.zeroclaw.android.ui.screen.settings.MemoryAdvancedScreen
+import com.zeroclaw.android.ui.screen.settings.ModelRoutesScreen
+import com.zeroclaw.android.ui.screen.settings.ObservabilityScreen
+import com.zeroclaw.android.ui.screen.settings.SchedulerScreen
+import com.zeroclaw.android.ui.screen.settings.SecurityOverviewScreen
 import com.zeroclaw.android.ui.screen.settings.ServiceConfigScreen
 import com.zeroclaw.android.ui.screen.settings.SettingsScreen
 import com.zeroclaw.android.ui.screen.settings.SettingsViewModel
+import com.zeroclaw.android.ui.screen.settings.ToolManagementScreen
+import com.zeroclaw.android.ui.screen.settings.TunnelScreen
 import com.zeroclaw.android.ui.screen.settings.UpdatesScreen
 import com.zeroclaw.android.ui.screen.settings.apikeys.ApiKeyDetailScreen
 import com.zeroclaw.android.ui.screen.settings.apikeys.ApiKeysScreen
@@ -135,6 +144,15 @@ fun ZeroClawNavHost(
                 onNavigateToIdentity = { navController.navigate(IdentityRoute) },
                 onNavigateToAbout = { navController.navigate(AboutRoute) },
                 onNavigateToUpdates = { navController.navigate(UpdatesRoute) },
+                onNavigateToAutonomy = { navController.navigate(AutonomyRoute) },
+                onNavigateToTunnel = { navController.navigate(TunnelRoute) },
+                onNavigateToGateway = { navController.navigate(GatewayRoute) },
+                onNavigateToToolManagement = { navController.navigate(ToolManagementRoute) },
+                onNavigateToModelRoutes = { navController.navigate(ModelRoutesRoute) },
+                onNavigateToMemoryAdvanced = { navController.navigate(MemoryAdvancedRoute) },
+                onNavigateToScheduler = { navController.navigate(SchedulerRoute) },
+                onNavigateToObservability = { navController.navigate(ObservabilityRoute) },
+                onNavigateToSecurityOverview = { navController.navigate(SecurityOverviewRoute) },
                 onRerunWizard = {
                     settingsViewModel.resetOnboarding()
                     navController.navigate(OnboardingRoute) {
@@ -261,7 +279,24 @@ fun ZeroClawNavHost(
         }
 
         composable<DoctorRoute> {
-            DoctorScreen(edgeMargin = edgeMargin)
+            DoctorScreen(
+                edgeMargin = edgeMargin,
+                onNavigateToRoute = { route ->
+                    when {
+                        route == "agents" -> navController.navigate(AgentsRoute)
+                        route == "api-keys" -> navController.navigate(ApiKeysRoute)
+                        route == "battery-settings" -> navController.navigate(BatterySettingsRoute)
+                        route.startsWith("agent-detail/") -> {
+                            val agentId = route.removePrefix("agent-detail/")
+                            navController.navigate(AgentDetailRoute(agentId = agentId))
+                        }
+                        route.startsWith("api-key-detail/") -> {
+                            val keyId = route.removePrefix("api-key-detail/")
+                            navController.navigate(ApiKeyDetailRoute(keyId = keyId))
+                        }
+                    }
+                },
+            )
         }
 
         composable<AboutRoute> {
@@ -270,6 +305,42 @@ fun ZeroClawNavHost(
 
         composable<UpdatesRoute> {
             UpdatesScreen(edgeMargin = edgeMargin)
+        }
+
+        composable<AutonomyRoute> {
+            AutonomyScreen(edgeMargin = edgeMargin)
+        }
+
+        composable<SecurityOverviewRoute> {
+            SecurityOverviewScreen(edgeMargin = edgeMargin)
+        }
+
+        composable<TunnelRoute> {
+            TunnelScreen(edgeMargin = edgeMargin)
+        }
+
+        composable<GatewayRoute> {
+            GatewayScreen(edgeMargin = edgeMargin)
+        }
+
+        composable<ToolManagementRoute> {
+            ToolManagementScreen(edgeMargin = edgeMargin)
+        }
+
+        composable<ModelRoutesRoute> {
+            ModelRoutesScreen(edgeMargin = edgeMargin)
+        }
+
+        composable<MemoryAdvancedRoute> {
+            MemoryAdvancedScreen(edgeMargin = edgeMargin)
+        }
+
+        composable<SchedulerRoute> {
+            SchedulerScreen(edgeMargin = edgeMargin)
+        }
+
+        composable<ObservabilityRoute> {
+            ObservabilityScreen(edgeMargin = edgeMargin)
         }
 
         composable<OnboardingRoute> {

@@ -55,12 +55,15 @@ import com.zeroclaw.android.ui.component.CollapsibleSection
  * dots and optional action buttons.
  *
  * @param edgeMargin Horizontal padding based on window width size class.
+ * @param onNavigateToRoute Callback invoked when a diagnostic action button is tapped,
+ *   receiving the route string from [DiagnosticCheck.actionRoute].
  * @param doctorViewModel The [DoctorViewModel] for diagnostic state.
  * @param modifier Modifier applied to the root layout.
  */
 @Composable
 fun DoctorScreen(
     edgeMargin: Dp,
+    onNavigateToRoute: (String) -> Unit = {},
     doctorViewModel: DoctorViewModel = viewModel(),
     modifier: Modifier = Modifier,
 ) {
@@ -92,7 +95,7 @@ fun DoctorScreen(
                 modifier = Modifier.padding(vertical = 16.dp),
             )
         } else {
-            CheckResultsList(checks = checks)
+            CheckResultsList(checks = checks, onAction = onNavigateToRoute)
         }
     }
 }
@@ -212,9 +215,13 @@ private fun SummaryChip(
  * Scrollable list of check results organized by category.
  *
  * @param checks All diagnostic check results to display.
+ * @param onAction Callback invoked with the action route when a check's action button is tapped.
  */
 @Composable
-private fun CheckResultsList(checks: List<DiagnosticCheck>) {
+private fun CheckResultsList(
+    checks: List<DiagnosticCheck>,
+    onAction: (String) -> Unit,
+) {
     val grouped = checks.groupBy { it.category }
 
     LazyColumn(
@@ -232,7 +239,7 @@ private fun CheckResultsList(checks: List<DiagnosticCheck>) {
                         verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         categoryChecks.forEach { check ->
-                            CheckResultRow(check = check)
+                            CheckResultRow(check = check, onAction = onAction)
                         }
                     }
                 }
@@ -249,9 +256,13 @@ private fun CheckResultsList(checks: List<DiagnosticCheck>) {
  * Single check result row with status dot, title, detail, and optional action.
  *
  * @param check The diagnostic check result to display.
+ * @param onAction Callback invoked with the action route when the action button is tapped.
  */
 @Composable
-private fun CheckResultRow(check: DiagnosticCheck) {
+private fun CheckResultRow(
+    check: DiagnosticCheck,
+    onAction: (String) -> Unit,
+) {
     val statusColor =
         when (check.status) {
             CheckStatus.PASS -> MaterialTheme.colorScheme.primary
@@ -299,8 +310,8 @@ private fun CheckResultRow(check: DiagnosticCheck) {
                 )
             }
         }
-        if (check.actionLabel != null) {
-            TextButton(onClick = { }) {
+        if (check.actionLabel != null && check.actionRoute != null) {
+            TextButton(onClick = { onAction(check.actionRoute) }) {
                 Text(check.actionLabel)
             }
         }

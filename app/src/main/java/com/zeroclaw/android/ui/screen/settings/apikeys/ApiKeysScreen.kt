@@ -21,6 +21,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Warning
@@ -106,6 +107,7 @@ fun ApiKeysScreen(
     val corruptCount by apiKeysViewModel.corruptKeyCount.collectAsStateWithLifecycle()
 
     var deleteTarget by remember { mutableStateOf<ApiKey?>(null) }
+    var rotatingKeyId by remember { mutableStateOf<String?>(null) }
     var showExportDialog by remember { mutableStateOf(false) }
     var showImportDialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -129,6 +131,20 @@ fun ApiKeysScreen(
             },
             onDismiss = { deleteTarget = null },
         )
+    }
+
+    if (rotatingKeyId != null) {
+        val rotatingKey = keys.find { it.id == rotatingKeyId }
+        if (rotatingKey != null) {
+            KeyRotateDialog(
+                providerName = rotatingKey.provider,
+                onConfirm = { newKey ->
+                    apiKeysViewModel.rotateKey(rotatingKey.id, newKey)
+                    rotatingKeyId = null
+                },
+                onDismiss = { rotatingKeyId = null },
+            )
+        }
     }
 
     if (showExportDialog) {
@@ -254,6 +270,7 @@ fun ApiKeysScreen(
                             }
                         },
                         onEdit = { onNavigateToDetail(apiKey.id) },
+                        onRotate = { rotatingKeyId = apiKey.id },
                         onDelete = { deleteTarget = apiKey },
                     )
                 }
@@ -504,6 +521,7 @@ private fun ImportPassphraseDialog(
  * @param isRevealed Whether the key value is currently unmasked.
  * @param onRevealToggle Callback to toggle reveal state.
  * @param onEdit Callback to navigate to edit screen.
+ * @param onRotate Callback to open the key rotation dialog.
  * @param onDelete Callback to delete this key.
  */
 @Composable
@@ -512,6 +530,7 @@ private fun ApiKeyItem(
     isRevealed: Boolean,
     onRevealToggle: () -> Unit,
     onEdit: () -> Unit,
+    onRotate: () -> Unit,
     onDelete: () -> Unit,
 ) {
     Card(
@@ -572,6 +591,19 @@ private fun ApiKeyItem(
                         )
                     }
                     IconButton(
+                        onClick = onRotate,
+                        modifier =
+                            Modifier.semantics {
+                                contentDescription =
+                                    "Rotate ${apiKey.provider} key"
+                            },
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Sync,
+                            contentDescription = null,
+                        )
+                    }
+                    IconButton(
                         onClick = onDelete,
                         modifier =
                             Modifier.semantics {
@@ -597,6 +629,61 @@ private fun ApiKeyItem(
             }
         }
     }
+}
+
+/**
+ * Dialog for entering a new key value during rotation.
+ *
+ * @param providerName Provider label shown in the dialog title.
+ * @param onConfirm Callback with the new key value.
+ * @param onDismiss Callback when the dialog is dismissed.
+ */
+@Composable
+private fun KeyRotateDialog(
+    providerName: String,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var newKey by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Rotate $providerName Key") },
+        text = {
+            OutlinedTextField(
+                value = newKey,
+                onValueChange = { newKey = it },
+                label = { Text("New key") },
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions =
+                    KeyboardOptions(
+                        keyboardType = KeyboardType.Password,
+                        imeAction = ImeAction.Done,
+                    ),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .semantics {
+                            contentDescription =
+                                "Enter new API key for $providerName"
+                        },
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(newKey) },
+                enabled = newKey.isNotBlank(),
+            ) {
+                Text("Rotate")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        },
+    )
 }
 
 /**

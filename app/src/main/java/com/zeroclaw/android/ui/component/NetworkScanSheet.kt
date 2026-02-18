@@ -6,7 +6,9 @@
 
 package com.zeroclaw.android.ui.component
 
+import android.os.PowerManager
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.layout.Arrangement
@@ -139,13 +141,21 @@ fun NetworkScanSheet(
                     }
                 }
 
+                val pm = context.getSystemService(PowerManager::class.java)
+                val isPowerSave = pm?.isPowerSaveMode == true
+
                 itemsIndexed(
                     items = discoveredServers,
                     key = { _, server -> "${server.host}:${server.port}" },
                 ) { index, server ->
                     AnimatedVisibility(
                         visible = true,
-                        enter = fadeIn() + slideInVertically { it / 2 },
+                        enter =
+                            if (isPowerSave) {
+                                EnterTransition.None
+                            } else {
+                                fadeIn() + slideInVertically { it / 2 }
+                            },
                     ) {
                         ServerCard(
                             server = server,

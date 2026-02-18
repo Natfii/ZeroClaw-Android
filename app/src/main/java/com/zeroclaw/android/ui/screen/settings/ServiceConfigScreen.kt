@@ -50,6 +50,18 @@ private const val TEMPERATURE_MAX = 2.0f
 /** Number of steps for temperature slider. */
 private const val TEMPERATURE_STEPS = 20
 
+/** Minimum valid port number. */
+private const val PORT_MIN = 1
+
+/** Maximum valid port number. */
+private const val PORT_MAX = 65535
+
+/** Maximum provider retry count. */
+private const val RETRIES_MAX = 10
+
+/** Maximum cost warning threshold percentage. */
+private const val WARN_PERCENT_MAX = 100
+
 /** Available memory backend options. */
 private val MEMORY_BACKENDS = listOf("sqlite", "none", "markdown", "lucid")
 
@@ -89,13 +101,23 @@ fun ServiceConfigScreen(
             modifier = Modifier.fillMaxWidth(),
         )
 
+        val portText = settings.port.toString()
+        val portError = settings.port !in PORT_MIN..PORT_MAX
+
         OutlinedTextField(
-            value = settings.port.toString(),
+            value = portText,
             onValueChange = { value ->
                 value.toIntOrNull()?.let { settingsViewModel.updatePort(it) }
             },
             label = { Text("Port") },
             singleLine = true,
+            isError = portError,
+            supportingText =
+                if (portError) {
+                    { Text("Port must be between $PORT_MIN and $PORT_MAX") }
+                } else {
+                    null
+                },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             modifier = Modifier.fillMaxWidth(),
         )
@@ -243,6 +265,8 @@ private fun ReliabilitySection(
 ) {
     SectionHeader(title = "Reliability")
 
+    val retriesError = settings.providerRetries !in 0..RETRIES_MAX
+
     OutlinedTextField(
         value = settings.providerRetries.toString(),
         onValueChange = { value ->
@@ -250,6 +274,13 @@ private fun ReliabilitySection(
         },
         label = { Text("Provider retries") },
         singleLine = true,
+        isError = retriesError,
+        supportingText =
+            if (retriesError) {
+                { Text("Must be between 0 and $RETRIES_MAX") }
+            } else {
+                null
+            },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         modifier = Modifier.fillMaxWidth(),
     )
@@ -286,6 +317,8 @@ private fun CostLimitsSection(
         description = "Enable cost limits",
     )
 
+    val dailyError = settings.costEnabled && settings.dailyLimitUsd < 0f
+
     OutlinedTextField(
         value = settings.dailyLimitUsd.toString(),
         onValueChange = { value ->
@@ -293,10 +326,19 @@ private fun CostLimitsSection(
         },
         label = { Text("Daily limit (USD)") },
         singleLine = true,
+        isError = dailyError,
+        supportingText =
+            if (dailyError) {
+                { Text("Must be a positive amount") }
+            } else {
+                null
+            },
         enabled = settings.costEnabled,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
         modifier = Modifier.fillMaxWidth(),
     )
+
+    val monthlyError = settings.costEnabled && settings.monthlyLimitUsd < 0f
 
     OutlinedTextField(
         value = settings.monthlyLimitUsd.toString(),
@@ -305,10 +347,19 @@ private fun CostLimitsSection(
         },
         label = { Text("Monthly limit (USD)") },
         singleLine = true,
+        isError = monthlyError,
+        supportingText =
+            if (monthlyError) {
+                { Text("Must be a positive amount") }
+            } else {
+                null
+            },
         enabled = settings.costEnabled,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
         modifier = Modifier.fillMaxWidth(),
     )
+
+    val warnError = settings.costEnabled && settings.costWarnAtPercent !in 0..WARN_PERCENT_MAX
 
     OutlinedTextField(
         value = settings.costWarnAtPercent.toString(),
@@ -317,6 +368,13 @@ private fun CostLimitsSection(
         },
         label = { Text("Warn at (%)") },
         singleLine = true,
+        isError = warnError,
+        supportingText =
+            if (warnError) {
+                { Text("Must be between 0 and $WARN_PERCENT_MAX") }
+            } else {
+                null
+            },
         enabled = settings.costEnabled,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         modifier = Modifier.fillMaxWidth(),

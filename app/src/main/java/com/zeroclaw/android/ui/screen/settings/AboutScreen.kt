@@ -21,11 +21,18 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.zeroclaw.android.BuildConfig
 import com.zeroclaw.android.ui.component.SectionHeader
+import com.zeroclaw.ffi.getVersion
 
 /**
  * About screen displaying app version, licenses, and project links.
@@ -39,6 +46,16 @@ fun AboutScreen(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    var crateVersion by remember { mutableStateOf(CRATE_VERSION_FALLBACK) }
+
+    LaunchedEffect(Unit) {
+        @Suppress("TooGenericExceptionCaught")
+        try {
+            crateVersion = getVersion()
+        } catch (_: Exception) {
+            crateVersion = CRATE_VERSION_FALLBACK
+        }
+    }
 
     Column(
         modifier =
@@ -58,8 +75,9 @@ fun AboutScreen(
                 ),
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                AboutRow(label = "App Version", value = APP_VERSION)
-                AboutRow(label = "Crate Version", value = CRATE_VERSION)
+                AboutRow(label = "App Version", value = BuildConfig.VERSION_NAME)
+                AboutRow(label = "Build", value = BuildConfig.VERSION_CODE.toString())
+                AboutRow(label = "Crate Version", value = crateVersion)
             }
         }
 
@@ -120,7 +138,6 @@ private fun AboutRow(
     )
 }
 
-private const val APP_VERSION = "0.1.0"
-private const val CRATE_VERSION = "0.1.0"
+private const val CRATE_VERSION_FALLBACK = "unknown"
 private const val GITHUB_URL = "https://github.com/Natfii/ZeroClaw-Android"
 private const val LICENSE_URL = "https://github.com/Natfii/ZeroClaw-Android/blob/main/LICENSE"

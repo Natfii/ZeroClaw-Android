@@ -1,8 +1,4 @@
-/*
- * Copyright 2026 ZeroClaw Community
- *
- * Licensed under the MIT License. See LICENSE in the project root.
- */
+// Copyright 2026 ZeroClaw Community, MIT License
 
 package com.zeroclaw.android.ui.screen.dashboard
 
@@ -38,10 +34,14 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zeroclaw.android.ZeroClawApplication
+import com.zeroclaw.android.model.Agent
+import com.zeroclaw.android.model.DaemonStatus
+import com.zeroclaw.android.model.Plugin
 import com.zeroclaw.android.model.ServiceState
 import com.zeroclaw.android.ui.component.LoadingIndicator
 import com.zeroclaw.android.ui.component.SectionHeader
@@ -107,8 +107,23 @@ fun DashboardScreen(
             onStop = { viewModel.requestStop() },
         )
 
-        SectionHeader(title = "Recent Activity")
         val app = context.applicationContext as ZeroClawApplication
+        val agents by app.agentRepository.agents
+            .collectAsStateWithLifecycle(initialValue = emptyList())
+        val plugins by app.pluginRepository.plugins
+            .collectAsStateWithLifecycle(initialValue = emptyList())
+        val lastStatus by app.daemonBridge.lastStatus
+            .collectAsStateWithLifecycle()
+
+        SectionHeader(title = "At a Glance")
+        MetricCardsRow(
+            agents = agents,
+            plugins = plugins,
+            daemonStatus = lastStatus,
+            serviceState = serviceState,
+        )
+
+        SectionHeader(title = "Recent Activity")
         val activityEvents by app.activityRepository.events
             .collectAsStateWithLifecycle(initialValue = emptyList())
         ActivityFeedSection(events = activityEvents)
@@ -276,6 +291,150 @@ private fun KeyRejectionBanner(onDismiss: () -> Unit) {
                 Text("Dismiss")
             }
         }
+    }
+}
+
+/** Number of seconds in one minute, used for uptime formatting. */
+private const val SECONDS_PER_MINUTE = 60
+
+/** Number of seconds in one hour, used for uptime formatting. */
+private const val SECONDS_PER_HOUR = 3600L
+
+/**
+ * Row of three compact metric cards summarising agent count, plugin count,
+ * and daemon uptime. Each card occupies equal width via [Modifier.weight].
+ *
+ * The cards provide an at-a-glance overview of the system state on the
+ * dashboard without requiring the user to navigate to detail screens.
+ *
+ * @param agents Current list of all agents; only enabled agents are counted.
+ * @param plugins Current list of all plugins; only installed plugins are counted.
+ * @param daemonStatus Latest daemon health snapshot, used for uptime. May be null
+ *   if the daemon has not been polled yet.
+ * @param serviceState Current service lifecycle state; used to determine whether
+ *   to show uptime or "Offline".
+ */
+@Composable
+private fun MetricCardsRow(
+    agents: List<Agent>,
+    plugins: List<Plugin>,
+    daemonStatus: DaemonStatus?,
+    serviceState: ServiceState,
+) {
+    val enabledAgentCount = agents.count { it.isEnabled }
+    val installedPluginCount = plugins.count { it.isInstalled }
+    val uptimeText = formatUptime(daemonStatus, serviceState)
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        MetricCard(
+            label = "Agents",
+            value = enabledAgentCount.toString(),
+            description = "enabled",
+            modifier = Modifier.weight(1f),
+        )
+        MetricCard(
+            label = "Plugins",
+            value = installedPluginCount.toString(),
+            description = "installed",
+            modifier = Modifier.weight(1f),
+        )
+        MetricCard(
+            label = "Uptime",
+            value = uptimeText,
+            description = if (serviceState == ServiceState.RUNNING) "running" else "",
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+/**
+ * Compact metric card displaying a label, a prominent value, and an optional
+ * description line beneath.
+ *
+ * Styled with [MaterialTheme.colorScheme.surfaceContainerLow] background and
+ * centered text alignment for visual consistency in a multi-card row.
+ *
+ * @param label Short heading displayed above the value (e.g. "Agents").
+ * @param value The primary metric value displayed prominently (e.g. "3").
+ * @param description Optional secondary text below the value (e.g. "enabled").
+ * @param modifier Modifier applied to the root [Card] layout.
+ */
+@Composable
+private fun MetricCard(
+    label: String,
+    value: String,
+    description: String,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier = modifier,
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            ),
+    ) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = value,
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+            )
+            if (description.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Formats daemon uptime into a human-readable string.
+ *
+ * When the daemon is running and a status snapshot is available, formats the
+ * [DaemonStatus.uptimeSeconds] as "Xh Ym" (e.g. "2h 15m") or "Xm" for
+ * durations under one hour. Returns "Offline" when the daemon is not running
+ * or no status has been received.
+ *
+ * @param status Latest daemon health snapshot, or null if unavailable.
+ * @param serviceState Current service lifecycle state.
+ * @return Formatted uptime string.
+ */
+private fun formatUptime(
+    status: DaemonStatus?,
+    serviceState: ServiceState,
+): String {
+    if (serviceState != ServiceState.RUNNING || status == null) {
+        return "Offline"
+    }
+    val totalSeconds = status.uptimeSeconds
+    val hours = totalSeconds / SECONDS_PER_HOUR
+    val minutes = (totalSeconds % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE
+    return if (hours > 0) {
+        "${hours}h ${minutes}m"
+    } else {
+        "${minutes}m"
     }
 }
 

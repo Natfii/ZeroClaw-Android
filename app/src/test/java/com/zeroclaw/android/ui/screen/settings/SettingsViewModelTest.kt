@@ -135,4 +135,96 @@ private class TestSettingsRepository : SettingsRepository {
     override suspend fun setIdentityJson(json: String) {
         _settings.update { it.copy(identityJson = json) }
     }
+
+    override suspend fun setAutonomyLevel(level: String) { /* no-op */ }
+
+    override suspend fun setWorkspaceOnly(enabled: Boolean) { /* no-op */ }
+
+    override suspend fun setAllowedCommands(commands: String) { /* no-op */ }
+
+    override suspend fun setForbiddenPaths(paths: String) { /* no-op */ }
+
+    override suspend fun setMaxActionsPerHour(max: Int) { /* no-op */ }
+
+    override suspend fun setMaxCostPerDayCents(cents: Int) { /* no-op */ }
+
+    override suspend fun setRequireApprovalMediumRisk(required: Boolean) { /* no-op */ }
+
+    override suspend fun setBlockHighRiskCommands(blocked: Boolean) { /* no-op */ }
+
+    override suspend fun setTunnelProvider(provider: String) { /* no-op */ }
+
+    override suspend fun setTunnelCloudflareToken(token: String) { /* no-op */ }
+
+    override suspend fun setTunnelTailscaleFunnel(enabled: Boolean) { /* no-op */ }
+
+    override suspend fun setTunnelTailscaleHostname(hostname: String) { /* no-op */ }
+
+    override suspend fun setTunnelNgrokAuthToken(token: String) { /* no-op */ }
+
+    override suspend fun setTunnelNgrokDomain(domain: String) { /* no-op */ }
+
+    override suspend fun setTunnelCustomCommand(command: String) { /* no-op */ }
+
+    override suspend fun setTunnelCustomHealthUrl(url: String) { /* no-op */ }
+
+    override suspend fun setTunnelCustomUrlPattern(pattern: String) { /* no-op */ }
+
+    override suspend fun setGatewayRequirePairing(required: Boolean) { /* no-op */ }
+
+    override suspend fun setGatewayAllowPublicBind(allowed: Boolean) { /* no-op */ }
+
+    override suspend fun setGatewayPairedTokens(tokens: String) { /* no-op */ }
+
+    override suspend fun setGatewayPairRateLimit(limit: Int) { /* no-op */ }
+
+    override suspend fun setGatewayWebhookRateLimit(limit: Int) { /* no-op */ }
+
+    override suspend fun setGatewayIdempotencyTtl(seconds: Int) { /* no-op */ }
+
+    override suspend fun setSchedulerEnabled(enabled: Boolean) { /* no-op */ }
+
+    override suspend fun setSchedulerMaxTasks(max: Int) { /* no-op */ }
+
+    override suspend fun setSchedulerMaxConcurrent(max: Int) { /* no-op */ }
+
+    override suspend fun setHeartbeatEnabled(enabled: Boolean) { /* no-op */ }
+
+    override suspend fun setHeartbeatIntervalMinutes(minutes: Int) { /* no-op */ }
+
+    override suspend fun setObservabilityBackend(backend: String) { /* no-op */ }
+
+    override suspend fun setObservabilityOtelEndpoint(endpoint: String) { /* no-op */ }
+
+    override suspend fun setObservabilityOtelServiceName(name: String) { /* no-op */ }
+
+    override suspend fun setModelRoutesJson(json: String) { /* no-op */ }
+
+    override suspend fun setMemoryHygieneEnabled(enabled: Boolean) { /* no-op */ }
+
+    override suspend fun setMemoryArchiveAfterDays(days: Int) { /* no-op */ }
+
+    override suspend fun setMemoryPurgeAfterDays(days: Int) { /* no-op */ }
+
+    override suspend fun setMemoryEmbeddingProvider(provider: String) { /* no-op */ }
+
+    override suspend fun setMemoryEmbeddingModel(model: String) { /* no-op */ }
+
+    override suspend fun setMemoryVectorWeight(weight: Float) { /* no-op */ }
+
+    override suspend fun setMemoryKeywordWeight(weight: Float) { /* no-op */ }
+
+    override suspend fun setComposioEnabled(enabled: Boolean) { /* no-op */ }
+
+    override suspend fun setComposioApiKey(key: String) { /* no-op */ }
+
+    override suspend fun setComposioEntityId(entityId: String) { /* no-op */ }
+
+    override suspend fun setBrowserEnabled(enabled: Boolean) { /* no-op */ }
+
+    override suspend fun setBrowserAllowedDomains(domains: String) { /* no-op */ }
+
+    override suspend fun setHttpRequestEnabled(enabled: Boolean) { /* no-op */ }
+
+    override suspend fun setHttpRequestAllowedDomains(domains: String) { /* no-op */ }
 }

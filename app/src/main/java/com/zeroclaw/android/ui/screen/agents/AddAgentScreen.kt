@@ -197,11 +197,22 @@ fun AddAgentScreen(
                 )
             }
             Spacer(modifier = Modifier.height(FIELD_SPACING_DP.dp))
+
+            val maxDepthValue = maxDepth.toIntOrNull()
+            val maxDepthError = maxDepth.isNotEmpty() && (maxDepthValue == null || maxDepthValue < 1)
+
             OutlinedTextField(
                 value = maxDepth,
                 onValueChange = { maxDepth = it },
                 label = { Text("Max depth") },
                 singleLine = true,
+                isError = maxDepthError,
+                supportingText =
+                    if (maxDepthError) {
+                        { Text("Must be a positive integer") }
+                    } else {
+                        null
+                    },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 modifier = Modifier.fillMaxWidth(),
             )

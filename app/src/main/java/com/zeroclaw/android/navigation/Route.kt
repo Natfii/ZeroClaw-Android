@@ -111,6 +111,42 @@ data object ConsoleRoute
 @Serializable
 data object DoctorRoute
 
+/** Autonomy level and security policy screen. */
+@Serializable
+data object AutonomyRoute
+
+/** Security posture overview screen. */
+@Serializable
+data object SecurityOverviewRoute
+
+/** Tunnel configuration screen. */
+@Serializable
+data object TunnelRoute
+
+/** Gateway and pairing configuration screen. */
+@Serializable
+data object GatewayRoute
+
+/** Tool management screen (browser, HTTP, Composio). */
+@Serializable
+data object ToolManagementRoute
+
+/** Model routing rules screen. */
+@Serializable
+data object ModelRoutesRoute
+
+/** Memory advanced configuration screen. */
+@Serializable
+data object MemoryAdvancedRoute
+
+/** Scheduler and heartbeat configuration screen. */
+@Serializable
+data object SchedulerRoute
+
+/** Observability backend configuration screen. */
+@Serializable
+data object ObservabilityRoute
+
 /** First-run onboarding wizard. */
 @Serializable
 data object OnboardingRoute

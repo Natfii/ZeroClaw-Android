@@ -1,0 +1,343 @@
+# Baseline profile for ZeroClaw-Android
+# Hand-written rules to hint ART ahead-of-time compilation for startup performance.
+# Prefix legend:
+#   H = Hot method (frequently executed)
+#   S = Startup method (called during app startup)
+#   P = Post-startup method (called shortly after startup completes)
+#   L = Class preload (load class into memory early)
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Application startup
+# ──────────────────────────────────────────────────────────────────────────────
+
+HSPLcom/zeroclaw/android/ZeroClawApplication;->**(**)**
+HSPLcom/zeroclaw/android/MainActivity;->**(**)**
+Lcom/zeroclaw/android/ZeroClawApplication;
+Lcom/zeroclaw/android/MainActivity;
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Navigation shell and route classes
+# ──────────────────────────────────────────────────────────────────────────────
+
+HSPLcom/zeroclaw/android/navigation/ZeroClawAppShell**;->**(**)**
+HSPLcom/zeroclaw/android/navigation/ZeroClawNavHost**;->**(**)**
+HSPLcom/zeroclaw/android/navigation/Route;->**(**)**
+HSPLcom/zeroclaw/android/navigation/Route$**;->**(**)**
+HSPLcom/zeroclaw/android/navigation/TopLevelDestination;->**(**)**
+Lcom/zeroclaw/android/navigation/ZeroClawAppShell**;
+Lcom/zeroclaw/android/navigation/ZeroClawNavHost**;
+Lcom/zeroclaw/android/navigation/Route;
+Lcom/zeroclaw/android/navigation/Route$**;
+Lcom/zeroclaw/android/navigation/TopLevelDestination;
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Dashboard (first visible screen after startup)
+# ──────────────────────────────────────────────────────────────────────────────
+
+HSPLcom/zeroclaw/android/ui/screen/dashboard/DashboardScreen**;->**(**)**
+HSPLcom/zeroclaw/android/ui/screen/dashboard/ActivityFeedSection**;->**(**)**
+Lcom/zeroclaw/android/ui/screen/dashboard/DashboardScreen**;
+Lcom/zeroclaw/android/ui/screen/dashboard/ActivityFeedSection**;
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Core reusable UI components
+# ──────────────────────────────────────────────────────────────────────────────
+
+HSPLcom/zeroclaw/android/ui/component/StatusDot**;->**(**)**
+HSPLcom/zeroclaw/android/ui/component/LoadingIndicator**;->**(**)**
+HSPLcom/zeroclaw/android/ui/component/SectionHeader**;->**(**)**
+HSPLcom/zeroclaw/android/ui/component/ErrorCard**;->**(**)**
+HSPLcom/zeroclaw/android/ui/component/EmptyState**;->**(**)**
+HSPLcom/zeroclaw/android/ui/component/SettingsListItem**;->**(**)**
+Lcom/zeroclaw/android/ui/component/StatusDot**;
+Lcom/zeroclaw/android/ui/component/LoadingIndicator**;
+Lcom/zeroclaw/android/ui/component/SectionHeader**;
+Lcom/zeroclaw/android/ui/component/ErrorCard**;
+Lcom/zeroclaw/android/ui/component/EmptyState**;
+Lcom/zeroclaw/android/ui/component/SettingsListItem**;
+
+# ──────────────────────────────────────────────────────────────────────────────
+# ViewModel initialization (startup and post-startup)
+# ──────────────────────────────────────────────────────────────────────────────
+
+HSPLcom/zeroclaw/android/viewmodel/DaemonViewModel;->**(**)**
+HSPLcom/zeroclaw/android/ui/screen/settings/SettingsViewModel;->**(**)**
+HSPLcom/zeroclaw/android/ui/screen/agents/AgentsViewModel;->**(**)**
+HSPLcom/zeroclaw/android/ui/screen/plugins/PluginsViewModel;->**(**)**
+HSPLcom/zeroclaw/android/ui/screen/agents/AgentDetailViewModel;->**(**)**
+HSPLcom/zeroclaw/android/ui/screen/plugins/PluginDetailViewModel;->**(**)**
+HSPLcom/zeroclaw/android/ui/screen/onboarding/OnboardingViewModel;->**(**)**
+HSPLcom/zeroclaw/android/ui/screen/settings/logs/LogViewerViewModel;->**(**)**
+HSPLcom/zeroclaw/android/ui/screen/settings/apikeys/ApiKeysViewModel;->**(**)**
+HSPLcom/zeroclaw/android/ui/screen/settings/channels/ChannelsViewModel;->**(**)**
+HSPLcom/zeroclaw/android/ui/screen/settings/doctor/DoctorViewModel;->**(**)**
+Lcom/zeroclaw/android/viewmodel/DaemonViewModel;
+Lcom/zeroclaw/android/ui/screen/settings/SettingsViewModel;
+Lcom/zeroclaw/android/ui/screen/agents/AgentsViewModel;
+Lcom/zeroclaw/android/ui/screen/plugins/PluginsViewModel;
+Lcom/zeroclaw/android/ui/screen/agents/AgentDetailViewModel;
+Lcom/zeroclaw/android/ui/screen/plugins/PluginDetailViewModel;
+Lcom/zeroclaw/android/ui/screen/onboarding/OnboardingViewModel;
+Lcom/zeroclaw/android/ui/screen/settings/logs/LogViewerViewModel;
+Lcom/zeroclaw/android/ui/screen/settings/apikeys/ApiKeysViewModel;
+Lcom/zeroclaw/android/ui/screen/settings/channels/ChannelsViewModel;
+Lcom/zeroclaw/android/ui/screen/settings/doctor/DoctorViewModel;
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Service layer (foreground service, bridge, notifications)
+# ──────────────────────────────────────────────────────────────────────────────
+
+HSPLcom/zeroclaw/android/service/DaemonServiceBridge;->**(**)**
+HSPLcom/zeroclaw/android/service/ZeroClawDaemonService;->**(**)**
+HSPLcom/zeroclaw/android/service/DaemonNotificationManager;->**(**)**
+HSPLcom/zeroclaw/android/service/DaemonPersistence;->**(**)**
+HSPLcom/zeroclaw/android/service/NetworkMonitor;->**(**)**
+HSPLcom/zeroclaw/android/service/RetryPolicy;->**(**)**
+HSPLcom/zeroclaw/android/service/BootReceiver;->**(**)**
+HSPLcom/zeroclaw/android/service/ConfigTomlBuilder;->**(**)**
+HSPLcom/zeroclaw/android/service/DaemonTileService;->**(**)**
+HSPLcom/zeroclaw/android/service/DoctorValidator;->**(**)**
+HSPLcom/zeroclaw/android/service/ApiKeyErrorClassifier;->**(**)**
+Lcom/zeroclaw/android/service/DaemonServiceBridge;
+Lcom/zeroclaw/android/service/ZeroClawDaemonService;
+Lcom/zeroclaw/android/service/DaemonNotificationManager;
+Lcom/zeroclaw/android/service/DaemonPersistence;
+Lcom/zeroclaw/android/service/NetworkMonitor;
+Lcom/zeroclaw/android/service/RetryPolicy;
+Lcom/zeroclaw/android/service/BootReceiver;
+Lcom/zeroclaw/android/service/ConfigTomlBuilder;
+Lcom/zeroclaw/android/service/DaemonTileService;
+Lcom/zeroclaw/android/service/DoctorValidator;
+Lcom/zeroclaw/android/service/ApiKeyErrorClassifier;
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Room database, DAOs, and entities
+# ──────────────────────────────────────────────────────────────────────────────
+
+HSPLcom/zeroclaw/android/data/local/ZeroClawDatabase;->**(**)**
+HSPLcom/zeroclaw/android/data/local/ZeroClawDatabase_Impl;->**(**)**
+HSPLcom/zeroclaw/android/data/local/SeedData**;->**(**)**
+HSPLcom/zeroclaw/android/data/local/dao/AgentDao;->**(**)**
+HSPLcom/zeroclaw/android/data/local/dao/AgentDao_Impl;->**(**)**
+HSPLcom/zeroclaw/android/data/local/dao/PluginDao;->**(**)**
+HSPLcom/zeroclaw/android/data/local/dao/PluginDao_Impl;->**(**)**
+HSPLcom/zeroclaw/android/data/local/dao/LogEntryDao;->**(**)**
+HSPLcom/zeroclaw/android/data/local/dao/LogEntryDao_Impl;->**(**)**
+HSPLcom/zeroclaw/android/data/local/dao/ActivityEventDao;->**(**)**
+HSPLcom/zeroclaw/android/data/local/dao/ActivityEventDao_Impl;->**(**)**
+HSPLcom/zeroclaw/android/data/local/dao/ConnectedChannelDao;->**(**)**
+HSPLcom/zeroclaw/android/data/local/dao/ConnectedChannelDao_Impl;->**(**)**
+HSPLcom/zeroclaw/android/data/local/entity/AgentEntity;->**(**)**
+HSPLcom/zeroclaw/android/data/local/entity/PluginEntity;->**(**)**
+HSPLcom/zeroclaw/android/data/local/entity/LogEntryEntity;->**(**)**
+HSPLcom/zeroclaw/android/data/local/entity/ActivityEventEntity;->**(**)**
+HSPLcom/zeroclaw/android/data/local/entity/ConnectedChannelEntity;->**(**)**
+HSPLcom/zeroclaw/android/data/local/entity/EntityMappers**;->**(**)**
+Lcom/zeroclaw/android/data/local/ZeroClawDatabase;
+Lcom/zeroclaw/android/data/local/ZeroClawDatabase_Impl;
+Lcom/zeroclaw/android/data/local/SeedData**;
+Lcom/zeroclaw/android/data/local/dao/AgentDao;
+Lcom/zeroclaw/android/data/local/dao/AgentDao_Impl;
+Lcom/zeroclaw/android/data/local/dao/PluginDao;
+Lcom/zeroclaw/android/data/local/dao/PluginDao_Impl;
+Lcom/zeroclaw/android/data/local/dao/LogEntryDao;
+Lcom/zeroclaw/android/data/local/dao/LogEntryDao_Impl;
+Lcom/zeroclaw/android/data/local/dao/ActivityEventDao;
+Lcom/zeroclaw/android/data/local/dao/ActivityEventDao_Impl;
+Lcom/zeroclaw/android/data/local/dao/ConnectedChannelDao;
+Lcom/zeroclaw/android/data/local/dao/ConnectedChannelDao_Impl;
+Lcom/zeroclaw/android/data/local/entity/AgentEntity;
+Lcom/zeroclaw/android/data/local/entity/PluginEntity;
+Lcom/zeroclaw/android/data/local/entity/LogEntryEntity;
+Lcom/zeroclaw/android/data/local/entity/ActivityEventEntity;
+Lcom/zeroclaw/android/data/local/entity/ConnectedChannelEntity;
+Lcom/zeroclaw/android/data/local/entity/EntityMappers**;
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Data repositories
+# ──────────────────────────────────────────────────────────────────────────────
+
+HSPLcom/zeroclaw/android/data/repository/RoomAgentRepository;->**(**)**
+HSPLcom/zeroclaw/android/data/repository/RoomPluginRepository;->**(**)**
+HSPLcom/zeroclaw/android/data/repository/RoomLogRepository;->**(**)**
+HSPLcom/zeroclaw/android/data/repository/RoomActivityRepository;->**(**)**
+HSPLcom/zeroclaw/android/data/repository/RoomChannelConfigRepository;->**(**)**
+HSPLcom/zeroclaw/android/data/repository/EncryptedApiKeyRepository;->**(**)**
+HSPLcom/zeroclaw/android/data/repository/InMemoryApiKeyRepository;->**(**)**
+HSPLcom/zeroclaw/android/data/repository/AgentRepository;->**(**)**
+HSPLcom/zeroclaw/android/data/repository/PluginRepository;->**(**)**
+HSPLcom/zeroclaw/android/data/repository/LogRepository;->**(**)**
+HSPLcom/zeroclaw/android/data/repository/ActivityRepository;->**(**)**
+HSPLcom/zeroclaw/android/data/repository/ApiKeyRepository;->**(**)**
+HSPLcom/zeroclaw/android/data/repository/ChannelConfigRepository;->**(**)**
+HSPLcom/zeroclaw/android/data/repository/OnboardingRepository;->**(**)**
+HSPLcom/zeroclaw/android/data/repository/KeyExportCrypto;->**(**)**
+Lcom/zeroclaw/android/data/repository/RoomAgentRepository;
+Lcom/zeroclaw/android/data/repository/RoomPluginRepository;
+Lcom/zeroclaw/android/data/repository/RoomLogRepository;
+Lcom/zeroclaw/android/data/repository/RoomActivityRepository;
+Lcom/zeroclaw/android/data/repository/RoomChannelConfigRepository;
+Lcom/zeroclaw/android/data/repository/EncryptedApiKeyRepository;
+Lcom/zeroclaw/android/data/repository/InMemoryApiKeyRepository;
+Lcom/zeroclaw/android/data/repository/AgentRepository;
+Lcom/zeroclaw/android/data/repository/PluginRepository;
+Lcom/zeroclaw/android/data/repository/LogRepository;
+Lcom/zeroclaw/android/data/repository/ActivityRepository;
+Lcom/zeroclaw/android/data/repository/ApiKeyRepository;
+Lcom/zeroclaw/android/data/repository/ChannelConfigRepository;
+Lcom/zeroclaw/android/data/repository/OnboardingRepository;
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Domain models
+# ──────────────────────────────────────────────────────────────────────────────
+
+HSPLcom/zeroclaw/android/model/DaemonStatus;->**(**)**
+HSPLcom/zeroclaw/android/model/DaemonStatus$**;->**(**)**
+HSPLcom/zeroclaw/android/model/Agent;->**(**)**
+HSPLcom/zeroclaw/android/model/Agent$**;->**(**)**
+HSPLcom/zeroclaw/android/model/Plugin;->**(**)**
+HSPLcom/zeroclaw/android/model/Plugin$**;->**(**)**
+HSPLcom/zeroclaw/android/model/LogEntry;->**(**)**
+HSPLcom/zeroclaw/android/model/ActivityEvent;->**(**)**
+HSPLcom/zeroclaw/android/model/ApiKey;->**(**)**
+HSPLcom/zeroclaw/android/model/ConnectedChannel;->**(**)**
+HSPLcom/zeroclaw/android/model/ProviderInfo;->**(**)**
+HSPLcom/zeroclaw/android/model/DiagnosticCheck;->**(**)**
+HSPLcom/zeroclaw/android/model/DiscoveredServer;->**(**)**
+Lcom/zeroclaw/android/model/DaemonStatus;
+Lcom/zeroclaw/android/model/DaemonStatus$**;
+Lcom/zeroclaw/android/model/Agent;
+Lcom/zeroclaw/android/model/Agent$**;
+Lcom/zeroclaw/android/model/Plugin;
+Lcom/zeroclaw/android/model/Plugin$**;
+Lcom/zeroclaw/android/model/LogEntry;
+Lcom/zeroclaw/android/model/ActivityEvent;
+Lcom/zeroclaw/android/model/ApiKey;
+Lcom/zeroclaw/android/model/ConnectedChannel;
+Lcom/zeroclaw/android/model/ProviderInfo;
+Lcom/zeroclaw/android/model/DiagnosticCheck;
+Lcom/zeroclaw/android/model/DiscoveredServer;
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Utility classes
+# ──────────────────────────────────────────────────────────────────────────────
+
+HSPLcom/zeroclaw/android/util/BatteryOptimization**;->**(**)**
+HSPLcom/zeroclaw/android/util/PowerSaveState**;->**(**)**
+HSPLcom/zeroclaw/android/data/ProviderRegistry;->**(**)**
+HSPLcom/zeroclaw/android/data/SecurePrefsProvider;->**(**)**
+HSPLcom/zeroclaw/android/data/CredentialsJsonParser;->**(**)**
+Lcom/zeroclaw/android/util/BatteryOptimization**;
+Lcom/zeroclaw/android/util/PowerSaveState**;
+Lcom/zeroclaw/android/data/ProviderRegistry;
+Lcom/zeroclaw/android/data/SecurePrefsProvider;
+Lcom/zeroclaw/android/data/CredentialsJsonParser;
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Theme setup (Material 3 + Dynamic Color)
+# ──────────────────────────────────────────────────────────────────────────────
+
+HSPLcom/zeroclaw/android/ui/theme/Theme**;->**(**)**
+HSPLcom/zeroclaw/android/ui/theme/Type**;->**(**)**
+Lcom/zeroclaw/android/ui/theme/Theme**;
+Lcom/zeroclaw/android/ui/theme/Type**;
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Compose runtime critical paths (collectAsStateWithLifecycle)
+# ──────────────────────────────────────────────────────────────────────────────
+
+HSPLandroidx/lifecycle/compose/FlowExtKt;->collectAsStateWithLifecycle(**)**
+HSPLandroidx/lifecycle/compose/FlowExtKt;->collectAsStateWithLifecycle$default(**)**
+Landroidx/lifecycle/compose/FlowExtKt;
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Compose navigation critical paths
+# ──────────────────────────────────────────────────────────────────────────────
+
+HSPLandroidx/navigation/compose/NavHostKt;->NavHost(**)**
+HSPLandroidx/navigation/compose/NavHostControllerKt;->rememberNavController(**)**
+Landroidx/navigation/compose/NavHostKt;
+Landroidx/navigation/compose/NavHostControllerKt;
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Material 3 Compose theme and scaffold
+# ──────────────────────────────────────────────────────────────────────────────
+
+HSPLandroidx/compose/material3/MaterialThemeKt;->MaterialTheme(**)**
+HSPLandroidx/compose/material3/DynamicTonalPaletteKt;->dynamicTonalPalette(**)**
+HSPLandroidx/compose/material3/ColorSchemeKt;->**(**)**
+HSPLandroidx/compose/material3/ScaffoldKt;->Scaffold(**)**
+HSPLandroidx/compose/material3/SurfaceKt;->Surface(**)**
+HSPLandroidx/compose/material3/TextKt;->Text(**)**
+HSPLandroidx/compose/material3/IconKt;->Icon(**)**
+HSPLandroidx/compose/material3/adaptive/navigationsuite/NavigationSuiteScaffoldKt;->NavigationSuiteScaffold(**)**
+Landroidx/compose/material3/MaterialThemeKt;
+Landroidx/compose/material3/DynamicTonalPaletteKt;
+Landroidx/compose/material3/ColorSchemeKt;
+Landroidx/compose/material3/ScaffoldKt;
+Landroidx/compose/material3/SurfaceKt;
+Landroidx/compose/material3/TextKt;
+Landroidx/compose/material3/IconKt;
+Landroidx/compose/material3/adaptive/navigationsuite/NavigationSuiteScaffoldKt;
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Compose foundation and runtime hot paths
+# ──────────────────────────────────────────────────────────────────────────────
+
+HSPLandroidx/compose/foundation/lazy/LazyListKt;->LazyColumn(**)**
+HSPLandroidx/compose/foundation/layout/ColumnKt;->Column(**)**
+HSPLandroidx/compose/foundation/layout/RowKt;->Row(**)**
+HSPLandroidx/compose/foundation/layout/BoxKt;->Box(**)**
+HSPLandroidx/compose/foundation/layout/PaddingKt;->padding(**)**
+HSPLandroidx/compose/foundation/layout/SpacerKt;->Spacer(**)**
+HSPLandroidx/compose/runtime/ComposerKt;->**(**)**
+HSPLandroidx/compose/runtime/SnapshotStateKt;->**(**)**
+HSPLandroidx/compose/ui/platform/AndroidComposeViewKt;->**(**)**
+Landroidx/compose/foundation/lazy/LazyListKt;
+Landroidx/compose/foundation/layout/ColumnKt;
+Landroidx/compose/foundation/layout/RowKt;
+Landroidx/compose/foundation/layout/BoxKt;
+Landroidx/compose/foundation/layout/SpacerKt;
+Landroidx/compose/runtime/ComposerKt;
+Landroidx/compose/runtime/SnapshotStateKt;
+Landroidx/compose/ui/platform/AndroidComposeViewKt;
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Room runtime
+# ──────────────────────────────────────────────────────────────────────────────
+
+HSPLandroidx/room/Room;->databaseBuilder(**)**
+HSPLandroidx/room/RoomDatabase;->**(**)**
+HSPLandroidx/room/RoomDatabase$Builder;->**(**)**
+Landroidx/room/Room;
+Landroidx/room/RoomDatabase;
+Landroidx/room/RoomDatabase$Builder;
+
+# ──────────────────────────────────────────────────────────────────────────────
+# AndroidX Lifecycle ViewModel and StateFlow
+# ──────────────────────────────────────────────────────────────────────────────
+
+HSPLandroidx/lifecycle/ViewModel;->**(**)**
+HSPLandroidx/lifecycle/ViewModelProvider;->**(**)**
+HSPLandroidx/lifecycle/viewmodel/compose/ViewModelKt;->viewModel(**)**
+Landroidx/lifecycle/ViewModel;
+Landroidx/lifecycle/ViewModelProvider;
+Landroidx/lifecycle/viewmodel/compose/ViewModelKt;
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Kotlin coroutines and StateFlow (hot paths for reactive state)
+# ──────────────────────────────────────────────────────────────────────────────
+
+HSPLkotlinx/coroutines/flow/StateFlowImpl;->**(**)**
+HSPLkotlinx/coroutines/flow/FlowKt;->**(**)**
+Lkotlinx/coroutines/flow/StateFlowImpl;
+Lkotlinx/coroutines/flow/FlowKt;
+
+# ──────────────────────────────────────────────────────────────────────────────
+# UniFFI / JNA bridge (native library loading)
+# ──────────────────────────────────────────────────────────────────────────────
+
+HSPLzeroclaw/android/Zeroclaw_androidKt;->**(**)**
+HSPLcom/sun/jna/Native;->**(**)**
+Lzeroclaw/android/Zeroclaw_androidKt;
+Lcom/sun/jna/Native;

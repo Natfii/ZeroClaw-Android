@@ -18,6 +18,7 @@ import com.zeroclaw.android.data.CredentialsJsonParser
 import com.zeroclaw.android.data.ProviderRegistry
 import com.zeroclaw.android.data.StorageHealth
 import com.zeroclaw.android.model.ApiKey
+import com.zeroclaw.android.model.KeyStatus
 import java.io.IOException
 import java.security.GeneralSecurityException
 import java.util.UUID
@@ -183,6 +184,44 @@ class ApiKeysViewModel(
         viewModelScope.launch {
             try {
                 repository.save(apiKey)
+                _saveState.value = SaveState.Saved
+            } catch (e: Exception) {
+                _saveState.value = SaveState.Error(safeErrorMessage(e))
+            }
+        }
+    }
+
+    /**
+     * Rotates an existing API key by replacing its secret with a new value.
+     *
+     * Preserves the key's ID, provider, and base URL while resetting the
+     * creation timestamp and status to [KeyStatus.ACTIVE]. Updates
+     * [saveState] through the standard save lifecycle.
+     *
+     * @param id Identifier of the key to rotate.
+     * @param newKeyValue The new secret key value.
+     */
+    @Suppress("TooGenericExceptionCaught")
+    fun rotateKey(
+        id: String,
+        newKeyValue: String,
+    ) {
+        _saveState.value = SaveState.Saving
+        viewModelScope.launch {
+            try {
+                val existing = repository.getById(id)
+                if (existing == null) {
+                    _saveState.value = SaveState.Error("Key not found")
+                    return@launch
+                }
+                repository.save(
+                    existing.copy(
+                        key = newKeyValue,
+                        createdAt = System.currentTimeMillis(),
+                        status = KeyStatus.ACTIVE,
+                    ),
+                )
+                _snackbarMessage.value = "Key rotated successfully"
                 _saveState.value = SaveState.Saved
             } catch (e: Exception) {
                 _saveState.value = SaveState.Error(safeErrorMessage(e))

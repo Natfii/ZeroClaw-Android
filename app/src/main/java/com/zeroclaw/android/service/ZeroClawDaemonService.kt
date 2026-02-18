@@ -18,6 +18,8 @@ import com.zeroclaw.android.data.repository.ApiKeyRepository
 import com.zeroclaw.android.data.repository.ChannelConfigRepository
 import com.zeroclaw.android.data.repository.LogRepository
 import com.zeroclaw.android.data.repository.SettingsRepository
+import com.zeroclaw.android.model.ApiKey
+import com.zeroclaw.android.model.AppSettings
 import com.zeroclaw.android.model.LogSeverity
 import com.zeroclaw.android.model.ServiceState
 import com.zeroclaw.ffi.FfiException
@@ -57,6 +59,7 @@ import kotlinx.coroutines.launch
  * - [ACTION_STOP] to stop the daemon and remove the foreground notification.
  * - [ACTION_RETRY] to reset the retry counter and attempt startup again.
  */
+@Suppress("TooManyFunctions")
 class ZeroClawDaemonService : Service() {
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -150,29 +153,8 @@ class ZeroClawDaemonService : Service() {
             val settings = settingsRepository.settings.first()
             val apiKey = apiKeyRepository.getByProviderFresh(settings.defaultProvider)
 
-            val fallbackList =
-                settings.fallbackProviders
-                    .split(",")
-                    .map { it.trim() }
-                    .filter { it.isNotEmpty() }
             val globalConfig =
-                GlobalTomlConfig(
-                    provider = settings.defaultProvider,
-                    model = settings.defaultModel,
-                    apiKey = apiKey?.key.orEmpty(),
-                    baseUrl = apiKey?.baseUrl.orEmpty(),
-                    temperature = settings.defaultTemperature,
-                    compactContext = settings.compactContext,
-                    costEnabled = settings.costEnabled,
-                    dailyLimitUsd = settings.dailyLimitUsd,
-                    monthlyLimitUsd = settings.monthlyLimitUsd,
-                    costWarnAtPercent = settings.costWarnAtPercent,
-                    providerRetries = settings.providerRetries,
-                    fallbackProviders = fallbackList,
-                    memoryBackend = settings.memoryBackend,
-                    memoryAutoSave = settings.memoryAutoSave,
-                    identityJson = settings.identityJson,
-                )
+                buildGlobalTomlConfig(settings, apiKey)
             val baseToml = ConfigTomlBuilder.build(globalConfig)
             val channelsToml =
                 ConfigTomlBuilder.buildChannelsToml(
@@ -189,6 +171,87 @@ class ZeroClawDaemonService : Service() {
             )
         }
     }
+
+    /**
+     * Converts [AppSettings] and resolved API key into a [GlobalTomlConfig].
+     *
+     * Comma-separated string fields in [AppSettings] are split into lists
+     * for [GlobalTomlConfig] properties that expect `List<String>`.
+     *
+     * @param settings Current application settings.
+     * @param apiKey Resolved API key for the default provider, or null.
+     * @return A fully populated [GlobalTomlConfig].
+     */
+    @Suppress("LongMethod")
+    private fun buildGlobalTomlConfig(
+        settings: AppSettings,
+        apiKey: ApiKey?,
+    ): GlobalTomlConfig =
+        GlobalTomlConfig(
+            provider = settings.defaultProvider,
+            model = settings.defaultModel,
+            apiKey = apiKey?.key.orEmpty(),
+            baseUrl = apiKey?.baseUrl.orEmpty(),
+            temperature = settings.defaultTemperature,
+            compactContext = settings.compactContext,
+            costEnabled = settings.costEnabled,
+            dailyLimitUsd = settings.dailyLimitUsd,
+            monthlyLimitUsd = settings.monthlyLimitUsd,
+            costWarnAtPercent = settings.costWarnAtPercent,
+            providerRetries = settings.providerRetries,
+            fallbackProviders = splitCsv(settings.fallbackProviders),
+            memoryBackend = settings.memoryBackend,
+            memoryAutoSave = settings.memoryAutoSave,
+            identityJson = settings.identityJson,
+            autonomyLevel = settings.autonomyLevel,
+            workspaceOnly = settings.workspaceOnly,
+            allowedCommands = splitCsv(settings.allowedCommands),
+            forbiddenPaths = splitCsv(settings.forbiddenPaths),
+            maxActionsPerHour = settings.maxActionsPerHour,
+            maxCostPerDayCents = settings.maxCostPerDayCents,
+            requireApprovalMediumRisk = settings.requireApprovalMediumRisk,
+            blockHighRiskCommands = settings.blockHighRiskCommands,
+            tunnelProvider = settings.tunnelProvider,
+            tunnelCloudflareToken = settings.tunnelCloudflareToken,
+            tunnelTailscaleFunnel = settings.tunnelTailscaleFunnel,
+            tunnelTailscaleHostname = settings.tunnelTailscaleHostname,
+            tunnelNgrokAuthToken = settings.tunnelNgrokAuthToken,
+            tunnelNgrokDomain = settings.tunnelNgrokDomain,
+            tunnelCustomCommand = settings.tunnelCustomCommand,
+            tunnelCustomHealthUrl = settings.tunnelCustomHealthUrl,
+            tunnelCustomUrlPattern = settings.tunnelCustomUrlPattern,
+            gatewayHost = settings.host,
+            gatewayPort = settings.port,
+            gatewayRequirePairing = settings.gatewayRequirePairing,
+            gatewayAllowPublicBind = settings.gatewayAllowPublicBind,
+            gatewayPairedTokens = splitCsv(settings.gatewayPairedTokens),
+            gatewayPairRateLimit = settings.gatewayPairRateLimit,
+            gatewayWebhookRateLimit = settings.gatewayWebhookRateLimit,
+            gatewayIdempotencyTtl = settings.gatewayIdempotencyTtl,
+            schedulerEnabled = settings.schedulerEnabled,
+            schedulerMaxTasks = settings.schedulerMaxTasks,
+            schedulerMaxConcurrent = settings.schedulerMaxConcurrent,
+            heartbeatEnabled = settings.heartbeatEnabled,
+            heartbeatIntervalMinutes = settings.heartbeatIntervalMinutes,
+            observabilityBackend = settings.observabilityBackend,
+            observabilityOtelEndpoint = settings.observabilityOtelEndpoint,
+            observabilityOtelServiceName = settings.observabilityOtelServiceName,
+            modelRoutesJson = settings.modelRoutesJson,
+            memoryHygieneEnabled = settings.memoryHygieneEnabled,
+            memoryArchiveAfterDays = settings.memoryArchiveAfterDays,
+            memoryPurgeAfterDays = settings.memoryPurgeAfterDays,
+            memoryEmbeddingProvider = settings.memoryEmbeddingProvider,
+            memoryEmbeddingModel = settings.memoryEmbeddingModel,
+            memoryVectorWeight = settings.memoryVectorWeight,
+            memoryKeywordWeight = settings.memoryKeywordWeight,
+            composioEnabled = settings.composioEnabled,
+            composioApiKey = settings.composioApiKey,
+            composioEntityId = settings.composioEntityId,
+            browserEnabled = settings.browserEnabled,
+            browserAllowedDomains = splitCsv(settings.browserAllowedDomains),
+            httpRequestEnabled = settings.httpRequestEnabled,
+            httpRequestAllowedDomains = splitCsv(settings.httpRequestAllowedDomains),
+        )
 
     /**
      * Resolves all enabled agents into [AgentTomlEntry] instances and builds
@@ -428,3 +491,11 @@ class ZeroClawDaemonService : Service() {
         private const val WAKE_LOCK_TIMEOUT_MS = 4L * 60 * 60 * 1000
     }
 }
+
+/**
+ * Splits a comma-separated string into a trimmed, non-blank list.
+ *
+ * @param csv Comma-separated string (may be blank).
+ * @return List of trimmed non-blank tokens; empty list if [csv] is blank.
+ */
+private fun splitCsv(csv: String): List<String> = csv.split(",").map { it.trim() }.filter { it.isNotEmpty() }

@@ -20,11 +20,20 @@ import androidx.compose.material.icons.outlined.BatteryAlert
 import androidx.compose.material.icons.outlined.Fingerprint
 import androidx.compose.material.icons.outlined.Forum
 import androidx.compose.material.icons.outlined.HealthAndSafety
+import androidx.compose.material.icons.outlined.Hub
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Key
+import androidx.compose.material.icons.outlined.Memory
 import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Route
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.SystemUpdate
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.outlined.VerifiedUser
+import androidx.compose.material.icons.outlined.VpnKey
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -43,6 +52,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zeroclaw.android.ui.component.SectionHeader
 
 /**
@@ -59,10 +70,21 @@ import com.zeroclaw.android.ui.component.SectionHeader
  * @param onNavigateToIdentity Navigate to agent identity editor.
  * @param onNavigateToAbout Navigate to about screen.
  * @param onNavigateToUpdates Navigate to updates screen.
+ * @param onNavigateToAutonomy Navigate to autonomy level screen.
+ * @param onNavigateToTunnel Navigate to tunnel configuration screen.
+ * @param onNavigateToGateway Navigate to gateway and pairing screen.
+ * @param onNavigateToToolManagement Navigate to tool management screen.
+ * @param onNavigateToModelRoutes Navigate to model routes screen.
+ * @param onNavigateToMemoryAdvanced Navigate to memory advanced config screen.
+ * @param onNavigateToScheduler Navigate to scheduler and heartbeat screen.
+ * @param onNavigateToObservability Navigate to observability backend screen.
+ * @param onNavigateToSecurityOverview Navigate to security posture overview screen.
  * @param onRerunWizard Callback to reset onboarding and navigate to the setup wizard.
  * @param edgeMargin Horizontal padding based on window width size class.
+ * @param settingsViewModel ViewModel providing current settings for dynamic subtitles.
  * @param modifier Modifier applied to the root layout.
  */
+@Suppress("LongParameterList")
 @Composable
 fun SettingsScreen(
     onNavigateToServiceConfig: () -> Unit,
@@ -74,10 +96,21 @@ fun SettingsScreen(
     onNavigateToIdentity: () -> Unit,
     onNavigateToAbout: () -> Unit,
     onNavigateToUpdates: () -> Unit,
+    onNavigateToAutonomy: () -> Unit,
+    onNavigateToTunnel: () -> Unit,
+    onNavigateToGateway: () -> Unit,
+    onNavigateToToolManagement: () -> Unit,
+    onNavigateToModelRoutes: () -> Unit,
+    onNavigateToMemoryAdvanced: () -> Unit,
+    onNavigateToScheduler: () -> Unit,
+    onNavigateToObservability: () -> Unit,
+    onNavigateToSecurityOverview: () -> Unit,
     onRerunWizard: () -> Unit,
     edgeMargin: androidx.compose.ui.unit.Dp,
+    settingsViewModel: SettingsViewModel = viewModel(),
     modifier: Modifier = Modifier,
 ) {
+    val settings by settingsViewModel.settings.collectAsStateWithLifecycle()
     var showRerunDialog by remember { mutableStateOf(false) }
 
     Column(
@@ -93,7 +126,9 @@ fun SettingsScreen(
         SettingsItem(
             icon = Icons.Outlined.Settings,
             title = "Service Configuration",
-            subtitle = "Host, port, auto-start",
+            subtitle =
+                "${settings.host}:${settings.port}" +
+                    if (settings.autoStartOnBoot) " | auto-start" else "",
             onClick = onNavigateToServiceConfig,
         )
         SettingsItem(
@@ -105,7 +140,7 @@ fun SettingsScreen(
         SettingsItem(
             icon = Icons.Outlined.Fingerprint,
             title = "Agent Identity",
-            subtitle = "AIEOS identity document",
+            subtitle = if (settings.identityJson.isNotBlank()) "Configured" else "Not set",
             onClick = onNavigateToIdentity,
         )
 
@@ -113,16 +148,80 @@ fun SettingsScreen(
 
         SectionHeader(title = "Security")
         SettingsItem(
+            icon = Icons.Outlined.VerifiedUser,
+            title = "Security Overview",
+            subtitle = "View current security posture",
+            onClick = onNavigateToSecurityOverview,
+        )
+        SettingsItem(
             icon = Icons.Outlined.Key,
             title = "API Keys",
             subtitle = "Manage provider credentials",
             onClick = onNavigateToApiKeys,
         )
         SettingsItem(
+            icon = Icons.Outlined.Security,
+            title = "Autonomy Level",
+            subtitle = settings.autonomyLevel,
+            onClick = onNavigateToAutonomy,
+        )
+        SettingsItem(
             icon = Icons.Outlined.Forum,
             title = "Connected Channels",
             subtitle = "Telegram, Discord, Slack, and more",
             onClick = onNavigateToChannels,
+        )
+
+        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+        SectionHeader(title = "Network")
+        SettingsItem(
+            icon = Icons.Outlined.Hub,
+            title = "Gateway & Pairing",
+            subtitle =
+                if (settings.gatewayRequirePairing) "Pairing required" else "Open access",
+            onClick = onNavigateToGateway,
+        )
+        SettingsItem(
+            icon = Icons.Outlined.VpnKey,
+            title = "Tunnel",
+            subtitle = settings.tunnelProvider,
+            onClick = onNavigateToTunnel,
+        )
+
+        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+        SectionHeader(title = "Agent Config")
+        SettingsItem(
+            icon = Icons.Outlined.Route,
+            title = "Model Routes",
+            subtitle = "Hint-based provider routing",
+            onClick = onNavigateToModelRoutes,
+        )
+        SettingsItem(
+            icon = Icons.Outlined.Memory,
+            title = "Memory Advanced",
+            subtitle = "Embedding, hygiene, recall weights",
+            onClick = onNavigateToMemoryAdvanced,
+        )
+        SettingsItem(
+            icon = Icons.Outlined.Tune,
+            title = "Tool Management",
+            subtitle = "Browser, HTTP, Composio",
+            onClick = onNavigateToToolManagement,
+        )
+        SettingsItem(
+            icon = Icons.Outlined.Schedule,
+            title = "Scheduler & Heartbeat",
+            subtitle =
+                if (settings.schedulerEnabled) "Scheduler on" else "Scheduler off",
+            onClick = onNavigateToScheduler,
+        )
+        SettingsItem(
+            icon = Icons.Outlined.Speed,
+            title = "Observability",
+            subtitle = settings.observabilityBackend,
+            onClick = onNavigateToObservability,
         )
 
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))

@@ -6,6 +6,7 @@
 
 package com.zeroclaw.android.ui.screen.settings.logs
 
+import android.content.Intent
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -22,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -31,6 +33,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
@@ -57,6 +60,7 @@ fun LogViewerScreen(
     logViewerViewModel: LogViewerViewModel = viewModel(),
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
     val entries by logViewerViewModel.filteredEntries.collectAsStateWithLifecycle()
     val selectedSeverities by logViewerViewModel.selectedSeverities.collectAsStateWithLifecycle()
     val isPaused by logViewerViewModel.isPaused.collectAsStateWithLifecycle()
@@ -98,6 +102,30 @@ fun LogViewerScreen(
                 ) {
                     Icon(
                         imageVector = if (isPaused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
+                        contentDescription = null,
+                    )
+                }
+                IconButton(
+                    onClick = {
+                        val text = formatLogsForExport(entries)
+                        val shareIntent =
+                            Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, text)
+                                putExtra(Intent.EXTRA_SUBJECT, "ZeroClaw Logs")
+                            }
+                        context.startActivity(
+                            Intent.createChooser(shareIntent, "Share logs"),
+                        )
+                    },
+                    enabled = entries.isNotEmpty(),
+                    modifier =
+                        Modifier.semantics {
+                            contentDescription = "Share logs"
+                        },
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Share,
                         contentDescription = null,
                     )
                 }
@@ -184,3 +212,14 @@ private fun LogEntryRow(entry: LogEntry) {
 private val timeFormat = SimpleDateFormat("HH:mm:ss.SSS", Locale.US)
 
 private fun formatTimestamp(epochMs: Long): String = timeFormat.format(Date(epochMs))
+
+/**
+ * Formats a list of log entries as plain text for sharing.
+ *
+ * @param entries The entries to format.
+ * @return Multiline text representation of the log.
+ */
+private fun formatLogsForExport(entries: List<LogEntry>): String =
+    entries.joinToString("\n") { entry ->
+        "${formatTimestamp(entry.timestamp)} [${entry.severity.name}] ${entry.tag}: ${entry.message}"
+    }

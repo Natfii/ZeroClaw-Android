@@ -13,6 +13,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -25,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.zeroclaw.android.util.LocalPowerSaveMode
 
 /** Size of the loading spinner shown while fetching live models. */
 private const val SPINNER_SIZE_DP = 20
@@ -94,10 +96,17 @@ fun ModelSuggestionField(
             label = { Text(label) },
             trailingIcon = {
                 if (isLoadingLive) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(SPINNER_SIZE_DP.dp),
-                        strokeWidth = SPINNER_STROKE_DP.dp,
-                    )
+                    if (LocalPowerSaveMode.current) {
+                        Text(
+                            text = "\u2026",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    } else {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(SPINNER_SIZE_DP.dp),
+                            strokeWidth = SPINNER_STROKE_DP.dp,
+                        )
+                    }
                 } else if (activeSuggestions.isNotEmpty()) {
                     ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
                 }

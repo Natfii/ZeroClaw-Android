@@ -6,6 +6,11 @@
 
 package com.zeroclaw.android.ui.screen.console
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,12 +30,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.outlined.DeleteSweep
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material.icons.outlined.Replay
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,9 +45,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
@@ -48,6 +57,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zeroclaw.android.model.ChatMessage
+import com.zeroclaw.android.ui.component.LoadingIndicator
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import kotlinx.coroutines.launch
 
 /** Bubble corner radius in dp. */
 private const val BUBBLE_CORNER_DP = 16
@@ -73,12 +87,16 @@ private const val SMALL_SPACING_DP = 4
 /** Max bubble width multiplier. */
 private const val BUBBLE_WIDTH_MULTIPLIER = 400
 
+/** Timestamp format for chat messages. */
+private val chatTimeFormat = SimpleDateFormat("HH:mm", Locale.US)
+
 /**
  * Global daemon console screen for sending messages to the ZeroClaw gateway.
  *
  * Displays a chronological message list with user messages right-aligned
  * and daemon responses left-aligned. Includes a text input bar at the
- * bottom and a clear history action.
+ * bottom, a clear history action, and timestamps on each message.
+ * Long-press a message to copy its content to the clipboard.
  *
  * @param edgeMargin Horizontal padding based on window width size class.
  * @param consoleViewModel The [ConsoleViewModel] for message state.
@@ -93,6 +111,9 @@ fun ConsoleScreen(
     val messages by consoleViewModel.messages.collectAsStateWithLifecycle()
     val isLoading by consoleViewModel.isLoading.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     var inputText by remember { mutableStateOf("") }
 
     LaunchedEffect(messages.size) {
@@ -101,7 +122,10 @@ fun ConsoleScreen(
         }
     }
 
-    Scaffold(modifier = modifier) { innerPadding ->
+    Scaffold(
+        modifier = modifier,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ) { innerPadding ->
         Column(
             modifier =
                 Modifier
@@ -128,7 +152,26 @@ fun ConsoleScreen(
                     key = { it.id },
                     contentType = { if (it.isFromUser) "user" else "daemon" },
                 ) { message ->
-                    ChatBubble(message = message)
+                    ChatBubble(
+                        message = message,
+                        onCopy = {
+                            copyToClipboard(context, message.content)
+                            scope.launch {
+                                snackbarHostState.showSnackbar("Copied to clipboard")
+                            }
+                        },
+                        onRetry =
+                            if (!message.isFromUser && message.content.startsWith("Error:")) {
+                                {
+                                    val lastUserMsg =
+                                        messages
+                                            .lastOrNull { it.isFromUser && it.id < message.id }
+                                    lastUserMsg?.let { consoleViewModel.sendMessage(it.content) }
+                                }
+                            } else {
+                                null
+                            },
+                    )
                 }
 
                 if (isLoading) {
@@ -196,48 +239,103 @@ private fun ClearHistoryBar(
 }
 
 /**
- * Chat bubble displaying a single message.
+ * Chat bubble displaying a single message with timestamp.
  *
  * User messages are right-aligned with primary container color.
  * Daemon messages are left-aligned with surface variant color.
+ * Long-press to copy message content. Error responses show a retry button.
  *
  * @param message The chat message to display.
+ * @param onCopy Callback invoked when the user copies the message.
+ * @param onRetry Optional callback for retrying a failed message.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun ChatBubble(message: ChatMessage) {
+private fun ChatBubble(
+    message: ChatMessage,
+    onCopy: () -> Unit,
+    onRetry: (() -> Unit)?,
+) {
+    val isUser = message.isFromUser
+    val isError = !isUser && message.content.startsWith("Error:")
+
     Box(
         modifier = Modifier.fillMaxWidth(),
-        contentAlignment =
-            if (message.isFromUser) {
-                Alignment.CenterEnd
-            } else {
-                Alignment.CenterStart
-            },
+        contentAlignment = if (isUser) Alignment.CenterEnd else Alignment.CenterStart,
     ) {
-        Surface(
-            shape = RoundedCornerShape(BUBBLE_CORNER_DP.dp),
-            color =
-                if (message.isFromUser) {
-                    MaterialTheme.colorScheme.primaryContainer
-                } else {
-                    MaterialTheme.colorScheme.surfaceVariant
-                },
-            modifier =
-                Modifier.widthIn(
-                    max = MAX_BUBBLE_WIDTH_FRACTION.dp * BUBBLE_WIDTH_MULTIPLIER,
-                ),
+        Column(
+            horizontalAlignment = if (isUser) Alignment.End else Alignment.Start,
         ) {
-            Text(
-                text = message.content,
-                style = MaterialTheme.typography.bodyMedium,
+            Surface(
+                shape = RoundedCornerShape(BUBBLE_CORNER_DP.dp),
                 color =
-                    if (message.isFromUser) {
-                        MaterialTheme.colorScheme.onPrimaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
+                    when {
+                        isError -> MaterialTheme.colorScheme.errorContainer
+                        isUser -> MaterialTheme.colorScheme.primaryContainer
+                        else -> MaterialTheme.colorScheme.surfaceVariant
                     },
-                modifier = Modifier.padding(BUBBLE_PADDING_DP.dp),
-            )
+                modifier =
+                    Modifier
+                        .widthIn(max = MAX_BUBBLE_WIDTH_FRACTION.dp * BUBBLE_WIDTH_MULTIPLIER)
+                        .combinedClickable(
+                            onClick = {},
+                            onLongClick = onCopy,
+                        ).semantics {
+                            contentDescription =
+                                if (isUser) "Your message" else "Daemon response"
+                        },
+            ) {
+                Column(modifier = Modifier.padding(BUBBLE_PADDING_DP.dp)) {
+                    Text(
+                        text = message.content,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color =
+                            when {
+                                isError -> MaterialTheme.colorScheme.onErrorContainer
+                                isUser -> MaterialTheme.colorScheme.onPrimaryContainer
+                                else -> MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(SMALL_SPACING_DP.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(top = SMALL_SPACING_DP.dp),
+                    ) {
+                        Text(
+                            text = chatTimeFormat.format(Date(message.timestamp)),
+                            style = MaterialTheme.typography.labelSmall,
+                            color =
+                                when {
+                                    isError ->
+                                        MaterialTheme.colorScheme.onErrorContainer.copy(
+                                            alpha = 0.7f,
+                                        )
+                                    isUser ->
+                                        MaterialTheme.colorScheme.onPrimaryContainer.copy(
+                                            alpha = 0.7f,
+                                        )
+                                    else ->
+                                        MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                            alpha = 0.7f,
+                                        )
+                                },
+                        )
+                        if (onRetry != null) {
+                            IconButton(
+                                onClick = onRetry,
+                                modifier = Modifier.size(20.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Replay,
+                                    contentDescription = "Retry message",
+                                    modifier = Modifier.size(14.dp),
+                                    tint = MaterialTheme.colorScheme.onErrorContainer,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -251,9 +349,8 @@ private fun TypingIndicator() {
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.padding(vertical = SMALL_SPACING_DP.dp),
     ) {
-        CircularProgressIndicator(
+        LoadingIndicator(
             modifier = Modifier.size(LOADING_INDICATOR_DP.dp),
-            strokeWidth = 2.dp,
         )
         Spacer(modifier = Modifier.width(MESSAGE_SPACING_DP.dp))
         Text(
@@ -313,4 +410,19 @@ private fun ChatInputBar(
             )
         }
     }
+}
+
+/**
+ * Copies the given text to the system clipboard.
+ *
+ * @param context Android context for system service access.
+ * @param text The text to copy.
+ */
+private fun copyToClipboard(
+    context: Context,
+    text: String,
+) {
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    val clip = ClipData.newPlainText("Console message", text)
+    clipboard.setPrimaryClip(clip)
 }
