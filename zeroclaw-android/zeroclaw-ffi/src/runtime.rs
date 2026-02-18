@@ -33,8 +33,7 @@ struct DaemonState {
     cost_tracker: Option<zeroclaw::cost::CostTracker>,
     /// Parsed daemon configuration, retained for sibling module access.
     ///
-    /// Used by `with_daemon_config` once cron/skills/memory modules land.
-    #[allow(dead_code)]
+    /// Used by [`with_daemon_config`] for cron, skills, and memory modules.
     config: Config,
 }
 
@@ -90,9 +89,6 @@ pub(crate) fn with_cost_tracker<T>(
 /// Runs a closure with a reference to the daemon config.
 ///
 /// Returns [`FfiError::StateError`] if the daemon is not running.
-///
-/// Used by cron/skills/memory modules once they land.
-#[allow(dead_code)]
 pub(crate) fn with_daemon_config<T>(f: impl FnOnce(&Config) -> T) -> Result<T, FfiError> {
     let guard = daemon_mutex()
         .lock()
