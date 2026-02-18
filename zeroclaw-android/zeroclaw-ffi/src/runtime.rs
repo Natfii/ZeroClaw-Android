@@ -29,6 +29,13 @@ struct DaemonState {
     handles: Vec<JoinHandle<()>>,
     /// Port the gateway HTTP server is listening on.
     gateway_port: u16,
+    /// Cost tracker, present only when `config.cost.enabled` is true.
+    cost_tracker: Option<zeroclaw::cost::CostTracker>,
+    /// Parsed daemon configuration, retained for sibling module access.
+    ///
+    /// Used by `with_daemon_config` once cron/skills/memory modules land.
+    #[allow(dead_code)]
+    config: Config,
 }
 
 /// Returns a reference to the daemon state mutex, initialising it on first access.
@@ -52,6 +59,50 @@ pub(crate) fn is_daemon_running() -> Result<bool, FfiError> {
             detail: "daemon mutex poisoned".into(),
         })?;
     Ok(guard.is_some())
+}
+
+/// Runs a closure with a reference to the cost tracker if available.
+///
+/// Returns [`FfiError::StateError`] if the daemon is not running or
+/// cost tracking is disabled.
+pub(crate) fn with_cost_tracker<T>(
+    f: impl FnOnce(&zeroclaw::cost::CostTracker) -> anyhow::Result<T>,
+) -> Result<T, FfiError> {
+    let guard = daemon_mutex()
+        .lock()
+        .map_err(|_| FfiError::StateCorrupted {
+            detail: "daemon mutex poisoned".into(),
+        })?;
+    let state = guard.as_ref().ok_or_else(|| FfiError::StateError {
+        detail: "daemon not running".into(),
+    })?;
+    let tracker = state
+        .cost_tracker
+        .as_ref()
+        .ok_or_else(|| FfiError::StateError {
+            detail: "cost tracking not enabled".into(),
+        })?;
+    f(tracker).map_err(|e| FfiError::SpawnError {
+        detail: e.to_string(),
+    })
+}
+
+/// Runs a closure with a reference to the daemon config.
+///
+/// Returns [`FfiError::StateError`] if the daemon is not running.
+///
+/// Used by cron/skills/memory modules once they land.
+#[allow(dead_code)]
+pub(crate) fn with_daemon_config<T>(f: impl FnOnce(&Config) -> T) -> Result<T, FfiError> {
+    let guard = daemon_mutex()
+        .lock()
+        .map_err(|_| FfiError::StateCorrupted {
+            detail: "daemon mutex poisoned".into(),
+        })?;
+    let state = guard.as_ref().ok_or_else(|| FfiError::StateError {
+        detail: "daemon not running".into(),
+    })?;
+    Ok(f(&state.config))
 }
 
 /// Returns a reference to the tokio runtime, creating it on first access.
@@ -144,6 +195,20 @@ pub(crate) fn start_daemon_inner(
         .channel_max_backoff_secs
         .max(initial_backoff);
 
+    let cost_tracker = if config.cost.enabled {
+        match zeroclaw::cost::CostTracker::new(config.cost.clone(), &config.workspace_dir) {
+            Ok(tracker) => Some(tracker),
+            Err(e) => {
+                tracing::warn!("Cost tracking disabled: {e}");
+                None
+            }
+        }
+    } else {
+        None
+    };
+
+    let stored_config = config.clone();
+
     let handles = runtime.block_on(async {
         zeroclaw::health::mark_component_ok("daemon");
 
@@ -221,6 +286,8 @@ pub(crate) fn start_daemon_inner(
     *guard = Some(DaemonState {
         handles,
         gateway_port: port,
+        cost_tracker,
+        config: stored_config,
     });
 
     tracing::info!("ZeroClaw daemon started on {host}:{port}");

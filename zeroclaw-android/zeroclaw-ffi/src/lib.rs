@@ -11,11 +11,13 @@
 //! This crate provides a thin FFI layer over the `ZeroClaw` daemon,
 //! exposing `start_daemon`, `stop_daemon`, `get_status`, `send_message`,
 //! `get_version`, `validate_config`, `doctor_channels`,
-//! `scaffold_workspace`, `get_health_detail`, and
-//! `get_component_health` to Kotlin via UniFFI-generated bindings.
+//! `scaffold_workspace`, `get_health_detail`, `get_component_health`,
+//! `get_cost_summary`, `get_daily_cost`, `get_monthly_cost`, and
+//! `check_budget` to Kotlin via UniFFI-generated bindings.
 
 uniffi::setup_scaffolding!();
 
+mod cost;
 mod error;
 mod health;
 mod runtime;
@@ -244,6 +246,86 @@ pub fn scaffold_workspace(
         )
     })
     .unwrap_or_else(|e| {
+        Err(FfiError::InternalPanic {
+            detail: panic_detail(&e),
+        })
+    })
+}
+
+/// Returns the current cost summary for session, day, and month.
+///
+/// Requires the daemon to be running with cost tracking enabled.
+///
+/// # Errors
+///
+/// Returns [`FfiError::StateError`] if the daemon is not running or
+/// cost tracking is disabled,
+/// [`FfiError::SpawnError`] on tracker or serialisation failure, or
+/// [`FfiError::InternalPanic`] if native code panics.
+#[uniffi::export]
+pub fn get_cost_summary() -> Result<cost::FfiCostSummary, FfiError> {
+    catch_unwind(cost::get_cost_summary_inner).unwrap_or_else(|e| {
+        Err(FfiError::InternalPanic {
+            detail: panic_detail(&e),
+        })
+    })
+}
+
+/// Returns the cost for a specific day in USD.
+///
+/// Requires the daemon to be running with cost tracking enabled.
+///
+/// # Errors
+///
+/// Returns [`FfiError::StateError`] if the daemon is not running or
+/// cost tracking is disabled,
+/// [`FfiError::SpawnError`] on invalid date or tracker failure, or
+/// [`FfiError::InternalPanic`] if native code panics.
+#[uniffi::export]
+pub fn get_daily_cost(year: i32, month: u32, day: u32) -> Result<f64, FfiError> {
+    catch_unwind(|| cost::get_daily_cost_inner(year, month, day)).unwrap_or_else(|e| {
+        Err(FfiError::InternalPanic {
+            detail: panic_detail(&e),
+        })
+    })
+}
+
+/// Returns the cost for a specific month in USD.
+///
+/// Requires the daemon to be running with cost tracking enabled.
+///
+/// # Errors
+///
+/// Returns [`FfiError::StateError`] if the daemon is not running or
+/// cost tracking is disabled,
+/// [`FfiError::SpawnError`] on tracker failure, or
+/// [`FfiError::InternalPanic`] if native code panics.
+#[uniffi::export]
+pub fn get_monthly_cost(year: i32, month: u32) -> Result<f64, FfiError> {
+    catch_unwind(|| cost::get_monthly_cost_inner(year, month)).unwrap_or_else(|e| {
+        Err(FfiError::InternalPanic {
+            detail: panic_detail(&e),
+        })
+    })
+}
+
+/// Checks whether an estimated cost fits within configured budget limits.
+///
+/// Returns [`cost::FfiBudgetStatus::Allowed`] when within budget,
+/// [`cost::FfiBudgetStatus::Warning`] when approaching limits, or
+/// [`cost::FfiBudgetStatus::Exceeded`] when limits are breached.
+///
+/// Requires the daemon to be running with cost tracking enabled.
+///
+/// # Errors
+///
+/// Returns [`FfiError::StateError`] if the daemon is not running or
+/// cost tracking is disabled,
+/// [`FfiError::SpawnError`] on tracker failure, or
+/// [`FfiError::InternalPanic`] if native code panics.
+#[uniffi::export]
+pub fn check_budget(estimated_cost_usd: f64) -> Result<cost::FfiBudgetStatus, FfiError> {
+    catch_unwind(|| cost::check_budget_inner(estimated_cost_usd)).unwrap_or_else(|e| {
         Err(FfiError::InternalPanic {
             detail: panic_detail(&e),
         })
