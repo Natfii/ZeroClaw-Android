@@ -53,6 +53,16 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Decode keystore
+        run: echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > release.jks
+
+      - name: Write signing properties
+        run: |
+          printf 'RELEASE_STORE_FILE=../release.jks\n' >> local.properties
+          printf 'RELEASE_STORE_PASSWORD=%s\n' "${{ secrets.RELEASE_STORE_PASSWORD }}" >> local.properties
+          printf 'RELEASE_KEY_ALIAS=%s\n' "${{ secrets.RELEASE_KEY_ALIAS }}" >> local.properties
+          printf 'RELEASE_KEY_PASSWORD=%s\n' "${{ secrets.RELEASE_KEY_PASSWORD }}" >> local.properties
+
       - name: Build release AAR
         run: ./gradlew :lib:assembleRelease
 
@@ -60,7 +70,11 @@ jobs:
         run: ./gradlew :app:assembleRelease
 
       - name: Rename APK
-        run: mv app/build/outputs/apk/release/app-release-unsigned.apk app/build/outputs/apk/release/zeroclaw_android.apk
+        run: mv app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/zeroclaw_android.apk
+
+      - name: Clean up signing material
+        if: always()
+        run: rm -f release.jks local.properties
 
       - name: Publish AAR to GitHub Packages
         env:
