@@ -21,11 +21,12 @@ android {
     namespace = "com.zeroclaw.android"
     compileSdk = 35
 
-    signingConfigs {
-        create("release") {
-            val storeFilePath = localProps.getProperty("RELEASE_STORE_FILE")
-            if (storeFilePath != null) {
-                storeFile = file(storeFilePath)
+    val hasReleaseSigning = localProps.getProperty("RELEASE_STORE_FILE") != null
+
+    if (hasReleaseSigning) {
+        signingConfigs {
+            create("release") {
+                storeFile = file(localProps.getProperty("RELEASE_STORE_FILE"))
                 storePassword = localProps.getProperty("RELEASE_STORE_PASSWORD")
                 keyAlias = localProps.getProperty("RELEASE_KEY_ALIAS")
                 keyPassword = localProps.getProperty("RELEASE_KEY_PASSWORD")
@@ -53,7 +54,9 @@ android {
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
