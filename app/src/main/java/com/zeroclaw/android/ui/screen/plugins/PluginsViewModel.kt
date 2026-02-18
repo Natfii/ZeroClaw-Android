@@ -28,6 +28,9 @@ const val TAB_INSTALLED = 0
 /** Tab index for the available plugins tab. */
 const val TAB_AVAILABLE = 1
 
+/** Tab index for the skills tab. */
+const val TAB_SKILLS = 2
+
 /**
  * ViewModel for the plugin list screen.
  *

@@ -57,6 +57,8 @@ import com.zeroclaw.android.ui.screen.settings.cron.CronJobsScreen
 import com.zeroclaw.android.ui.screen.settings.doctor.DoctorScreen
 import com.zeroclaw.android.ui.screen.settings.gateway.QrScannerScreen
 import com.zeroclaw.android.ui.screen.settings.logs.LogViewerScreen
+import com.zeroclaw.android.ui.screen.settings.memory.MemoryBrowserScreen
+import com.zeroclaw.android.ui.screen.settings.tools.ToolsBrowserScreen
 import com.zeroclaw.android.util.AuthResult
 import com.zeroclaw.android.util.BiometricGatekeeper
 import com.zeroclaw.android.viewmodel.BiometricAction
@@ -199,6 +201,8 @@ fun ZeroClawNavHost(
                 onNavigateToSecurityOverview = { navController.navigate(SecurityOverviewRoute) },
                 onNavigateToPluginRegistry = { navController.navigate(PluginRegistryRoute) },
                 onNavigateToCronJobs = { navController.navigate(CronJobsRoute) },
+                onNavigateToToolsBrowser = { navController.navigate(ToolsBrowserRoute) },
+                onNavigateToMemoryBrowser = { navController.navigate(MemoryBrowserRoute) },
                 onRerunWizard = {
                     settingsViewModel.resetOnboarding()
                     navController.navigate(OnboardingRoute) {
@@ -425,6 +429,14 @@ fun ZeroClawNavHost(
                 },
                 onBack = { navController.popBackStack() },
             )
+        }
+
+        composable<ToolsBrowserRoute> {
+            ToolsBrowserScreen(edgeMargin = edgeMargin)
+        }
+
+        composable<MemoryBrowserRoute> {
+            MemoryBrowserScreen(edgeMargin = edgeMargin)
         }
 
         composable<OnboardingRoute> {

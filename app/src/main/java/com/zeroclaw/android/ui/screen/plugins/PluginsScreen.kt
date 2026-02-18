@@ -49,15 +49,17 @@ import com.zeroclaw.android.ui.component.CategoryBadge
 import com.zeroclaw.android.ui.component.EmptyState
 
 /**
- * Plugin list and management screen with Installed/Available tabs.
+ * Plugin and skills management screen with Installed/Available/Skills tabs.
  *
  * Includes a sync button in the header area that triggers a manual
  * registry sync. Shows a progress indicator during sync and "update
- * available" badges on plugins with newer remote versions.
+ * available" badges on plugins with newer remote versions. The Skills
+ * tab lists all workspace skills loaded from the daemon.
  *
  * @param onNavigateToDetail Callback to navigate to plugin detail.
  * @param edgeMargin Horizontal padding based on window width size class.
  * @param pluginsViewModel The [PluginsViewModel] for plugin list state.
+ * @param skillsViewModel The [SkillsViewModel] for skills list state.
  * @param modifier Modifier applied to the root layout.
  */
 @Composable
@@ -65,6 +67,7 @@ fun PluginsScreen(
     onNavigateToDetail: (String) -> Unit,
     edgeMargin: Dp,
     pluginsViewModel: PluginsViewModel = viewModel(),
+    skillsViewModel: SkillsViewModel = viewModel(),
     modifier: Modifier = Modifier,
 ) {
     val plugins by pluginsViewModel.plugins.collectAsStateWithLifecycle()
@@ -96,66 +99,109 @@ fun PluginsScreen(
                     onClick = { pluginsViewModel.selectTab(TAB_AVAILABLE) },
                     text = { Text("Available") },
                 )
-            }
-            IconButton(
-                onClick = { pluginsViewModel.syncNow() },
-                enabled = syncState !is SyncUiState.Syncing,
-                modifier =
-                    Modifier.semantics {
-                        contentDescription = "Sync plugin registry"
-                    },
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Refresh,
-                    contentDescription = null,
+                Tab(
+                    selected = selectedTab == TAB_SKILLS,
+                    onClick = { pluginsViewModel.selectTab(TAB_SKILLS) },
+                    text = { Text("Skills") },
                 )
+            }
+            if (selectedTab != TAB_SKILLS) {
+                IconButton(
+                    onClick = { pluginsViewModel.syncNow() },
+                    enabled = syncState !is SyncUiState.Syncing,
+                    modifier =
+                        Modifier.semantics {
+                            contentDescription = "Sync plugin registry"
+                        },
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Refresh,
+                        contentDescription = null,
+                    )
+                }
             }
         }
 
-        if (syncState is SyncUiState.Syncing) {
+        if (syncState is SyncUiState.Syncing && selectedTab != TAB_SKILLS) {
             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
         Spacer(modifier = Modifier.height(12.dp))
 
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = { pluginsViewModel.updateSearch(it) },
-            label = { Text("Search plugins") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-
-        if (plugins.isEmpty()) {
-            EmptyState(
-                icon = Icons.Outlined.Extension,
-                message =
-                    if (searchQuery.isBlank()) {
-                        if (selectedTab == TAB_INSTALLED) {
-                            "No plugins installed yet"
-                        } else {
-                            "All plugins are installed"
-                        }
-                    } else {
-                        "No plugins match your search"
-                    },
-            )
+        if (selectedTab == TAB_SKILLS) {
+            SkillsTab(skillsViewModel = skillsViewModel)
         } else {
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                items(
-                    items = plugins,
-                    key = { it.id },
-                    contentType = { "plugin" },
-                ) { plugin ->
-                    PluginListItem(
-                        plugin = plugin,
-                        onToggle = { pluginsViewModel.togglePlugin(plugin.id) },
-                        onInstall = { pluginsViewModel.installPlugin(plugin.id) },
-                        onClick = { onNavigateToDetail(plugin.id) },
-                    )
-                }
+            PluginTabContent(
+                plugins = plugins,
+                searchQuery = searchQuery,
+                selectedTab = selectedTab,
+                onSearchChange = { pluginsViewModel.updateSearch(it) },
+                onToggle = { pluginsViewModel.togglePlugin(it) },
+                onInstall = { pluginsViewModel.installPlugin(it) },
+                onNavigateToDetail = onNavigateToDetail,
+            )
+        }
+    }
+}
+
+/**
+ * Content for the plugin tabs (Installed/Available).
+ *
+ * @param plugins Filtered plugin list for the current tab.
+ * @param searchQuery Current search query text.
+ * @param selectedTab Currently selected tab index.
+ * @param onSearchChange Callback when search text changes.
+ * @param onToggle Callback when a plugin's enable switch is toggled.
+ * @param onInstall Callback when a plugin's Install button is tapped.
+ * @param onNavigateToDetail Callback to navigate to plugin detail.
+ */
+@Composable
+private fun PluginTabContent(
+    plugins: List<Plugin>,
+    searchQuery: String,
+    selectedTab: Int,
+    onSearchChange: (String) -> Unit,
+    onToggle: (String) -> Unit,
+    onInstall: (String) -> Unit,
+    onNavigateToDetail: (String) -> Unit,
+) {
+    OutlinedTextField(
+        value = searchQuery,
+        onValueChange = onSearchChange,
+        label = { Text("Search plugins") },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    Spacer(modifier = Modifier.height(16.dp))
+
+    if (plugins.isEmpty()) {
+        EmptyState(
+            icon = Icons.Outlined.Extension,
+            message =
+                if (searchQuery.isBlank()) {
+                    if (selectedTab == TAB_INSTALLED) {
+                        "No plugins installed yet"
+                    } else {
+                        "All plugins are installed"
+                    }
+                } else {
+                    "No plugins match your search"
+                },
+        )
+    } else {
+        LazyColumn(
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            items(
+                items = plugins,
+                key = { it.id },
+                contentType = { "plugin" },
+            ) { plugin ->
+                PluginListItem(
+                    plugin = plugin,
+                    onToggle = { onToggle(plugin.id) },
+                    onInstall = { onInstall(plugin.id) },
+                    onClick = { onNavigateToDetail(plugin.id) },
+                )
             }
         }
     }

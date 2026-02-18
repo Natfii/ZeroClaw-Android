@@ -163,6 +163,14 @@ data object CostDetailRoute
 @Serializable
 data object CronJobsRoute
 
+/** Tools inventory browser screen. */
+@Serializable
+data object ToolsBrowserRoute
+
+/** Memory entries browser screen. */
+@Serializable
+data object MemoryBrowserRoute
+
 /** First-run onboarding wizard. */
 @Serializable
 data object OnboardingRoute

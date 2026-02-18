@@ -36,6 +36,32 @@ fun CategoryBadge(
     )
 }
 
+/**
+ * Compact chip displaying a plain text label.
+ *
+ * Used for tags, sources, and categories that are represented as strings
+ * rather than the [PluginCategory] enum.
+ *
+ * @param category The label text to display.
+ * @param modifier Modifier applied to the chip.
+ */
+@Composable
+fun CategoryBadge(
+    category: String,
+    modifier: Modifier = Modifier,
+) {
+    AssistChip(
+        onClick = { },
+        label = {
+            Text(
+                text = category,
+                style = MaterialTheme.typography.labelSmall,
+            )
+        },
+        modifier = modifier,
+    )
+}
+
 private fun categoryLabel(category: PluginCategory): String =
     when (category) {
         PluginCategory.CHANNEL -> "Channel"

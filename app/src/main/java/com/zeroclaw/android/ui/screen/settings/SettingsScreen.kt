@@ -24,6 +24,7 @@ import androidx.compose.material.icons.outlined.Hub
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.Memory
+import androidx.compose.material.icons.outlined.Psychology
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Route
 import androidx.compose.material.icons.outlined.Schedule
@@ -33,6 +34,7 @@ import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material.icons.outlined.TaskAlt
+import androidx.compose.material.icons.outlined.Token
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.material.icons.outlined.VpnKey
@@ -83,6 +85,8 @@ import com.zeroclaw.android.ui.component.SectionHeader
  * @param onNavigateToSecurityOverview Navigate to security posture overview screen.
  * @param onNavigateToPluginRegistry Navigate to plugin registry sync settings.
  * @param onNavigateToCronJobs Navigate to scheduled cron jobs management screen.
+ * @param onNavigateToToolsBrowser Navigate to tools inventory browser screen.
+ * @param onNavigateToMemoryBrowser Navigate to memory entries browser screen.
  * @param onRerunWizard Callback to reset onboarding and navigate to the setup wizard.
  * @param edgeMargin Horizontal padding based on window width size class.
  * @param settingsViewModel ViewModel providing current settings for dynamic subtitles.
@@ -111,6 +115,8 @@ fun SettingsScreen(
     onNavigateToSecurityOverview: () -> Unit,
     onNavigateToPluginRegistry: () -> Unit = {},
     onNavigateToCronJobs: () -> Unit = {},
+    onNavigateToToolsBrowser: () -> Unit = {},
+    onNavigateToMemoryBrowser: () -> Unit = {},
     onRerunWizard: () -> Unit,
     edgeMargin: androidx.compose.ui.unit.Dp,
     settingsViewModel: SettingsViewModel = viewModel(),
@@ -222,6 +228,18 @@ fun SettingsScreen(
             title = "Tool Management",
             subtitle = "Browser, HTTP, Composio",
             onClick = onNavigateToToolManagement,
+        )
+        SettingsItem(
+            icon = Icons.Outlined.Token,
+            title = "Tools Browser",
+            subtitle = "View all available tools",
+            onClick = onNavigateToToolsBrowser,
+        )
+        SettingsItem(
+            icon = Icons.Outlined.Psychology,
+            title = "Memory Browser",
+            subtitle = "Browse and search memory entries",
+            onClick = onNavigateToMemoryBrowser,
         )
         SettingsItem(
             icon = Icons.Outlined.Schedule,
