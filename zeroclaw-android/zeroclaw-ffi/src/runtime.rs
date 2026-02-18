@@ -286,6 +286,8 @@ pub(crate) fn get_status_inner() -> Result<String, FfiError> {
 /// or [`FfiError::SpawnError`] on HTTP or parse failure.
 pub(crate) fn send_message_inner(message: String) -> Result<String, FfiError> {
     const MAX_MESSAGE_BYTES: usize = 1_048_576;
+    // Ten minutes — generous timeout for large local models (e.g. 70B+ on CPU).
+    const GATEWAY_TIMEOUT_SECS: u64 = 600;
     if message.len() > MAX_MESSAGE_BYTES {
         return Err(FfiError::ConfigError {
             detail: format!(
@@ -314,7 +316,12 @@ pub(crate) fn send_message_inner(message: String) -> Result<String, FfiError> {
     let url = format!("http://127.0.0.1:{gateway_port}/webhook");
 
     runtime.block_on(async {
-        let client = reqwest::Client::new();
+        let client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(GATEWAY_TIMEOUT_SECS))
+            .build()
+            .map_err(|e| FfiError::SpawnError {
+                detail: format!("failed to build HTTP client: {e}"),
+            })?;
         let response = client
             .post(&url)
             .json(&serde_json::json!({ "message": message }))
@@ -324,9 +331,15 @@ pub(crate) fn send_message_inner(message: String) -> Result<String, FfiError> {
                 detail: format!("gateway request failed: {e}"),
             })?;
 
-        if !response.status().is_success() {
+        let status = response.status();
+        if !status.is_success() {
+            let hint = if status.as_u16() == 408 {
+                " (model may need more time to respond — try a smaller prompt or faster model)"
+            } else {
+                ""
+            };
             return Err(FfiError::SpawnError {
-                detail: format!("gateway returned status {}", response.status()),
+                detail: format!("gateway returned status {status}{hint}"),
             });
         }
 

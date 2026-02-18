@@ -239,4 +239,6 @@ private class TestSettingsRepository : SettingsRepository {
     override suspend fun setPluginSyncIntervalHours(hours: Int) { /* no-op */ }
 
     override suspend fun setLastPluginSyncTimestamp(timestamp: Long) { /* no-op */ }
+
+    override suspend fun setStripThinkingTags(enabled: Boolean) { /* no-op */ }
 }

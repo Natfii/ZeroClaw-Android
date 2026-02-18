@@ -194,6 +194,14 @@ private fun InferenceSection(
         onCheckedChange = { viewModel.updateCompactContext(it) },
         description = "Compact context",
     )
+
+    ToggleRow(
+        title = "Strip thinking tags",
+        subtitle = "Remove <think> / <thinking> blocks from model responses",
+        checked = settings.stripThinkingTags,
+        onCheckedChange = { viewModel.updateStripThinkingTags(it) },
+        description = "Strip thinking tags from responses",
+    )
 }
 
 /**

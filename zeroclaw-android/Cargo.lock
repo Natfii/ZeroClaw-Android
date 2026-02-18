@@ -3617,7 +3617,7 @@ dependencies = [
 
 [[package]]
 name = "zeroclaw-ffi"
-version = "0.0.2"
+version = "0.0.4"
 dependencies = [
  "anyhow",
  "chrono",

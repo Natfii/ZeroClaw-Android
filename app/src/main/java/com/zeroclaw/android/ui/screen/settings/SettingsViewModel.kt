@@ -369,6 +369,11 @@ class SettingsViewModel(
         viewModelScope.launch { repository.setLastPluginSyncTimestamp(timestamp) }
     }
 
+    /** @see com.zeroclaw.android.data.repository.SettingsRepository.setStripThinkingTags */
+    fun updateStripThinkingTags(enabled: Boolean) {
+        viewModelScope.launch { repository.setStripThinkingTags(enabled) }
+    }
+
     /**
      * Resets onboarding completion state so the setup wizard is shown again.
      *

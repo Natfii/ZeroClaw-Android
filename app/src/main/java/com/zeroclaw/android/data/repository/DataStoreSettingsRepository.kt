@@ -171,6 +171,7 @@ class DataStoreSettingsRepository(
                 prefs[KEY_PLUGIN_SYNC_INTERVAL]
                     ?: AppSettings.DEFAULT_PLUGIN_SYNC_INTERVAL,
             lastPluginSyncTimestamp = prefs[KEY_LAST_PLUGIN_SYNC] ?: 0L,
+            stripThinkingTags = prefs[KEY_STRIP_THINKING_TAGS] ?: false,
         )
 
     override suspend fun setHost(host: String) = edit { it[KEY_HOST] = host }
@@ -311,6 +312,8 @@ class DataStoreSettingsRepository(
 
     override suspend fun setLastPluginSyncTimestamp(timestamp: Long) = edit { it[KEY_LAST_PLUGIN_SYNC] = timestamp }
 
+    override suspend fun setStripThinkingTags(enabled: Boolean) = edit { it[KEY_STRIP_THINKING_TAGS] = enabled }
+
     private suspend fun edit(transform: (MutablePreferences) -> Unit) {
         context.settingsDataStore.edit { prefs -> transform(prefs) }
     }
@@ -388,5 +391,6 @@ class DataStoreSettingsRepository(
         val KEY_PLUGIN_SYNC_ENABLED = booleanPreferencesKey("plugin_sync_enabled")
         val KEY_PLUGIN_SYNC_INTERVAL = intPreferencesKey("plugin_sync_interval_hours")
         val KEY_LAST_PLUGIN_SYNC = longPreferencesKey("last_plugin_sync_timestamp")
+        val KEY_STRIP_THINKING_TAGS = booleanPreferencesKey("strip_thinking_tags")
     }
 }

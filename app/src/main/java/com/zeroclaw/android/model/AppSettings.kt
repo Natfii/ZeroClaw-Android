@@ -78,6 +78,7 @@ package com.zeroclaw.android.model
  * @property pluginSyncEnabled Whether automatic plugin registry sync is active.
  * @property pluginSyncIntervalHours Interval in hours between automatic syncs.
  * @property lastPluginSyncTimestamp Unix timestamp of the most recent successful sync.
+ * @property stripThinkingTags Whether to remove thinking tags from model responses in the console.
  */
 @Suppress("LongParameterList")
 data class AppSettings(
@@ -150,6 +151,7 @@ data class AppSettings(
     val pluginSyncEnabled: Boolean = false,
     val pluginSyncIntervalHours: Int = DEFAULT_PLUGIN_SYNC_INTERVAL,
     val lastPluginSyncTimestamp: Long = 0L,
+    val stripThinkingTags: Boolean = false,
 ) {
     /** Constants for [AppSettings]. */
     companion object {

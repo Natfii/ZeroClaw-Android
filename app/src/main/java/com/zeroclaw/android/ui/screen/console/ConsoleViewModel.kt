@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -34,6 +35,7 @@ class ConsoleViewModel(
     private val app = application as ZeroClawApplication
     private val chatMessageRepository = app.chatMessageRepository
     private val daemonBridge = app.daemonBridge
+    private val settingsRepository = app.settingsRepository
 
     /** Ordered list of chat messages (oldest first), backed by Room. */
     val messages: StateFlow<List<ChatMessage>> =
@@ -63,7 +65,14 @@ class ConsoleViewModel(
             chatMessageRepository.append(content = text, isFromUser = true)
 
             try {
-                val response = daemonBridge.send(text)
+                val rawResponse = daemonBridge.send(text)
+                val settings = settingsRepository.settings.first()
+                val response =
+                    if (settings.stripThinkingTags) {
+                        stripThinkingTags(rawResponse)
+                    } else {
+                        rawResponse
+                    }
                 chatMessageRepository.append(content = response, isFromUser = false)
             } catch (e: FfiException) {
                 chatMessageRepository.append(
@@ -92,5 +101,20 @@ class ConsoleViewModel(
     companion object {
         /** Timeout in milliseconds before upstream Flow collection stops when UI is hidden. */
         private const val STOP_TIMEOUT_MS = 5_000L
+
+        /** Pattern matching common chain-of-thought tag variants across models. */
+        private val THINKING_TAG_REGEX =
+            Regex("<(?:think|thinking)>[\\s\\S]*?</(?:think|thinking)>", RegexOption.IGNORE_CASE)
+
+        /**
+         * Removes chain-of-thought thinking tags from a model response.
+         *
+         * Strips `<think>...</think>` and `<thinking>...</thinking>` blocks
+         * emitted by reasoning models (Gemma, DeepSeek-R1, QwQ, etc.).
+         *
+         * @param text Raw model response.
+         * @return Response with thinking blocks removed and leading whitespace trimmed.
+         */
+        fun stripThinkingTags(text: String): String = text.replace(THINKING_TAG_REGEX, "").trim()
     }
 }

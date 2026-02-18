@@ -503,4 +503,11 @@ interface SettingsRepository {
      * @param timestamp Unix timestamp in milliseconds.
      */
     suspend fun setLastPluginSyncTimestamp(timestamp: Long)
+
+    /**
+     * Toggles stripping of thinking tags from model responses.
+     *
+     * @param enabled Whether to strip thinking tags.
+     */
+    suspend fun setStripThinkingTags(enabled: Boolean)
 }
