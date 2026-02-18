@@ -63,7 +63,7 @@ Phones are designed to stay on. They handle push notifications, background servi
 
 |                   | Old Android Phone               | Mac Mini M4                     |
 | ----------------- | ------------------------------- | ------------------------------- |
-| Cost              | $0 (you already own it) | $499+ |                                 |
+| Cost              | $0 (you already own it)         | $499+                           |
 | Power draw        | 2-5W idle                       | 10-25W idle                     |
 | Battery backup    | Built in                        | Requires UPS ($50+)             |
 | Cellular fallback | Built in                        | Requires hotspot or dongle      |
