@@ -18,13 +18,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 /**
- * Onboarding step for basic agent configuration.
+ * Onboarding step for naming the daemon.
  *
- * Allows the user to set a name for their first agent. The name is
+ * Allows the user to set a name that becomes both the AIEOS identity
+ * and the nickname for their first connection profile. The name is
  * propagated to [com.zeroclaw.android.ui.screen.onboarding.OnboardingViewModel]
  * and persisted when onboarding completes.
  *
- * @param agentName Current agent name value.
+ * @param agentName Current daemon name value.
  * @param onAgentNameChanged Callback when the user edits the name.
  */
 @Composable
@@ -34,14 +35,14 @@ fun AgentConfigStep(
 ) {
     Column {
         Text(
-            text = "Configure Agent",
+            text = "Name Your Daemon",
             style = MaterialTheme.typography.headlineSmall,
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             text =
-                "Set up your first AI agent. " +
-                    "You can customize it further and add more agents later.",
+                "Choose a name for your daemon. This becomes the AIEOS " +
+                    "identity and the nickname for your first connection.",
             style = MaterialTheme.typography.bodyLarge,
         )
         Spacer(modifier = Modifier.height(24.dp))
@@ -49,13 +50,13 @@ fun AgentConfigStep(
         OutlinedTextField(
             value = agentName,
             onValueChange = onAgentNameChanged,
-            label = { Text("Agent Name") },
+            label = { Text("Daemon Name") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "The default model will be used. You can change this in agent settings.",
+            text = "You can change the provider and model in connection settings.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

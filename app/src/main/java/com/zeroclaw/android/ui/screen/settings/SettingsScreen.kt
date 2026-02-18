@@ -201,7 +201,7 @@ fun SettingsScreen(
 
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
-        SectionHeader(title = "Agent Config")
+        SectionHeader(title = "Daemon Config")
         SettingsItem(
             icon = Icons.Outlined.Route,
             title = "Model Routes",

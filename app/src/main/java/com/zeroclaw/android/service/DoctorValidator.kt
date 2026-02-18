@@ -101,10 +101,10 @@ class DoctorValidator(
                 DiagnosticCheck(
                     id = "apikey-none",
                     category = DiagnosticCategory.API_KEYS,
-                    title = "No enabled agents",
+                    title = "No enabled connections",
                     status = CheckStatus.WARN,
-                    detail = "Enable at least one agent to validate API keys",
-                    actionLabel = "Agents",
+                    detail = "Enable at least one connection to validate API keys",
+                    actionLabel = "Connections",
                     actionRoute = "agents",
                 ),
             )
@@ -187,19 +187,19 @@ class DoctorValidator(
             DiagnosticCheck(
                 id = "config-duplicate-names",
                 category = DiagnosticCategory.CONFIG,
-                title = "Agent name uniqueness",
+                title = "Connection nickname uniqueness",
                 status = CheckStatus.FAIL,
-                detail = "Duplicate agent names: ${duplicates.joinToString()}",
-                actionLabel = "Edit Agents",
+                detail = "Duplicate connection nicknames: ${duplicates.joinToString()}",
+                actionLabel = "Edit Connections",
                 actionRoute = "agents",
             )
         } else {
             DiagnosticCheck(
                 id = "config-duplicate-names",
                 category = DiagnosticCategory.CONFIG,
-                title = "Agent name uniqueness",
+                title = "Connection nickname uniqueness",
                 status = CheckStatus.PASS,
-                detail = "${agents.size} agents, all names unique",
+                detail = "${agents.size} connections, all nicknames unique",
             )
         }
     }
@@ -211,7 +211,7 @@ class DoctorValidator(
             DiagnosticCheck(
                 id = "config-agent-${agent.id}",
                 category = DiagnosticCategory.CONFIG,
-                title = "Agent: ${agent.name}",
+                title = "Connection: ${agent.name}",
                 status = CheckStatus.PASS,
                 detail = "TOML config parses successfully",
             )
@@ -219,10 +219,10 @@ class DoctorValidator(
             DiagnosticCheck(
                 id = "config-agent-${agent.id}",
                 category = DiagnosticCategory.CONFIG,
-                title = "Agent: ${agent.name}",
+                title = "Connection: ${agent.name}",
                 status = CheckStatus.FAIL,
                 detail = result,
-                actionLabel = "Edit Agent",
+                actionLabel = "Edit Connection",
                 actionRoute = "agent-detail/${agent.id}",
             )
         }

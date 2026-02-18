@@ -12,7 +12,7 @@ import kotlinx.serialization.Serializable
  * Represents a configured AI agent.
  *
  * @property id Unique identifier for the agent.
- * @property name Human-readable display name.
+ * @property name Display nickname (does not affect the daemon identity).
  * @property provider AI provider name (e.g. "OpenAI", "Anthropic").
  * @property modelName The model to use (e.g. "gpt-4o", "claude-sonnet-4-5-20250929").
  * @property isEnabled Whether the agent is active and available.

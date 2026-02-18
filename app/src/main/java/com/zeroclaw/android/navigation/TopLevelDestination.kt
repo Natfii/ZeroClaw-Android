@@ -44,11 +44,11 @@ enum class TopLevelDestination(
         route = DashboardRoute,
     ),
 
-    /** Agent list and management. */
+    /** Connection list and management. */
     AGENTS(
         selectedIcon = Icons.Filled.SmartToy,
         unselectedIcon = Icons.Outlined.SmartToy,
-        label = "Agents",
+        label = "Connections",
         route = AgentsRoute,
     ),
 

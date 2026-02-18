@@ -330,7 +330,7 @@ private fun MetricCardsRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         MetricCard(
-            label = "Agents",
+            label = "Connections",
             value = enabledAgentCount.toString(),
             description = "enabled",
             modifier = Modifier.weight(1f),

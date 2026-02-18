@@ -71,7 +71,7 @@ fun AgentsScreen(
                 onClick = onNavigateToAdd,
                 modifier =
                     Modifier.semantics {
-                        contentDescription = "Add new agent"
+                        contentDescription = "Add new connection"
                     },
             ) {
                 Icon(Icons.Filled.Add, contentDescription = null)
@@ -89,7 +89,7 @@ fun AgentsScreen(
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { agentsViewModel.updateSearch(it) },
-                label = { Text("Search agents") },
+                label = { Text("Search connections") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -100,9 +100,9 @@ fun AgentsScreen(
                     icon = Icons.Outlined.SmartToy,
                     message =
                         if (searchQuery.isBlank()) {
-                            "No agents configured yet"
+                            "No connections configured yet"
                         } else {
-                            "No agents match your search"
+                            "No connections match your search"
                         },
                 )
             } else {
@@ -156,14 +156,16 @@ private fun AgentListItem(
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = agent.name,
+                    text = "${agent.provider} \u2022 ${agent.modelName}",
                     style = MaterialTheme.typography.titleSmall,
                 )
-                Text(
-                    text = "${agent.provider} \u2022 ${agent.modelName}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                if (agent.name.isNotBlank()) {
+                    Text(
+                        text = agent.name,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             Switch(
                 checked = agent.isEnabled,

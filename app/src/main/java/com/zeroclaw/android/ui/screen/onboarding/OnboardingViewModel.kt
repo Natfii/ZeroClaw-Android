@@ -21,7 +21,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
 
@@ -46,6 +49,10 @@ class OnboardingViewModel(
     private val settingsRepository = app.settingsRepository
     private val agentRepository = app.agentRepository
     private val channelConfigRepository = app.channelConfigRepository
+
+    init {
+        prefillFromExistingIdentity()
+    }
 
     private val _currentStep = MutableStateFlow(0)
 
@@ -208,14 +215,25 @@ class OnboardingViewModel(
             }
 
             if (name.isNotBlank() && provider.isNotBlank()) {
-                agentRepository.save(
-                    Agent(
-                        id = UUID.randomUUID().toString(),
-                        name = name,
-                        provider = provider,
-                        modelName = model.ifBlank { "default" },
-                    ),
-                )
+                val existing =
+                    agentRepository.agents.first().firstOrNull { it.provider == provider }
+                if (existing != null) {
+                    agentRepository.save(
+                        existing.copy(
+                            name = name,
+                            modelName = model.ifBlank { "default" },
+                        ),
+                    )
+                } else {
+                    agentRepository.save(
+                        Agent(
+                            id = UUID.randomUUID().toString(),
+                            name = name,
+                            provider = provider,
+                            modelName = model.ifBlank { "default" },
+                        ),
+                    )
+                }
             }
 
             saveChannelIfConfigured()
@@ -234,19 +252,47 @@ class OnboardingViewModel(
     }
 
     /**
-     * Generates a minimal AIEOS v1.1 identity JSON from [agentName] if
-     * no identity has been configured yet.
+     * Pre-fills [_agentName] from the existing identity JSON on re-runs.
      *
-     * Only fires once — subsequent onboarding re-runs skip because
-     * [identityJson][com.zeroclaw.android.model.AppSettings.identityJson]
-     * is already populated.
+     * Extracts `identity.names.first` from the stored identity JSON and
+     * uses it as the initial daemon name, falling back to "My Agent" if
+     * no identity is configured yet.
+     */
+    @Suppress("TooGenericExceptionCaught")
+    private fun prefillFromExistingIdentity() {
+        viewModelScope.launch {
+            try {
+                val identityJson = settingsRepository.settings.first().identityJson
+                if (identityJson.isNotBlank()) {
+                    val root = Json.parseToJsonElement(identityJson).jsonObject
+                    val firstName =
+                        root["identity"]
+                            ?.jsonObject
+                            ?.get("names")
+                            ?.jsonObject
+                            ?.get("first")
+                            ?.jsonPrimitive
+                            ?.content
+                    if (!firstName.isNullOrBlank()) {
+                        _agentName.value = firstName
+                    }
+                }
+            } catch (_: Exception) {
+                // identity JSON malformed — keep default
+            }
+        }
+    }
+
+    /**
+     * Writes a minimal AIEOS v1.1 identity JSON from [agentName].
      *
-     * @param agentName Name entered during the agent config step.
+     * Always overwrites the stored identity so that re-running the
+     * wizard updates the daemon name.
+     *
+     * @param agentName Name entered during the daemon naming step.
      */
     private suspend fun ensureIdentity(agentName: String) {
         if (agentName.isBlank()) return
-        val current = settingsRepository.settings.first()
-        if (current.identityJson.isNotBlank()) return
 
         val json =
             buildJsonObject {

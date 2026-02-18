@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
@@ -24,6 +25,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -41,11 +43,13 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zeroclaw.android.data.ProviderRegistry
+import com.zeroclaw.android.data.remote.ModelFetcher
 import com.zeroclaw.android.model.Agent
+import com.zeroclaw.android.model.ModelListFormat
+import com.zeroclaw.android.model.ProviderAuthType
 import com.zeroclaw.android.ui.component.CollapsibleSection
 import com.zeroclaw.android.ui.component.ConnectionPickerSection
 import com.zeroclaw.android.ui.component.ModelSuggestionField
-import com.zeroclaw.android.ui.component.ProviderDropdown
 
 /** Spacing between form fields. */
 private const val FIELD_SPACING_DP = 12
@@ -77,8 +81,8 @@ private const val DEFAULT_DETAIL_TEMPERATURE = 0.7f
 /**
  * Agent detail screen with editable fields and collapsible sections.
  *
- * Uses [ConnectionPickerSection] for connection selection with a
- * [ProviderDropdown] fallback, and [ModelSuggestionField] for model entry.
+ * Uses [ConnectionPickerSection] for connection selection and
+ * [ModelSuggestionField] with live model fetching for model entry.
  *
  * @param agentId Unique identifier of the agent to display.
  * @param onSaved Callback invoked after saving changes.
@@ -137,6 +141,35 @@ fun AgentDetailScreen(
     val providerInfo = ProviderRegistry.findById(providerId)
     val suggestedModels = providerInfo?.suggestedModels.orEmpty()
 
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
+
+    var liveModels by remember { mutableStateOf(emptyList<String>()) }
+    var isLoadingLive by remember { mutableStateOf(false) }
+    var isLiveData by remember { mutableStateOf(false) }
+
+    val selectedKey = apiKeys.firstOrNull { it.id == selectedConnectionId }
+
+    LaunchedEffect(providerId, selectedConnectionId, apiKeys) {
+        liveModels = emptyList()
+        isLiveData = false
+        val info = ProviderRegistry.findById(providerId) ?: return@LaunchedEffect
+        if (info.modelListFormat == ModelListFormat.NONE) return@LaunchedEffect
+        val key = selectedKey
+        val apiKeyValue = key?.key.orEmpty()
+        val baseUrlValue = key?.baseUrl.orEmpty()
+        val isLocal =
+            info.authType == ProviderAuthType.URL_ONLY ||
+                info.authType == ProviderAuthType.URL_AND_OPTIONAL_KEY
+        if (!isLocal && apiKeyValue.isBlank()) return@LaunchedEffect
+        isLoadingLive = true
+        val result = ModelFetcher.fetchModels(info, apiKeyValue, baseUrlValue)
+        isLoadingLive = false
+        result.onSuccess { models ->
+            liveModels = models
+            isLiveData = true
+        }
+    }
+
     Column(
         modifier =
             modifier
@@ -147,7 +180,7 @@ fun AgentDetailScreen(
         Spacer(modifier = Modifier.height(HEADING_SPACING_DP.dp))
 
         Text(
-            text = "Agent Details",
+            text = "Connection Details",
             style = MaterialTheme.typography.headlineSmall,
         )
         Spacer(modifier = Modifier.height(HEADING_SPACING_DP.dp))
@@ -155,7 +188,8 @@ fun AgentDetailScreen(
         OutlinedTextField(
             value = name,
             onValueChange = { name = it },
-            label = { Text("Name") },
+            label = { Text("Nickname") },
+            supportingText = { Text("Display name only \u2014 does not change the daemon identity") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -173,22 +207,13 @@ fun AgentDetailScreen(
         )
         Spacer(modifier = Modifier.height(FIELD_SPACING_DP.dp))
 
-        CollapsibleSection(title = "Use a different provider") {
-            ProviderDropdown(
-                selectedProviderId = providerId,
-                onProviderSelected = {
-                    providerId = it.id
-                    selectedConnectionId = null
-                },
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
-        Spacer(modifier = Modifier.height(FIELD_SPACING_DP.dp))
-
         ModelSuggestionField(
             value = modelName,
             onValueChanged = { modelName = it },
             suggestions = suggestedModels,
+            liveSuggestions = liveModels,
+            isLoadingLive = isLoadingLive,
+            isLiveData = isLiveData,
             modifier = Modifier.fillMaxWidth(),
         )
         Spacer(modifier = Modifier.height(SECTION_SPACING_DP.dp))
@@ -231,7 +256,7 @@ fun AgentDetailScreen(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .semantics { contentDescription = "Agent temperature" },
+                            .semantics { contentDescription = "Temperature" },
                 )
             }
             Spacer(modifier = Modifier.height(FIELD_SPACING_DP.dp))
@@ -285,17 +310,41 @@ fun AgentDetailScreen(
         }
         Spacer(modifier = Modifier.height(SMALL_SPACING_DP.dp))
         OutlinedButton(
-            onClick = {
-                detailViewModel.deleteAgent(agentId)
-                onDeleted()
-            },
+            onClick = { showDeleteConfirmation = true },
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(
-                text = "Delete Agent",
+                text = "Delete Connection",
                 color = MaterialTheme.colorScheme.error,
             )
         }
         Spacer(modifier = Modifier.height(BOTTOM_SPACING_DP.dp))
+    }
+
+    if (showDeleteConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmation = false },
+            title = { Text("Delete Connection") },
+            text = { Text("Are you sure you want to delete \"$name\"? This cannot be undone.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteConfirmation = false
+                        detailViewModel.deleteAgent(agentId)
+                        onDeleted()
+                    },
+                ) {
+                    Text(
+                        text = "Delete",
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmation = false }) {
+                    Text("Cancel")
+                }
+            },
+        )
     }
 }
