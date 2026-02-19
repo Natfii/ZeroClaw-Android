@@ -27,6 +27,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
@@ -69,6 +70,8 @@ class ApiKeysViewModel(
 ) : AndroidViewModel(application) {
     private val repository = (application as ZeroClawApplication).apiKeyRepository
     private val agentRepository = (application as ZeroClawApplication).agentRepository
+    private val daemonBridge = (application as ZeroClawApplication).daemonBridge
+    private val settingsRepository = (application as ZeroClawApplication).settingsRepository
 
     /** All stored API keys, ordered by creation date descending. */
     val keys: StateFlow<List<ApiKey>> =
@@ -164,6 +167,7 @@ class ApiKeysViewModel(
                     ),
                 )
                 _saveState.value = SaveState.Saved
+                daemonBridge.markRestartRequired()
             } catch (e: Exception) {
                 _saveState.value = SaveState.Error(safeErrorMessage(e))
             }
@@ -185,6 +189,7 @@ class ApiKeysViewModel(
             try {
                 repository.save(apiKey)
                 _saveState.value = SaveState.Saved
+                daemonBridge.markRestartRequired()
             } catch (e: Exception) {
                 _saveState.value = SaveState.Error(safeErrorMessage(e))
             }
@@ -223,6 +228,7 @@ class ApiKeysViewModel(
                 )
                 _snackbarMessage.value = "Key rotated successfully"
                 _saveState.value = SaveState.Saved
+                daemonBridge.markRestartRequired()
             } catch (e: Exception) {
                 _saveState.value = SaveState.Error(safeErrorMessage(e))
             }
@@ -232,7 +238,12 @@ class ApiKeysViewModel(
     /**
      * Deletes an API key by its identifier.
      *
-     * Emits a snackbar message on success or failure.
+     * If the deleted key's provider matches [AppSettings.defaultProvider],
+     * that setting is updated to the first remaining key's provider, or
+     * cleared if no keys remain. Always calls
+     * [DaemonServiceBridge.markRestartRequired][com.zeroclaw.android.service.DaemonServiceBridge.markRestartRequired]
+     * so the UI shows a restart banner regardless of whether the daemon
+     * is running.
      *
      * @param id Key identifier to delete.
      */
@@ -240,11 +251,20 @@ class ApiKeysViewModel(
     fun deleteKey(id: String) {
         viewModelScope.launch {
             try {
+                val deletedKey = repository.getById(id)
                 repository.delete(id)
                 if (_revealedKeyId.value == id) {
                     revealJob?.cancel()
                     revealJob = null
                     _revealedKeyId.value = null
+                }
+                if (deletedKey != null) {
+                    clearDefaultProviderIfNeeded(
+                        deletedKey = deletedKey,
+                        keyRepo = repository,
+                        settingsRepo = settingsRepository,
+                    )
+                    daemonBridge.markRestartRequired()
                 }
                 _snackbarMessage.value = "Key deleted"
             } catch (e: Exception) {
@@ -389,6 +409,7 @@ class ApiKeysViewModel(
                 }
                 repository.save(apiKey)
                 _snackbarMessage.value = "Anthropic OAuth credentials imported"
+                daemonBridge.markRestartRequired()
             } catch (e: Exception) {
                 if (BuildConfig.DEBUG) {
                     Log.w(TAG, "Credentials import failed: ${e.message}", e)
@@ -421,4 +442,41 @@ class ApiKeysViewModel(
         /** Duration in milliseconds before a revealed key is automatically hidden. */
         private const val REVEAL_TIMEOUT_MS = 30_000L
     }
+}
+
+/**
+ * Clears or replaces [AppSettings.defaultProvider][com.zeroclaw.android.model.AppSettings.defaultProvider]
+ * when the provider key that backs it has been deleted.
+ *
+ * This is a package-private suspend function so it can be called from
+ * [ApiKeysViewModel] and tested independently without requiring an Android
+ * context.
+ *
+ * If the deleted key's canonical provider ID matches the current default
+ * provider, the first remaining key in [keyRepo] is selected as the new
+ * default. If no keys remain, both default provider and default model
+ * are cleared to empty strings.
+ *
+ * @param deletedKey The key that was just removed from [keyRepo].
+ * @param keyRepo Repository to query for remaining keys.
+ * @param settingsRepo Repository to update if the default changes.
+ */
+internal suspend fun clearDefaultProviderIfNeeded(
+    deletedKey: ApiKey,
+    keyRepo: com.zeroclaw.android.data.repository.ApiKeyRepository,
+    settingsRepo: com.zeroclaw.android.data.repository.SettingsRepository,
+) {
+    val settings = settingsRepo.settings.first()
+    val deletedCanonical =
+        com.zeroclaw.android.data.ProviderRegistry.findById(deletedKey.provider)?.id
+            ?: deletedKey.provider.lowercase()
+    val defaultCanonical =
+        com.zeroclaw.android.data.ProviderRegistry.findById(settings.defaultProvider)?.id
+            ?: settings.defaultProvider.lowercase()
+    if (deletedCanonical != defaultCanonical) return
+
+    val remaining = keyRepo.keys.first()
+    val fallback = remaining.firstOrNull()
+    settingsRepo.setDefaultProvider(fallback?.provider ?: "")
+    settingsRepo.setDefaultModel("")
 }
