@@ -321,14 +321,19 @@ mod tests {
             "listener should have received at least one event"
         );
 
-        // Unregister, then snapshot the count and fire again.
-        // Use a tight sequence to minimise the window for cross-test
-        // interference on the shared global listener slot.
+        // Unregister, then fire another event and check that the count
+        // does not increase. We wait briefly to let any in-flight
+        // `record_event` calls from parallel tests that may have cloned
+        // the Arc before our unregister to finish their callbacks.
         unregister_event_listener_inner().unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(10));
         let snapshot = count.load(Ordering::SeqCst);
         observer.record_event(&ObserverEvent::HeartbeatTick);
+        std::thread::sleep(std::time::Duration::from_millis(10));
 
-        // After unregister, new events must not reach the listener.
+        // After unregister, new events from this test must not reach
+        // the listener. The snapshot already accounts for any straggler
+        // callbacks from parallel tests that cloned the Arc pre-unregister.
         assert_eq!(
             count.load(Ordering::SeqCst),
             snapshot,
