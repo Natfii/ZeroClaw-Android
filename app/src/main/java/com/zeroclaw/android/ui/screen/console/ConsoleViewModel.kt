@@ -14,6 +14,7 @@ import com.zeroclaw.android.ZeroClawApplication
 import com.zeroclaw.android.model.AppSettings
 import com.zeroclaw.android.model.ChatMessage
 import com.zeroclaw.android.model.ProcessedImage
+import com.zeroclaw.android.util.ErrorSanitizer
 import com.zeroclaw.android.util.ImageProcessor
 import com.zeroclaw.ffi.FfiException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -147,12 +148,12 @@ class ConsoleViewModel(
                 chatMessageRepository.append(content = response, isFromUser = false)
             } catch (e: FfiException) {
                 chatMessageRepository.append(
-                    content = "Error: ${e.message ?: "Failed to get response"}",
+                    content = "Error: ${ErrorSanitizer.sanitizeForUi(e)}",
                     isFromUser = false,
                 )
             } catch (e: Exception) {
                 chatMessageRepository.append(
-                    content = "Error: ${e.message ?: "Unexpected error"}",
+                    content = "Error: ${ErrorSanitizer.sanitizeForUi(e)}",
                     isFromUser = false,
                 )
             } finally {

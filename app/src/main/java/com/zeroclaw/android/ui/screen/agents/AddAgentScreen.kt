@@ -194,6 +194,9 @@ fun AddAgentScreen(
         )
         Spacer(modifier = Modifier.height(SECTION_SPACING_DP.dp))
 
+        val maxDepthValue = maxDepth.toIntOrNull()
+        val maxDepthError = maxDepth.isNotEmpty() && (maxDepthValue == null || maxDepthValue < 1)
+
         CollapsibleSection(title = "Advanced") {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -225,9 +228,6 @@ fun AddAgentScreen(
                 )
             }
             Spacer(modifier = Modifier.height(FIELD_SPACING_DP.dp))
-
-            val maxDepthValue = maxDepth.toIntOrNull()
-            val maxDepthError = maxDepth.isNotEmpty() && (maxDepthValue == null || maxDepthValue < 1)
 
             OutlinedTextField(
                 value = maxDepth,
@@ -262,7 +262,7 @@ fun AddAgentScreen(
                 )
                 onSaved()
             },
-            enabled = name.isNotBlank() && providerId.isNotBlank() && modelName.isNotBlank(),
+            enabled = name.isNotBlank() && providerId.isNotBlank() && modelName.isNotBlank() && !maxDepthError,
             modifier =
                 Modifier
                     .fillMaxWidth()

@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.zeroclaw.android.ZeroClawApplication
 import com.zeroclaw.android.model.CronJob
 import com.zeroclaw.android.service.CronBridge
+import com.zeroclaw.android.util.ErrorSanitizer
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -170,7 +171,7 @@ class CronJobsViewModel(
         } catch (e: Exception) {
             _uiState.value =
                 CronJobsUiState.Error(
-                    e.message ?: "Failed to load cron jobs",
+                    ErrorSanitizer.sanitizeForUi(e),
                 )
         }
     }
@@ -185,7 +186,7 @@ class CronJobsViewModel(
             _snackbarMessage.value = successMessage
             loadJobsInternal()
         } catch (e: Exception) {
-            _snackbarMessage.value = "Error: ${e.message ?: "unknown"}"
+            _snackbarMessage.value = ErrorSanitizer.sanitizeForUi(e)
         }
     }
 }

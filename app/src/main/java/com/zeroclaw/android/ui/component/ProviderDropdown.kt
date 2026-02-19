@@ -26,6 +26,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -61,6 +62,7 @@ fun ProviderDropdown(
     label: String = "Provider",
     enabled: Boolean = true,
 ) {
+    val focusManager = LocalFocusManager.current
     var expanded by remember { mutableStateOf(false) }
     var filterText by remember { mutableStateOf("") }
     val displayText =
@@ -110,6 +112,7 @@ fun ProviderDropdown(
             onDismissRequest = {
                 expanded = false
                 filterText = ""
+                focusManager.clearFocus()
             },
         ) {
             filteredGrouped.forEach { (category, providers) ->
@@ -139,6 +142,7 @@ fun ProviderDropdown(
                             onProviderSelected(provider)
                             expanded = false
                             filterText = ""
+                            focusManager.clearFocus()
                         },
                     )
                 }

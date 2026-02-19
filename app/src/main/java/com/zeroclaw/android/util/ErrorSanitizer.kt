@@ -19,6 +19,13 @@ object ErrorSanitizer {
     /** Maximum length for a user-visible error message. */
     private const val MAX_UI_MESSAGE_LENGTH = 200
 
+    /** Known error message patterns mapped to user-friendly messages. */
+    private val KNOWN_PATTERNS: Map<String, String> =
+        mapOf(
+            "daemon not running" to "The daemon is not running. Start it from the Dashboard.",
+            "daemon already running" to "The daemon is already running.",
+        )
+
     /**
      * Returns a user-safe error message from an exception.
      *
@@ -39,15 +46,30 @@ object ErrorSanitizer {
                 "Internal state corrupted. Please restart the app."
             is org.json.JSONException ->
                 "Received malformed data from the native layer."
-            else -> {
-                val msg = e.message ?: "Unknown error"
-                if (msg.length > MAX_UI_MESSAGE_LENGTH) {
-                    msg.take(MAX_UI_MESSAGE_LENGTH) + "..."
-                } else {
-                    msg
-                }
-            }
+            else -> sanitizeMessage(e.message)
         }
+
+    /**
+     * Sanitises a raw error message string for user display.
+     *
+     * Strips `detail=` prefixes commonly seen in FFI error messages,
+     * matches against [KNOWN_PATTERNS] for user-friendly translations,
+     * and truncates anything else to [MAX_UI_MESSAGE_LENGTH] characters.
+     *
+     * @param raw The raw error message, possibly null.
+     * @return A sanitised, user-safe error string.
+     */
+    fun sanitizeMessage(raw: String?): String {
+        val msg = raw?.removePrefix("detail=")?.trim() ?: return "Unknown error"
+        KNOWN_PATTERNS.forEach { (pattern, friendly) ->
+            if (msg.contains(pattern, ignoreCase = true)) return friendly
+        }
+        return if (msg.length > MAX_UI_MESSAGE_LENGTH) {
+            msg.take(MAX_UI_MESSAGE_LENGTH) + "..."
+        } else {
+            msg
+        }
+    }
 
     /**
      * Fixed message for status JSON parse failures.

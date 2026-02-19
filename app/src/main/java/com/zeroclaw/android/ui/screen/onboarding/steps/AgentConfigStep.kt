@@ -14,6 +14,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
@@ -47,11 +51,24 @@ fun AgentConfigStep(
         )
         Spacer(modifier = Modifier.height(24.dp))
 
+        var hasInteracted by remember { mutableStateOf(false) }
+        val showError = hasInteracted && agentName.isBlank()
+
         OutlinedTextField(
             value = agentName,
-            onValueChange = onAgentNameChanged,
+            onValueChange = {
+                hasInteracted = true
+                onAgentNameChanged(it)
+            },
             label = { Text("Daemon Name") },
             singleLine = true,
+            isError = showError,
+            supportingText =
+                if (showError) {
+                    { Text("Name is required") }
+                } else {
+                    null
+                },
             modifier = Modifier.fillMaxWidth(),
         )
         Spacer(modifier = Modifier.height(16.dp))

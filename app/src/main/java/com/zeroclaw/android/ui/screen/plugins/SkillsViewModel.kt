@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.zeroclaw.android.ZeroClawApplication
 import com.zeroclaw.android.model.Skill
 import com.zeroclaw.android.service.SkillsBridge
+import com.zeroclaw.android.util.ErrorSanitizer
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -159,7 +160,7 @@ class SkillsViewModel(
         } catch (e: Exception) {
             _uiState.value =
                 SkillsUiState.Error(
-                    e.message ?: "Failed to load skills",
+                    ErrorSanitizer.sanitizeForUi(e),
                 )
         }
     }
@@ -174,7 +175,7 @@ class SkillsViewModel(
             _snackbarMessage.value = successMessage
             loadSkillsInternal()
         } catch (e: Exception) {
-            _snackbarMessage.value = "Error: ${e.message ?: "unknown"}"
+            _snackbarMessage.value = ErrorSanitizer.sanitizeForUi(e)
         }
     }
 

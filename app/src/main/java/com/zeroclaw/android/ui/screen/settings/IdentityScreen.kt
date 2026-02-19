@@ -20,6 +20,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,6 +32,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import org.json.JSONException
+import org.json.JSONObject
 
 /** Minimum height for the JSON text field. */
 private const val JSON_FIELD_MIN_LINES = 8
@@ -62,6 +65,20 @@ fun IdentityScreen(
     var jsonText by remember(settings.identityJson) {
         mutableStateOf(settings.identityJson)
     }
+    val jsonError by remember {
+        derivedStateOf {
+            if (jsonText.isBlank()) {
+                null
+            } else {
+                try {
+                    JSONObject(jsonText)
+                    null
+                } catch (_: JSONException) {
+                    "Invalid JSON format"
+                }
+            }
+        }
+    }
 
     Column(
         modifier =
@@ -92,6 +109,8 @@ fun IdentityScreen(
             value = jsonText,
             onValueChange = { jsonText = it },
             label = { Text("AIEOS JSON") },
+            isError = jsonError != null,
+            supportingText = jsonError?.let { msg -> { Text(msg) } },
             minLines = JSON_FIELD_MIN_LINES,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -99,6 +118,7 @@ fun IdentityScreen(
 
         FilledTonalButton(
             onClick = { settingsViewModel.updateIdentityJson(jsonText) },
+            enabled = jsonError == null,
             modifier =
                 Modifier
                     .fillMaxWidth()

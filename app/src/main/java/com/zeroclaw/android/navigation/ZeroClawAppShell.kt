@@ -28,6 +28,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -151,7 +152,10 @@ fun ZeroClawAppShell(
             topBar = {
                 TopAppBar(
                     title = {
-                        TopBarTitle(serviceState = serviceState)
+                        TopBarTitle(
+                            serviceState = serviceState,
+                            title = screenTitleFor(currentDestination) ?: "ZeroClaw",
+                        )
                     },
                     navigationIcon = {
                         IconButton(onClick = { navController.popBackStack() }) {
@@ -175,14 +179,61 @@ fun ZeroClawAppShell(
 }
 
 /**
+ * Returns a human-readable screen title for a sub-screen destination.
+ *
+ * @param destination The current [NavDestination], or null.
+ * @return The screen title, or null if the destination is unknown.
+ */
+@Suppress("CyclomaticComplexMethod")
+private fun screenTitleFor(destination: NavDestination?): String? {
+    if (destination == null) return null
+    return when {
+        destination.hasRoute(AboutRoute::class) -> "About"
+        destination.hasRoute(AddAgentRoute::class) -> "Add Connection"
+        destination.hasRoute(AgentDetailRoute::class) -> "Connection"
+        destination.hasRoute(ApiKeyDetailRoute::class) -> "API Key"
+        destination.hasRoute(ApiKeysRoute::class) -> "API Keys"
+        destination.hasRoute(AutonomyRoute::class) -> "Autonomy"
+        destination.hasRoute(BatterySettingsRoute::class) -> "Battery"
+        destination.hasRoute(ChannelDetailRoute::class) -> "Channel"
+        destination.hasRoute(ConnectedChannelsRoute::class) -> "Channels"
+        destination.hasRoute(CostDetailRoute::class) -> "Cost Tracking"
+        destination.hasRoute(CronJobsRoute::class) -> "Cron Jobs"
+        destination.hasRoute(DoctorRoute::class) -> "Doctor"
+        destination.hasRoute(GatewayRoute::class) -> "Gateway"
+        destination.hasRoute(IdentityRoute::class) -> "Identity"
+        destination.hasRoute(LogViewerRoute::class) -> "Logs"
+        destination.hasRoute(MemoryAdvancedRoute::class) -> "Memory"
+        destination.hasRoute(MemoryBrowserRoute::class) -> "Memory Browser"
+        destination.hasRoute(ModelRoutesRoute::class) -> "Model Routes"
+        destination.hasRoute(ObservabilityRoute::class) -> "Observability"
+        destination.hasRoute(PluginDetailRoute::class) -> "Plugin"
+        destination.hasRoute(PluginRegistryRoute::class) -> "Plugin Registry"
+        destination.hasRoute(QrScannerRoute::class) -> "QR Scanner"
+        destination.hasRoute(SchedulerRoute::class) -> "Scheduler"
+        destination.hasRoute(SecurityOverviewRoute::class) -> "Security"
+        destination.hasRoute(ServiceConfigRoute::class) -> "Service Config"
+        destination.hasRoute(ToolManagementRoute::class) -> "Tools"
+        destination.hasRoute(ToolsBrowserRoute::class) -> "Tools Browser"
+        destination.hasRoute(TunnelRoute::class) -> "Tunnel"
+        destination.hasRoute(UpdatesRoute::class) -> "Updates"
+        else -> null
+    }
+}
+
+/**
  * Top app bar title row with app name and daemon [StatusDot].
  *
  * @param serviceState Current [ServiceState] shown in the status dot.
+ * @param title Text displayed as the bar title.
  */
 @Composable
-private fun TopBarTitle(serviceState: ServiceState) {
+private fun TopBarTitle(
+    serviceState: ServiceState,
+    title: String = "ZeroClaw",
+) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text("ZeroClaw")
+        Text(title)
         Spacer(modifier = Modifier.width(8.dp))
         StatusDot(state = serviceState)
     }

@@ -13,6 +13,7 @@ import androidx.lifecycle.viewModelScope
 import com.zeroclaw.android.ZeroClawApplication
 import com.zeroclaw.android.data.remote.OkHttpPluginRegistryClient
 import com.zeroclaw.android.model.Plugin
+import com.zeroclaw.android.util.ErrorSanitizer
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -133,7 +134,7 @@ class PluginsViewModel(
                 repository.install(pluginId)
             } catch (e: Exception) {
                 Log.w(TAG, "Install failed for $pluginId", e)
-                _snackbarMessage.tryEmit("Install failed: ${e.message}")
+                _snackbarMessage.tryEmit("Install failed: ${ErrorSanitizer.sanitizeForUi(e)}")
             }
         }
     }
@@ -152,7 +153,7 @@ class PluginsViewModel(
                 repository.uninstall(pluginId)
             } catch (e: Exception) {
                 Log.w(TAG, "Uninstall failed for $pluginId", e)
-                _snackbarMessage.tryEmit("Uninstall failed: ${e.message}")
+                _snackbarMessage.tryEmit("Uninstall failed: ${ErrorSanitizer.sanitizeForUi(e)}")
             }
         }
     }
@@ -171,7 +172,7 @@ class PluginsViewModel(
                 repository.toggleEnabled(pluginId)
             } catch (e: Exception) {
                 Log.w(TAG, "Toggle failed for $pluginId", e)
-                _snackbarMessage.tryEmit("Toggle failed: ${e.message}")
+                _snackbarMessage.tryEmit("Toggle failed: ${ErrorSanitizer.sanitizeForUi(e)}")
             }
         }
     }
@@ -202,7 +203,7 @@ class PluginsViewModel(
                 }
             } catch (e: Exception) {
                 _syncState.value =
-                    SyncUiState.Error(e.message ?: "Sync failed")
+                    SyncUiState.Error(ErrorSanitizer.sanitizeForUi(e))
             }
         }
     }

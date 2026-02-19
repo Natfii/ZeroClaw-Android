@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.zeroclaw.android.ZeroClawApplication
 import com.zeroclaw.android.model.ToolSpec
 import com.zeroclaw.android.service.ToolsBridge
+import com.zeroclaw.android.util.ErrorSanitizer
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -160,7 +161,7 @@ class ToolsBrowserViewModel(
         } catch (e: Exception) {
             _uiState.value =
                 ToolsUiState.Error(
-                    e.message ?: "Failed to load tools",
+                    ErrorSanitizer.sanitizeForUi(e),
                 )
         }
     }
