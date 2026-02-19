@@ -46,9 +46,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zeroclaw.android.ZeroClawApplication
 import com.zeroclaw.android.data.StorageHealth
+import androidx.fragment.app.FragmentActivity
 import com.zeroclaw.android.ui.component.CollapsibleSection
 import com.zeroclaw.android.ui.component.SectionHeader
 import com.zeroclaw.android.ui.component.SettingsToggleRow
+import com.zeroclaw.android.util.AuthResult
 import com.zeroclaw.android.util.BiometricGatekeeper
 
 /**
@@ -449,6 +451,7 @@ private fun BiometricProtectionSection(
     onBiometricForSettingsChange: (Boolean) -> Unit,
 ) {
     val context = LocalContext.current
+    val activity = context as? FragmentActivity
     val isBiometricAvailable = BiometricGatekeeper.isAvailable(context)
 
     SectionHeader(title = "Biometric Protection")
@@ -457,7 +460,13 @@ private fun BiometricProtectionSection(
         title = "Require biometric for service control",
         subtitle = "Authenticate before starting or stopping the daemon",
         checked = biometricForService,
-        onCheckedChange = onBiometricForServiceChange,
+        onCheckedChange = { newValue ->
+            authenticateBeforeToggle(activity, "service biometric requirement") { result ->
+                if (result is AuthResult.Success) {
+                    onBiometricForServiceChange(newValue)
+                }
+            }
+        },
         contentDescription = "Require biometric for service control",
         enabled = isBiometricAvailable,
     )
@@ -466,7 +475,13 @@ private fun BiometricProtectionSection(
         title = "Require biometric for sensitive settings",
         subtitle = "Authenticate before modifying security-related settings",
         checked = biometricForSettings,
-        onCheckedChange = onBiometricForSettingsChange,
+        onCheckedChange = { newValue ->
+            authenticateBeforeToggle(activity, "settings biometric requirement") { result ->
+                if (result is AuthResult.Success) {
+                    onBiometricForSettingsChange(newValue)
+                }
+            }
+        },
         contentDescription = "Require biometric for sensitive settings",
         enabled = isBiometricAvailable,
     )
@@ -478,6 +493,34 @@ private fun BiometricProtectionSection(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(vertical = SPACING_SMALL),
         )
+    }
+}
+
+/**
+ * Launches a biometric prompt before allowing a toggle change.
+ *
+ * If the hosting activity is not a [FragmentActivity], the callback
+ * receives [AuthResult.Success] immediately as a fallback.
+ *
+ * @param activity The hosting activity, or null if unavailable.
+ * @param settingName Human-readable name of the setting being changed.
+ * @param onResult Callback receiving the authentication result.
+ */
+private fun authenticateBeforeToggle(
+    activity: FragmentActivity?,
+    settingName: String,
+    onResult: (AuthResult) -> Unit,
+) {
+    if (activity != null) {
+        BiometricGatekeeper.authenticate(
+            activity = activity,
+            title = "Confirm Change",
+            subtitle = "Authenticate to change $settingName",
+            allowDeviceCredential = true,
+            onResult = onResult,
+        )
+    } else {
+        onResult(AuthResult.Success)
     }
 }
 
