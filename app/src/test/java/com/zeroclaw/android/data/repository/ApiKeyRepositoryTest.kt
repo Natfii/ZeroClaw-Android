@@ -259,6 +259,56 @@ class ApiKeyRepositoryTest {
             assertEquals(0L, retrieved?.expiresAt)
         }
 
+    @Test
+    @DisplayName("getByProviderFresh returns key when not OAuth")
+    fun `getByProviderFresh returns key when not OAuth`() =
+        runTest {
+            val repo = InMemoryApiKeyRepository()
+            val key = ApiKey(id = "1", provider = "openai", key = "sk-regular-key")
+            repo.save(key)
+            val result = repo.getByProviderFresh("openai")
+            assertEquals(key, result)
+        }
+
+    @Test
+    @DisplayName("getByProviderFresh returns key when OAuth not expired")
+    fun `getByProviderFresh returns key when OAuth not expired`() =
+        runTest {
+            val repo = InMemoryApiKeyRepository()
+            val farFuture = System.currentTimeMillis() + 3_600_000L
+            val key = ApiKey(
+                id = "1",
+                provider = "anthropic",
+                key = "sk-ant-oat01-valid",
+                refreshToken = "sk-ant-ort01-refresh",
+                expiresAt = farFuture,
+            )
+            repo.save(key)
+            val result = repo.getByProviderFresh("anthropic")
+            assertEquals(key, result)
+        }
+
+    @Test
+    @DisplayName("getByProviderFresh returns null and marks INVALID when OAuth refresh fails")
+    fun `getByProviderFresh returns null and marks INVALID when OAuth refresh fails`() =
+        runTest {
+            val repo = InMemoryApiKeyRepository()
+            val expiredAt = System.currentTimeMillis() - 1_000L
+            val key = ApiKey(
+                id = "1",
+                provider = "anthropic",
+                key = "sk-ant-oat01-expired",
+                refreshToken = "sk-ant-ort01-bogus-will-fail",
+                expiresAt = expiredAt,
+            )
+            repo.save(key)
+
+            val result = repo.getByProviderFresh("anthropic")
+
+            assertNull(result)
+            assertEquals(KeyStatus.INVALID, repo.getById("1")?.status)
+        }
+
     /** Constants for test fixtures. */
     companion object {
         private const val TEST_PASSPHRASE = "test-passphrase-12345"

@@ -137,12 +137,14 @@ interface ApiKeyRepository {
      * if it is an OAuth token nearing expiry.
      *
      * On successful refresh, the updated tokens and expiry are persisted
-     * immediately. On failure, the stale key is returned so the caller
-     * can attempt use anyway (the daemon will receive a 401 which flows
-     * through the existing error pipeline).
+     * immediately. On failure, the key is marked [KeyStatus.INVALID] and
+     * `null` is returned so the daemon starts without credentials. This
+     * surfaces a clear "credentials not set" error at daemon startup
+     * rather than a silent 500 on the first webhook call.
      *
      * @param provider Provider ID or alias to search for.
-     * @return The matching [ApiKey] (possibly refreshed) or null.
+     * @return The matching [ApiKey] (possibly refreshed), or `null` if not found
+     *   or if token refresh failed.
      */
     @Suppress("TooGenericExceptionCaught")
     suspend fun getByProviderFresh(provider: String): ApiKey? {
@@ -160,11 +162,13 @@ interface ApiKeyRepository {
             save(refreshed)
             refreshed
         } catch (e: OAuthRefreshException) {
-            Log.w(TAG, "OAuth refresh failed: ${e.message}")
-            key
+            Log.w(TAG, "OAuth refresh failed, marking key invalid: ${e.message}")
+            markKeyStatus(key.id, KeyStatus.INVALID)
+            null
         } catch (e: Exception) {
-            Log.w(TAG, "OAuth refresh failed: ${e.message}")
-            key
+            Log.w(TAG, "OAuth refresh failed, marking key invalid: ${e.message}")
+            markKeyStatus(key.id, KeyStatus.INVALID)
+            null
         }
     }
 
