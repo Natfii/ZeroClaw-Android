@@ -480,13 +480,23 @@ pub(crate) fn send_message_inner(message: String) -> Result<String, FfiError> {
 
         let status = response.status();
         if !status.is_success() {
+            let body_text = response
+                .text()
+                .await
+                .unwrap_or_default();
+            let detail_hint = extract_gateway_error(&body_text);
             let hint = if status.as_u16() == 408 {
                 " (model may need more time to respond — try a smaller prompt or faster model)"
             } else {
                 ""
             };
+            let body_suffix = if detail_hint.is_empty() {
+                String::new()
+            } else {
+                format!(": {detail_hint}")
+            };
             return Err(FfiError::SpawnError {
-                detail: format!("gateway returned status {status}{hint}"),
+                detail: format!("gateway returned status {status}{hint}{body_suffix}"),
             });
         }
 
@@ -580,6 +590,17 @@ where
             backoff = backoff.saturating_mul(2).min(max_backoff);
         }
     })
+}
+
+/// Extracts the `"error"` field from a gateway JSON error response body.
+///
+/// Returns the error string if present, or an empty string if the body
+/// is not valid JSON or lacks an `"error"` field.
+fn extract_gateway_error(body: &str) -> String {
+    serde_json::from_str::<serde_json::Value>(body)
+        .ok()
+        .and_then(|v| v["error"].as_str().map(String::from))
+        .unwrap_or_default()
 }
 
 /// Runs the heartbeat worker loop.

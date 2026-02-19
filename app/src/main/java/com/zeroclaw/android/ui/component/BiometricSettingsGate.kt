@@ -127,7 +127,7 @@ private fun BiometricLockOverlay(
                             activity = activity,
                             title = "Unlock Settings",
                             subtitle = "Authenticate to modify sensitive settings",
-                            negativeButtonText = "Cancel",
+                            allowDeviceCredential = true,
                         ) { result ->
                             if (result is AuthResult.Success) {
                                 onUnlocked()

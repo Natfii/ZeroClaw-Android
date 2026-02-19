@@ -65,6 +65,9 @@ private const val AGENT_TEMPERATURE_STEPS = 20
 /** Default temperature value for new agents. */
 private const val DEFAULT_AGENT_TEMPERATURE = 0.7f
 
+/** Top padding for the model fetch error text (4dp). */
+private val FETCH_ERROR_TOP_PADDING = 4.dp
+
 /**
  * Screen for adding a new agent.
  *
@@ -102,12 +105,14 @@ fun AddAgentScreen(
     var liveModels by remember { mutableStateOf(emptyList<String>()) }
     var isLoadingLive by remember { mutableStateOf(false) }
     var isLiveData by remember { mutableStateOf(false) }
+    var modelFetchError by remember { mutableStateOf<String?>(null) }
 
     val selectedKey = apiKeys.firstOrNull { it.id == selectedConnectionId }
 
     LaunchedEffect(providerId, selectedConnectionId, apiKeys) {
         liveModels = emptyList()
         isLiveData = false
+        modelFetchError = null
         val info = ProviderRegistry.findById(providerId) ?: return@LaunchedEffect
         if (info.modelListFormat == ModelListFormat.NONE) return@LaunchedEffect
         val key = selectedKey
@@ -123,6 +128,8 @@ fun AddAgentScreen(
         result.onSuccess { models ->
             liveModels = models
             isLiveData = true
+        }.onFailure { e ->
+            modelFetchError = e.message ?: "Failed to fetch models"
         }
     }
 
@@ -183,6 +190,14 @@ fun AddAgentScreen(
             isLiveData = isLiveData,
             modifier = Modifier.fillMaxWidth(),
         )
+        if (modelFetchError != null) {
+            Text(
+                text = "Could not fetch models: $modelFetchError",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(top = FETCH_ERROR_TOP_PADDING),
+            )
+        }
         Spacer(modifier = Modifier.height(FIELD_SPACING_DP.dp))
 
         OutlinedTextField(

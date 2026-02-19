@@ -13,6 +13,7 @@ import androidx.lifecycle.viewModelScope
 import com.zeroclaw.android.ZeroClawApplication
 import com.zeroclaw.android.model.AppSettings
 import com.zeroclaw.android.model.ChatMessage
+import com.zeroclaw.android.model.LogSeverity
 import com.zeroclaw.android.model.ProcessedImage
 import com.zeroclaw.android.util.ErrorSanitizer
 import com.zeroclaw.android.util.ImageProcessor
@@ -40,6 +41,7 @@ class ConsoleViewModel(
     private val app = application as ZeroClawApplication
     private val chatMessageRepository = app.chatMessageRepository
     private val daemonBridge = app.daemonBridge
+    private val logRepository = app.logRepository
     private val settingsRepository = app.settingsRepository
     private val visionBridge = app.visionBridge
 
@@ -147,13 +149,17 @@ class ConsoleViewModel(
                     }
                 chatMessageRepository.append(content = response, isFromUser = false)
             } catch (e: FfiException) {
+                val sanitized = ErrorSanitizer.sanitizeForUi(e)
+                logRepository.append(LogSeverity.ERROR, TAG, "Send failed: $sanitized")
                 chatMessageRepository.append(
-                    content = "Error: ${ErrorSanitizer.sanitizeForUi(e)}",
+                    content = "Error: $sanitized",
                     isFromUser = false,
                 )
             } catch (e: Exception) {
+                val sanitized = ErrorSanitizer.sanitizeForUi(e)
+                logRepository.append(LogSeverity.ERROR, TAG, "Send failed: $sanitized")
                 chatMessageRepository.append(
-                    content = "Error: ${ErrorSanitizer.sanitizeForUi(e)}",
+                    content = "Error: $sanitized",
                     isFromUser = false,
                 )
             } finally {
@@ -187,6 +193,8 @@ class ConsoleViewModel(
 
     /** Constants for [ConsoleViewModel]. */
     companion object {
+        private const val TAG = "Console"
+
         /** Timeout in milliseconds before upstream Flow collection stops when UI is hidden. */
         private const val STOP_TIMEOUT_MS = 5_000L
 
