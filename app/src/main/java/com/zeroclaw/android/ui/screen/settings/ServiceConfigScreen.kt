@@ -8,7 +8,6 @@ package com.zeroclaw.android.ui.screen.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -25,14 +24,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -43,6 +40,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zeroclaw.android.model.AppSettings
 import com.zeroclaw.android.ui.component.SectionHeader
+import com.zeroclaw.android.ui.component.SettingsToggleRow
 
 /** Maximum slider value for temperature. */
 private const val TEMPERATURE_MAX = 2.0f
@@ -124,32 +122,15 @@ fun ServiceConfigScreen(
 
         SectionHeader(title = "Startup")
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "Auto-start on boot",
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-                Text(
-                    text = "Start the daemon automatically after device reboot",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Switch(
-                checked = settings.autoStartOnBoot,
-                onCheckedChange = { settingsViewModel.updateAutoStartOnBoot(it) },
-                modifier =
-                    Modifier.semantics {
-                        contentDescription = "Auto-start on boot"
-                    },
-            )
-        }
+        SettingsToggleRow(
+            title = "Auto-start on boot",
+            subtitle = "Start the daemon automatically after device reboot",
+            checked = settings.autoStartOnBoot,
+            onCheckedChange = { settingsViewModel.updateAutoStartOnBoot(it) },
+            contentDescription = "Auto-start on boot",
+        )
 
+        DefaultsSection(settings = settings, viewModel = settingsViewModel)
         InferenceSection(settings = settings, viewModel = settingsViewModel)
         MemorySection(settings = settings, viewModel = settingsViewModel)
         ReliabilitySection(settings = settings, viewModel = settingsViewModel)
@@ -157,6 +138,39 @@ fun ServiceConfigScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
     }
+}
+
+/**
+ * Default provider and model section: free-form text fields for the
+ * provider ID and model name applied to new agents.
+ *
+ * @param settings Current application settings.
+ * @param viewModel The [SettingsViewModel] for persisting changes.
+ */
+@Composable
+private fun DefaultsSection(
+    settings: AppSettings,
+    viewModel: SettingsViewModel,
+) {
+    SectionHeader(title = "Defaults")
+
+    OutlinedTextField(
+        value = settings.defaultProvider,
+        onValueChange = { viewModel.updateDefaultProvider(it) },
+        label = { Text("Default Provider") },
+        modifier = Modifier.fillMaxWidth(),
+        singleLine = true,
+    )
+
+    Spacer(modifier = Modifier.height(8.dp))
+
+    OutlinedTextField(
+        value = settings.defaultModel,
+        onValueChange = { viewModel.updateDefaultModel(it) },
+        label = { Text("Default Model") },
+        modifier = Modifier.fillMaxWidth(),
+        singleLine = true,
+    )
 }
 
 /**
@@ -187,20 +201,20 @@ private fun InferenceSection(
                 .semantics { contentDescription = "Temperature slider" },
     )
 
-    ToggleRow(
+    SettingsToggleRow(
         title = "Compact context",
         subtitle = "Reduce token usage by compressing conversation context",
         checked = settings.compactContext,
         onCheckedChange = { viewModel.updateCompactContext(it) },
-        description = "Compact context",
+        contentDescription = "Compact context",
     )
 
-    ToggleRow(
+    SettingsToggleRow(
         title = "Strip thinking tags",
-        subtitle = "Remove <think> / <thinking> blocks from model responses",
+        subtitle = "Client-side only — strips thinking tags from console display without affecting daemon behavior",
         checked = settings.stripThinkingTags,
         onCheckedChange = { viewModel.updateStripThinkingTags(it) },
-        description = "Strip thinking tags from responses",
+        contentDescription = "Strip thinking tags from responses",
     )
 }
 
@@ -251,12 +265,12 @@ private fun MemorySection(
         }
     }
 
-    ToggleRow(
+    SettingsToggleRow(
         title = "Auto-save",
         subtitle = "Automatically save conversation context to memory",
         checked = settings.memoryAutoSave,
         onCheckedChange = { viewModel.updateMemoryAutoSave(it) },
-        description = "Memory auto-save",
+        contentDescription = "Memory auto-save",
     )
 }
 
@@ -317,12 +331,18 @@ private fun CostLimitsSection(
 ) {
     SectionHeader(title = "Cost Limits")
 
-    ToggleRow(
+    Text(
+        text = "Budget tracking and usage warnings",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+
+    SettingsToggleRow(
         title = "Enable cost limits",
         subtitle = "Enforce daily and monthly spending caps",
         checked = settings.costEnabled,
         onCheckedChange = { viewModel.updateCostEnabled(it) },
-        description = "Enable cost limits",
+        contentDescription = "Enable cost limits",
     )
 
     val dailyError = settings.costEnabled && settings.dailyLimitUsd < 0f
@@ -387,42 +407,4 @@ private fun CostLimitsSection(
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         modifier = Modifier.fillMaxWidth(),
     )
-}
-
-/**
- * Reusable toggle row with title, subtitle, and switch.
- *
- * @param title Primary label.
- * @param subtitle Secondary description.
- * @param checked Current toggle state.
- * @param onCheckedChange Callback for toggle changes.
- * @param description Accessibility content description for the switch.
- */
-@Composable
-private fun ToggleRow(
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-    description: String,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, style = MaterialTheme.typography.bodyLarge)
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            modifier = Modifier.semantics { contentDescription = description },
-        )
-    }
 }

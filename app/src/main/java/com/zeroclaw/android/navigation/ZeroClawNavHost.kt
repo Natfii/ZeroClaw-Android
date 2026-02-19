@@ -22,6 +22,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
+import com.zeroclaw.android.service.ZeroClawDaemonService
 import com.zeroclaw.android.ui.screen.agents.AddAgentScreen
 import com.zeroclaw.android.ui.screen.agents.AgentDetailScreen
 import com.zeroclaw.android.ui.screen.agents.AgentsScreen
@@ -183,36 +184,86 @@ fun ZeroClawNavHost(
 
         composable<SettingsRoute> {
             val settingsViewModel: SettingsViewModel = viewModel()
+            val restartRequired by settingsViewModel.restartRequired
+                .collectAsStateWithLifecycle()
+            val context = LocalContext.current
+
             SettingsScreen(
-                onNavigateToServiceConfig = { navController.navigate(ServiceConfigRoute) },
-                onNavigateToBattery = { navController.navigate(BatterySettingsRoute) },
-                onNavigateToApiKeys = { navController.navigate(ApiKeysRoute) },
-                onNavigateToChannels = { navController.navigate(ConnectedChannelsRoute) },
-                onNavigateToLogViewer = { navController.navigate(LogViewerRoute) },
-                onNavigateToDoctor = { navController.navigate(DoctorRoute) },
-                onNavigateToIdentity = { navController.navigate(IdentityRoute) },
-                onNavigateToAbout = { navController.navigate(AboutRoute) },
-                onNavigateToUpdates = { navController.navigate(UpdatesRoute) },
-                onNavigateToAutonomy = { navController.navigate(AutonomyRoute) },
-                onNavigateToTunnel = { navController.navigate(TunnelRoute) },
-                onNavigateToGateway = { navController.navigate(GatewayRoute) },
-                onNavigateToToolManagement = { navController.navigate(ToolManagementRoute) },
-                onNavigateToModelRoutes = { navController.navigate(ModelRoutesRoute) },
-                onNavigateToMemoryAdvanced = { navController.navigate(MemoryAdvancedRoute) },
-                onNavigateToScheduler = { navController.navigate(SchedulerRoute) },
-                onNavigateToObservability = { navController.navigate(ObservabilityRoute) },
-                onNavigateToSecurityOverview = { navController.navigate(SecurityOverviewRoute) },
-                onNavigateToPluginRegistry = { navController.navigate(PluginRegistryRoute) },
-                onNavigateToCronJobs = { navController.navigate(CronJobsRoute) },
-                onNavigateToToolsBrowser = { navController.navigate(ToolsBrowserRoute) },
-                onNavigateToMemoryBrowser = { navController.navigate(MemoryBrowserRoute) },
+                onNavigate = { action ->
+                    when (action) {
+                        SettingsNavAction.ServiceConfig ->
+                            navController.navigate(ServiceConfigRoute)
+                        SettingsNavAction.Battery ->
+                            navController.navigate(BatterySettingsRoute)
+                        SettingsNavAction.ApiKeys ->
+                            navController.navigate(ApiKeysRoute)
+                        SettingsNavAction.Channels ->
+                            navController.navigate(ConnectedChannelsRoute)
+                        SettingsNavAction.LogViewer ->
+                            navController.navigate(LogViewerRoute)
+                        SettingsNavAction.Doctor ->
+                            navController.navigate(DoctorRoute)
+                        SettingsNavAction.Identity ->
+                            navController.navigate(IdentityRoute)
+                        SettingsNavAction.About ->
+                            navController.navigate(AboutRoute)
+                        SettingsNavAction.Updates ->
+                            navController.navigate(UpdatesRoute)
+                        SettingsNavAction.Autonomy ->
+                            navController.navigate(AutonomyRoute)
+                        SettingsNavAction.Tunnel ->
+                            navController.navigate(TunnelRoute)
+                        SettingsNavAction.Gateway ->
+                            navController.navigate(GatewayRoute)
+                        SettingsNavAction.ToolManagement ->
+                            navController.navigate(ToolManagementRoute)
+                        SettingsNavAction.ModelRoutes ->
+                            navController.navigate(ModelRoutesRoute)
+                        SettingsNavAction.MemoryAdvanced ->
+                            navController.navigate(MemoryAdvancedRoute)
+                        SettingsNavAction.Scheduler ->
+                            navController.navigate(SchedulerRoute)
+                        SettingsNavAction.Observability ->
+                            navController.navigate(ObservabilityRoute)
+                        SettingsNavAction.SecurityOverview ->
+                            navController.navigate(SecurityOverviewRoute)
+                        SettingsNavAction.PluginRegistry ->
+                            navController.navigate(PluginRegistryRoute)
+                        SettingsNavAction.CronJobs ->
+                            navController.navigate(CronJobsRoute)
+                        SettingsNavAction.ToolsBrowser ->
+                            navController.navigate(ToolsBrowserRoute)
+                        SettingsNavAction.MemoryBrowser ->
+                            navController.navigate(MemoryBrowserRoute)
+                    }
+                },
                 onRerunWizard = {
                     settingsViewModel.resetOnboarding()
                     navController.navigate(OnboardingRoute) {
                         popUpTo(navController.graph.startDestinationId) { inclusive = true }
                     }
                 },
+                restartRequired = restartRequired,
+                onRestartDaemon = {
+                    val stopIntent =
+                        Intent(
+                            context,
+                            ZeroClawDaemonService::class.java,
+                        ).apply {
+                            action = ZeroClawDaemonService.ACTION_STOP
+                        }
+                    context.startService(stopIntent)
+                    val startIntent =
+                        Intent(
+                            context,
+                            ZeroClawDaemonService::class.java,
+                        ).apply {
+                            action = ZeroClawDaemonService.ACTION_START
+                        }
+                    context.startForegroundService(startIntent)
+                },
                 edgeMargin = edgeMargin,
+                settingsViewModel = settingsViewModel,
             )
         }
 

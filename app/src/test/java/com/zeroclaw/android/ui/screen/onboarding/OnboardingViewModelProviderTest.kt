@@ -12,7 +12,6 @@ import com.zeroclaw.android.data.repository.OnboardingRepository
 import com.zeroclaw.android.data.repository.SettingsRepository
 import com.zeroclaw.android.model.ApiKey
 import com.zeroclaw.android.model.AppSettings
-import com.zeroclaw.android.model.LogLevel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
@@ -245,10 +244,6 @@ private class TestSettingsRepository : SettingsRepository {
         _settings.value = _settings.value.copy(autoStartOnBoot = enabled)
     }
 
-    override suspend fun setLogLevel(level: LogLevel) {
-        _settings.value = _settings.value.copy(logLevel = level)
-    }
-
     override suspend fun setDefaultProvider(provider: String) {
         _settings.value = _settings.value.copy(defaultProvider = provider)
     }
@@ -406,6 +401,8 @@ private class TestSettingsRepository : SettingsRepository {
     override suspend fun setLastPluginSyncTimestamp(timestamp: Long) { /* no-op */ }
 
     override suspend fun setStripThinkingTags(enabled: Boolean) { /* no-op */ }
+
+    override suspend fun setTheme(theme: com.zeroclaw.android.model.ThemeMode) { /* no-op */ }
 }
 
 /**

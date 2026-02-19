@@ -1,3 +1,5 @@
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import java.util.Properties
 
 plugins {
@@ -45,6 +47,7 @@ android {
             abiFilters += listOf("arm64-v8a", "x86_64")
         }
 
+        buildConfigField("String", "BUILD_DATE", "\"${LocalDate.now().format(DateTimeFormatter.ofPattern("MMM yyyy"))}\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ksp {

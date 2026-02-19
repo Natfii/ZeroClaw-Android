@@ -8,7 +8,6 @@ package com.zeroclaw.android.ui.screen.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -24,23 +23,20 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zeroclaw.android.ui.component.SectionHeader
+import com.zeroclaw.android.ui.component.SettingsToggleRow
 
 /** Available autonomy levels matching upstream AutonomyLevel enum. */
 private val AUTONOMY_LEVELS = listOf("readonly", "supervised", "full")
@@ -122,12 +118,12 @@ fun AutonomyScreen(
 
         SectionHeader(title = "Workspace")
 
-        ToggleRowAutonomy(
+        SettingsToggleRow(
             title = "Workspace only",
             subtitle = "Restrict file access to the project workspace directory",
             checked = settings.workspaceOnly,
             onCheckedChange = { settingsViewModel.updateWorkspaceOnly(it) },
-            description = "Workspace only restriction",
+            contentDescription = "Workspace only restriction",
         )
 
         SectionHeader(title = "Commands")
@@ -167,6 +163,9 @@ fun AutonomyScreen(
                 v.toIntOrNull()?.let { settingsViewModel.updateMaxCostPerDayCents(it) }
             },
             label = { Text("Max cost per day (cents)") },
+            supportingText = {
+                Text("Hard limit \u2014 blocks actions when exceeded")
+            },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             modifier = Modifier.fillMaxWidth(),
@@ -174,60 +173,22 @@ fun AutonomyScreen(
 
         SectionHeader(title = "Risk Management")
 
-        ToggleRowAutonomy(
+        SettingsToggleRow(
             title = "Require approval for medium risk",
             subtitle = "Prompt the user before executing medium-risk actions",
             checked = settings.requireApprovalMediumRisk,
             onCheckedChange = { settingsViewModel.updateRequireApprovalMediumRisk(it) },
-            description = "Require approval for medium risk",
+            contentDescription = "Require approval for medium risk",
         )
 
-        ToggleRowAutonomy(
+        SettingsToggleRow(
             title = "Block high-risk commands",
             subtitle = "Prevent execution of dangerous shell commands entirely",
             checked = settings.blockHighRiskCommands,
             onCheckedChange = { settingsViewModel.updateBlockHighRiskCommands(it) },
-            description = "Block high-risk commands",
+            contentDescription = "Block high-risk commands",
         )
 
         Spacer(modifier = Modifier.height(16.dp))
-    }
-}
-
-/**
- * Toggle row used on the autonomy screen.
- *
- * @param title Primary label text.
- * @param subtitle Descriptive text below the title.
- * @param checked Current toggle state.
- * @param onCheckedChange Callback for state changes.
- * @param description Accessibility content description.
- */
-@Composable
-private fun ToggleRowAutonomy(
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-    description: String,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, style = MaterialTheme.typography.bodyLarge)
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            modifier = Modifier.semantics { contentDescription = description },
-        )
     }
 }

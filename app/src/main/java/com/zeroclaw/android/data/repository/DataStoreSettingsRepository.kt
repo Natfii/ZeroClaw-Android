@@ -18,7 +18,7 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.zeroclaw.android.model.AppSettings
-import com.zeroclaw.android.model.LogLevel
+import com.zeroclaw.android.model.ThemeMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -50,10 +50,6 @@ class DataStoreSettingsRepository(
             host = prefs[KEY_HOST] ?: AppSettings.DEFAULT_HOST,
             port = prefs[KEY_PORT] ?: AppSettings.DEFAULT_PORT,
             autoStartOnBoot = prefs[KEY_AUTO_START] ?: false,
-            logLevel =
-                prefs[KEY_LOG_LEVEL]?.let { name ->
-                    runCatching { LogLevel.valueOf(name) }.getOrNull()
-                } ?: LogLevel.INFO,
             defaultProvider = prefs[KEY_DEFAULT_PROVIDER] ?: "",
             defaultModel = prefs[KEY_DEFAULT_MODEL] ?: "",
             defaultTemperature =
@@ -172,6 +168,10 @@ class DataStoreSettingsRepository(
                     ?: AppSettings.DEFAULT_PLUGIN_SYNC_INTERVAL,
             lastPluginSyncTimestamp = prefs[KEY_LAST_PLUGIN_SYNC] ?: 0L,
             stripThinkingTags = prefs[KEY_STRIP_THINKING_TAGS] ?: false,
+            theme =
+                prefs[KEY_THEME]?.let { name ->
+                    runCatching { ThemeMode.valueOf(name) }.getOrNull()
+                } ?: ThemeMode.SYSTEM,
         )
 
     override suspend fun setHost(host: String) = edit { it[KEY_HOST] = host }
@@ -179,8 +179,6 @@ class DataStoreSettingsRepository(
     override suspend fun setPort(port: Int) = edit { it[KEY_PORT] = port }
 
     override suspend fun setAutoStartOnBoot(enabled: Boolean) = edit { it[KEY_AUTO_START] = enabled }
-
-    override suspend fun setLogLevel(level: LogLevel) = edit { it[KEY_LOG_LEVEL] = level.name }
 
     override suspend fun setDefaultProvider(provider: String) = edit { it[KEY_DEFAULT_PROVIDER] = provider }
 
@@ -314,6 +312,8 @@ class DataStoreSettingsRepository(
 
     override suspend fun setStripThinkingTags(enabled: Boolean) = edit { it[KEY_STRIP_THINKING_TAGS] = enabled }
 
+    override suspend fun setTheme(theme: ThemeMode) = edit { it[KEY_THEME] = theme.name }
+
     private suspend fun edit(transform: (MutablePreferences) -> Unit) {
         context.settingsDataStore.edit { prefs -> transform(prefs) }
     }
@@ -324,7 +324,6 @@ class DataStoreSettingsRepository(
         val KEY_HOST = stringPreferencesKey("host")
         val KEY_PORT = intPreferencesKey("port")
         val KEY_AUTO_START = booleanPreferencesKey("auto_start_on_boot")
-        val KEY_LOG_LEVEL = stringPreferencesKey("log_level")
         val KEY_DEFAULT_PROVIDER = stringPreferencesKey("default_provider")
         val KEY_DEFAULT_MODEL = stringPreferencesKey("default_model")
         val KEY_DEFAULT_TEMPERATURE = floatPreferencesKey("default_temperature")
@@ -392,5 +391,6 @@ class DataStoreSettingsRepository(
         val KEY_PLUGIN_SYNC_INTERVAL = intPreferencesKey("plugin_sync_interval_hours")
         val KEY_LAST_PLUGIN_SYNC = longPreferencesKey("last_plugin_sync_timestamp")
         val KEY_STRIP_THINKING_TAGS = booleanPreferencesKey("strip_thinking_tags")
+        val KEY_THEME = stringPreferencesKey("theme")
     }
 }

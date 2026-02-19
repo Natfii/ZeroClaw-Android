@@ -7,7 +7,6 @@
 package com.zeroclaw.android.data.repository
 
 import com.zeroclaw.android.model.AppSettings
-import com.zeroclaw.android.model.LogLevel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
@@ -33,7 +32,6 @@ class DataStoreSettingsRepositoryTest {
             assertEquals(AppSettings.DEFAULT_HOST, settings.host)
             assertEquals(AppSettings.DEFAULT_PORT, settings.port)
             assertEquals(false, settings.autoStartOnBoot)
-            assertEquals(LogLevel.INFO, settings.logLevel)
         }
 
     @Test
@@ -64,15 +62,6 @@ class DataStoreSettingsRepositoryTest {
         }
 
     @Test
-    @DisplayName("setLogLevel persists and emits updated value")
-    fun `setLogLevel persists and emits updated value`() =
-        runTest {
-            val repo = InMemorySettingsRepository()
-            repo.setLogLevel(LogLevel.ERROR)
-            assertEquals(LogLevel.ERROR, repo.settings.first().logLevel)
-        }
-
-    @Test
     @DisplayName("multiple updates compose correctly")
     fun `multiple updates compose correctly`() =
         runTest {
@@ -80,12 +69,10 @@ class DataStoreSettingsRepositoryTest {
             repo.setHost("10.0.0.1")
             repo.setPort(3000)
             repo.setAutoStartOnBoot(true)
-            repo.setLogLevel(LogLevel.DEBUG)
             val settings = repo.settings.first()
             assertEquals("10.0.0.1", settings.host)
             assertEquals(3000, settings.port)
             assertEquals(true, settings.autoStartOnBoot)
-            assertEquals(LogLevel.DEBUG, settings.logLevel)
         }
 
     @Test
@@ -208,10 +195,6 @@ private class InMemorySettingsRepository : SettingsRepository {
 
     override suspend fun setAutoStartOnBoot(enabled: Boolean) {
         _settings.update { it.copy(autoStartOnBoot = enabled) }
-    }
-
-    override suspend fun setLogLevel(level: LogLevel) {
-        _settings.update { it.copy(logLevel = level) }
     }
 
     override suspend fun setDefaultProvider(provider: String) {
@@ -371,4 +354,6 @@ private class InMemorySettingsRepository : SettingsRepository {
     override suspend fun setLastPluginSyncTimestamp(timestamp: Long) { /* no-op */ }
 
     override suspend fun setStripThinkingTags(enabled: Boolean) { /* no-op */ }
+
+    override suspend fun setTheme(theme: com.zeroclaw.android.model.ThemeMode) { /* no-op */ }
 }

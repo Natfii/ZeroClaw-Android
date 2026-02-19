@@ -10,6 +10,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -28,6 +29,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.zeroclaw.android.BuildConfig
@@ -122,7 +124,10 @@ fun AboutScreen(
 }
 
 /**
- * Simple label-value row for the about screen.
+ * Accessible label-value row for the about screen.
+ *
+ * Uses [semantics] with [mergeDescendants] so screen readers announce
+ * the label and value as a single phrase.
  *
  * @param label Description of the value.
  * @param value The displayed value string.
@@ -132,10 +137,22 @@ private fun AboutRow(
     label: String,
     value: String,
 ) {
-    Text(
-        text = "$label: $value",
-        style = MaterialTheme.typography.bodyMedium,
-    )
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .semantics(mergeDescendants = true) {},
+    ) {
+        Text(
+            text = "$label: ",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+        )
+    }
 }
 
 private const val CRATE_VERSION_FALLBACK = "unknown"

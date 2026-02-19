@@ -10,7 +10,9 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.zeroclaw.android.ZeroClawApplication
+import com.zeroclaw.android.data.repository.SettingsRepository
 import com.zeroclaw.android.model.AppSettings
+import com.zeroclaw.android.model.ThemeMode
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -30,6 +32,7 @@ class SettingsViewModel(
 ) : AndroidViewModel(application) {
     private val repository = (application as ZeroClawApplication).settingsRepository
     private val onboardingRepository = (application as ZeroClawApplication).onboardingRepository
+    private val daemonBridge = (application as ZeroClawApplication).daemonBridge
 
     /** Current application settings, collected as state. */
     val settings: StateFlow<AppSettings> =
@@ -39,14 +42,28 @@ class SettingsViewModel(
             initialValue = AppSettings(),
         )
 
+    /** Whether a daemon restart is required to apply settings changes. */
+    val restartRequired: StateFlow<Boolean> = daemonBridge.restartRequired
+
+    /**
+     * Updates a daemon-affecting setting and marks a restart as required
+     * if the daemon is currently running.
+     */
+    private fun updateDaemonSetting(block: suspend SettingsRepository.() -> Unit) {
+        viewModelScope.launch {
+            repository.block()
+            daemonBridge.markRestartRequired()
+        }
+    }
+
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setHost */
     fun updateHost(host: String) {
-        viewModelScope.launch { repository.setHost(host) }
+        updateDaemonSetting { setHost(host) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setPort */
     fun updatePort(port: Int) {
-        viewModelScope.launch { repository.setPort(port) }
+        updateDaemonSetting { setPort(port) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setAutoStartOnBoot */
@@ -54,289 +71,299 @@ class SettingsViewModel(
         viewModelScope.launch { repository.setAutoStartOnBoot(enabled) }
     }
 
+    /** @see com.zeroclaw.android.data.repository.SettingsRepository.setDefaultProvider */
+    fun updateDefaultProvider(provider: String) {
+        updateDaemonSetting { setDefaultProvider(provider) }
+    }
+
+    /** @see com.zeroclaw.android.data.repository.SettingsRepository.setDefaultModel */
+    fun updateDefaultModel(model: String) {
+        updateDaemonSetting { setDefaultModel(model) }
+    }
+
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setDefaultTemperature */
     fun updateDefaultTemperature(temperature: Float) {
-        viewModelScope.launch { repository.setDefaultTemperature(temperature) }
+        updateDaemonSetting { setDefaultTemperature(temperature) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setCompactContext */
     fun updateCompactContext(enabled: Boolean) {
-        viewModelScope.launch { repository.setCompactContext(enabled) }
+        updateDaemonSetting { setCompactContext(enabled) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setCostEnabled */
     fun updateCostEnabled(enabled: Boolean) {
-        viewModelScope.launch { repository.setCostEnabled(enabled) }
+        updateDaemonSetting { setCostEnabled(enabled) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setDailyLimitUsd */
     fun updateDailyLimitUsd(limit: Float) {
-        viewModelScope.launch { repository.setDailyLimitUsd(limit) }
+        updateDaemonSetting { setDailyLimitUsd(limit) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setMonthlyLimitUsd */
     fun updateMonthlyLimitUsd(limit: Float) {
-        viewModelScope.launch { repository.setMonthlyLimitUsd(limit) }
+        updateDaemonSetting { setMonthlyLimitUsd(limit) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setCostWarnAtPercent */
     fun updateCostWarnAtPercent(percent: Int) {
-        viewModelScope.launch { repository.setCostWarnAtPercent(percent) }
+        updateDaemonSetting { setCostWarnAtPercent(percent) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setProviderRetries */
     fun updateProviderRetries(retries: Int) {
-        viewModelScope.launch { repository.setProviderRetries(retries) }
+        updateDaemonSetting { setProviderRetries(retries) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setFallbackProviders */
     fun updateFallbackProviders(providers: String) {
-        viewModelScope.launch { repository.setFallbackProviders(providers) }
+        updateDaemonSetting { setFallbackProviders(providers) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setMemoryBackend */
     fun updateMemoryBackend(backend: String) {
-        viewModelScope.launch { repository.setMemoryBackend(backend) }
+        updateDaemonSetting { setMemoryBackend(backend) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setMemoryAutoSave */
     fun updateMemoryAutoSave(enabled: Boolean) {
-        viewModelScope.launch { repository.setMemoryAutoSave(enabled) }
+        updateDaemonSetting { setMemoryAutoSave(enabled) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setIdentityJson */
     fun updateIdentityJson(json: String) {
-        viewModelScope.launch { repository.setIdentityJson(json) }
+        updateDaemonSetting { setIdentityJson(json) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setAutonomyLevel */
     fun updateAutonomyLevel(level: String) {
-        viewModelScope.launch { repository.setAutonomyLevel(level) }
+        updateDaemonSetting { setAutonomyLevel(level) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setWorkspaceOnly */
     fun updateWorkspaceOnly(enabled: Boolean) {
-        viewModelScope.launch { repository.setWorkspaceOnly(enabled) }
+        updateDaemonSetting { setWorkspaceOnly(enabled) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setAllowedCommands */
     fun updateAllowedCommands(commands: String) {
-        viewModelScope.launch { repository.setAllowedCommands(commands) }
+        updateDaemonSetting { setAllowedCommands(commands) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setForbiddenPaths */
     fun updateForbiddenPaths(paths: String) {
-        viewModelScope.launch { repository.setForbiddenPaths(paths) }
+        updateDaemonSetting { setForbiddenPaths(paths) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setMaxActionsPerHour */
     fun updateMaxActionsPerHour(max: Int) {
-        viewModelScope.launch { repository.setMaxActionsPerHour(max) }
+        updateDaemonSetting { setMaxActionsPerHour(max) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setMaxCostPerDayCents */
     fun updateMaxCostPerDayCents(cents: Int) {
-        viewModelScope.launch { repository.setMaxCostPerDayCents(cents) }
+        updateDaemonSetting { setMaxCostPerDayCents(cents) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setRequireApprovalMediumRisk */
     fun updateRequireApprovalMediumRisk(required: Boolean) {
-        viewModelScope.launch { repository.setRequireApprovalMediumRisk(required) }
+        updateDaemonSetting { setRequireApprovalMediumRisk(required) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setBlockHighRiskCommands */
     fun updateBlockHighRiskCommands(blocked: Boolean) {
-        viewModelScope.launch { repository.setBlockHighRiskCommands(blocked) }
+        updateDaemonSetting { setBlockHighRiskCommands(blocked) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setTunnelProvider */
     fun updateTunnelProvider(provider: String) {
-        viewModelScope.launch { repository.setTunnelProvider(provider) }
+        updateDaemonSetting { setTunnelProvider(provider) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setTunnelCloudflareToken */
     fun updateTunnelCloudflareToken(token: String) {
-        viewModelScope.launch { repository.setTunnelCloudflareToken(token) }
+        updateDaemonSetting { setTunnelCloudflareToken(token) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setTunnelTailscaleFunnel */
     fun updateTunnelTailscaleFunnel(enabled: Boolean) {
-        viewModelScope.launch { repository.setTunnelTailscaleFunnel(enabled) }
+        updateDaemonSetting { setTunnelTailscaleFunnel(enabled) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setTunnelTailscaleHostname */
     fun updateTunnelTailscaleHostname(hostname: String) {
-        viewModelScope.launch { repository.setTunnelTailscaleHostname(hostname) }
+        updateDaemonSetting { setTunnelTailscaleHostname(hostname) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setTunnelNgrokAuthToken */
     fun updateTunnelNgrokAuthToken(token: String) {
-        viewModelScope.launch { repository.setTunnelNgrokAuthToken(token) }
+        updateDaemonSetting { setTunnelNgrokAuthToken(token) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setTunnelNgrokDomain */
     fun updateTunnelNgrokDomain(domain: String) {
-        viewModelScope.launch { repository.setTunnelNgrokDomain(domain) }
+        updateDaemonSetting { setTunnelNgrokDomain(domain) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setTunnelCustomCommand */
     fun updateTunnelCustomCommand(command: String) {
-        viewModelScope.launch { repository.setTunnelCustomCommand(command) }
+        updateDaemonSetting { setTunnelCustomCommand(command) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setTunnelCustomHealthUrl */
     fun updateTunnelCustomHealthUrl(url: String) {
-        viewModelScope.launch { repository.setTunnelCustomHealthUrl(url) }
+        updateDaemonSetting { setTunnelCustomHealthUrl(url) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setTunnelCustomUrlPattern */
     fun updateTunnelCustomUrlPattern(pattern: String) {
-        viewModelScope.launch { repository.setTunnelCustomUrlPattern(pattern) }
+        updateDaemonSetting { setTunnelCustomUrlPattern(pattern) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setGatewayRequirePairing */
     fun updateGatewayRequirePairing(required: Boolean) {
-        viewModelScope.launch { repository.setGatewayRequirePairing(required) }
+        updateDaemonSetting { setGatewayRequirePairing(required) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setGatewayAllowPublicBind */
     fun updateGatewayAllowPublicBind(allowed: Boolean) {
-        viewModelScope.launch { repository.setGatewayAllowPublicBind(allowed) }
+        updateDaemonSetting { setGatewayAllowPublicBind(allowed) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setGatewayPairedTokens */
     fun updateGatewayPairedTokens(tokens: String) {
-        viewModelScope.launch { repository.setGatewayPairedTokens(tokens) }
+        updateDaemonSetting { setGatewayPairedTokens(tokens) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setGatewayPairRateLimit */
     fun updateGatewayPairRateLimit(limit: Int) {
-        viewModelScope.launch { repository.setGatewayPairRateLimit(limit) }
+        updateDaemonSetting { setGatewayPairRateLimit(limit) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setGatewayWebhookRateLimit */
     fun updateGatewayWebhookRateLimit(limit: Int) {
-        viewModelScope.launch { repository.setGatewayWebhookRateLimit(limit) }
+        updateDaemonSetting { setGatewayWebhookRateLimit(limit) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setGatewayIdempotencyTtl */
     fun updateGatewayIdempotencyTtl(seconds: Int) {
-        viewModelScope.launch { repository.setGatewayIdempotencyTtl(seconds) }
+        updateDaemonSetting { setGatewayIdempotencyTtl(seconds) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setSchedulerEnabled */
     fun updateSchedulerEnabled(enabled: Boolean) {
-        viewModelScope.launch { repository.setSchedulerEnabled(enabled) }
+        updateDaemonSetting { setSchedulerEnabled(enabled) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setSchedulerMaxTasks */
     fun updateSchedulerMaxTasks(max: Int) {
-        viewModelScope.launch { repository.setSchedulerMaxTasks(max) }
+        updateDaemonSetting { setSchedulerMaxTasks(max) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setSchedulerMaxConcurrent */
     fun updateSchedulerMaxConcurrent(max: Int) {
-        viewModelScope.launch { repository.setSchedulerMaxConcurrent(max) }
+        updateDaemonSetting { setSchedulerMaxConcurrent(max) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setHeartbeatEnabled */
     fun updateHeartbeatEnabled(enabled: Boolean) {
-        viewModelScope.launch { repository.setHeartbeatEnabled(enabled) }
+        updateDaemonSetting { setHeartbeatEnabled(enabled) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setHeartbeatIntervalMinutes */
     fun updateHeartbeatIntervalMinutes(minutes: Int) {
-        viewModelScope.launch { repository.setHeartbeatIntervalMinutes(minutes) }
+        updateDaemonSetting { setHeartbeatIntervalMinutes(minutes) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setObservabilityBackend */
     fun updateObservabilityBackend(backend: String) {
-        viewModelScope.launch { repository.setObservabilityBackend(backend) }
+        updateDaemonSetting { setObservabilityBackend(backend) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setObservabilityOtelEndpoint */
     fun updateObservabilityOtelEndpoint(endpoint: String) {
-        viewModelScope.launch { repository.setObservabilityOtelEndpoint(endpoint) }
+        updateDaemonSetting { setObservabilityOtelEndpoint(endpoint) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setObservabilityOtelServiceName */
     fun updateObservabilityOtelServiceName(name: String) {
-        viewModelScope.launch { repository.setObservabilityOtelServiceName(name) }
+        updateDaemonSetting { setObservabilityOtelServiceName(name) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setModelRoutesJson */
     fun updateModelRoutesJson(json: String) {
-        viewModelScope.launch { repository.setModelRoutesJson(json) }
+        updateDaemonSetting { setModelRoutesJson(json) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setMemoryHygieneEnabled */
     fun updateMemoryHygieneEnabled(enabled: Boolean) {
-        viewModelScope.launch { repository.setMemoryHygieneEnabled(enabled) }
+        updateDaemonSetting { setMemoryHygieneEnabled(enabled) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setMemoryArchiveAfterDays */
     fun updateMemoryArchiveAfterDays(days: Int) {
-        viewModelScope.launch { repository.setMemoryArchiveAfterDays(days) }
+        updateDaemonSetting { setMemoryArchiveAfterDays(days) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setMemoryPurgeAfterDays */
     fun updateMemoryPurgeAfterDays(days: Int) {
-        viewModelScope.launch { repository.setMemoryPurgeAfterDays(days) }
+        updateDaemonSetting { setMemoryPurgeAfterDays(days) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setMemoryEmbeddingProvider */
     fun updateMemoryEmbeddingProvider(provider: String) {
-        viewModelScope.launch { repository.setMemoryEmbeddingProvider(provider) }
+        updateDaemonSetting { setMemoryEmbeddingProvider(provider) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setMemoryEmbeddingModel */
     fun updateMemoryEmbeddingModel(model: String) {
-        viewModelScope.launch { repository.setMemoryEmbeddingModel(model) }
+        updateDaemonSetting { setMemoryEmbeddingModel(model) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setMemoryVectorWeight */
     fun updateMemoryVectorWeight(weight: Float) {
-        viewModelScope.launch { repository.setMemoryVectorWeight(weight) }
+        updateDaemonSetting { setMemoryVectorWeight(weight) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setMemoryKeywordWeight */
     fun updateMemoryKeywordWeight(weight: Float) {
-        viewModelScope.launch { repository.setMemoryKeywordWeight(weight) }
+        updateDaemonSetting { setMemoryKeywordWeight(weight) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setComposioEnabled */
     fun updateComposioEnabled(enabled: Boolean) {
-        viewModelScope.launch { repository.setComposioEnabled(enabled) }
+        updateDaemonSetting { setComposioEnabled(enabled) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setComposioApiKey */
     fun updateComposioApiKey(key: String) {
-        viewModelScope.launch { repository.setComposioApiKey(key) }
+        updateDaemonSetting { setComposioApiKey(key) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setComposioEntityId */
     fun updateComposioEntityId(entityId: String) {
-        viewModelScope.launch { repository.setComposioEntityId(entityId) }
+        updateDaemonSetting { setComposioEntityId(entityId) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setBrowserEnabled */
     fun updateBrowserEnabled(enabled: Boolean) {
-        viewModelScope.launch { repository.setBrowserEnabled(enabled) }
+        updateDaemonSetting { setBrowserEnabled(enabled) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setBrowserAllowedDomains */
     fun updateBrowserAllowedDomains(domains: String) {
-        viewModelScope.launch { repository.setBrowserAllowedDomains(domains) }
+        updateDaemonSetting { setBrowserAllowedDomains(domains) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setHttpRequestEnabled */
     fun updateHttpRequestEnabled(enabled: Boolean) {
-        viewModelScope.launch { repository.setHttpRequestEnabled(enabled) }
+        updateDaemonSetting { setHttpRequestEnabled(enabled) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setHttpRequestAllowedDomains */
     fun updateHttpRequestAllowedDomains(domains: String) {
-        viewModelScope.launch { repository.setHttpRequestAllowedDomains(domains) }
+        updateDaemonSetting { setHttpRequestAllowedDomains(domains) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setBiometricForService */
@@ -372,6 +399,11 @@ class SettingsViewModel(
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setStripThinkingTags */
     fun updateStripThinkingTags(enabled: Boolean) {
         viewModelScope.launch { repository.setStripThinkingTags(enabled) }
+    }
+
+    /** @see com.zeroclaw.android.data.repository.SettingsRepository.setTheme */
+    fun updateTheme(theme: ThemeMode) {
+        viewModelScope.launch { repository.setTheme(theme) }
     }
 
     /**
