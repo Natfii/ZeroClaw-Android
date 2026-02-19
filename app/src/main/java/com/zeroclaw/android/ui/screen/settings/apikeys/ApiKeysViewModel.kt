@@ -27,9 +27,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -468,10 +468,14 @@ internal suspend fun clearDefaultProviderIfNeeded(
 ) {
     val settings = settingsRepo.settings.first()
     val deletedCanonical =
-        com.zeroclaw.android.data.ProviderRegistry.findById(deletedKey.provider)?.id
+        com.zeroclaw.android.data.ProviderRegistry
+            .findById(deletedKey.provider)
+            ?.id
             ?: deletedKey.provider.lowercase()
     val defaultCanonical =
-        com.zeroclaw.android.data.ProviderRegistry.findById(settings.defaultProvider)?.id
+        com.zeroclaw.android.data.ProviderRegistry
+            .findById(settings.defaultProvider)
+            ?.id
             ?: settings.defaultProvider.lowercase()
     if (deletedCanonical != defaultCanonical) return
 

@@ -276,13 +276,14 @@ class ApiKeyRepositoryTest {
         runTest {
             val repo = InMemoryApiKeyRepository()
             val farFuture = System.currentTimeMillis() + 3_600_000L
-            val key = ApiKey(
-                id = "1",
-                provider = "anthropic",
-                key = "sk-ant-oat01-valid",
-                refreshToken = "sk-ant-ort01-refresh",
-                expiresAt = farFuture,
-            )
+            val key =
+                ApiKey(
+                    id = "1",
+                    provider = "anthropic",
+                    key = "sk-ant-oat01-valid",
+                    refreshToken = "sk-ant-ort01-refresh",
+                    expiresAt = farFuture,
+                )
             repo.save(key)
             val result = repo.getByProviderFresh("anthropic")
             assertEquals(key, result)
@@ -294,13 +295,14 @@ class ApiKeyRepositoryTest {
         runTest {
             val repo = InMemoryApiKeyRepository()
             val expiredAt = System.currentTimeMillis() - 1_000L
-            val key = ApiKey(
-                id = "1",
-                provider = "anthropic",
-                key = "sk-ant-oat01-expired",
-                refreshToken = "sk-ant-ort01-bogus-will-fail",
-                expiresAt = expiredAt,
-            )
+            val key =
+                ApiKey(
+                    id = "1",
+                    provider = "anthropic",
+                    key = "sk-ant-oat01-expired",
+                    refreshToken = "sk-ant-ort01-bogus-will-fail",
+                    expiresAt = expiredAt,
+                )
             repo.save(key)
 
             val result = repo.getByProviderFresh("anthropic")
