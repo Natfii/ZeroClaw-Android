@@ -351,29 +351,6 @@ class ZeroClawDaemonService : Service() {
         return ConfigTomlBuilder.buildAgentsToml(entries)
     }
 
-    /**
-     * Enters the foreground and attempts to start the daemon with the
-     * given configuration, retrying with exponential backoff on failure.
-     */
-    private fun handleStart(
-        configToml: String,
-        host: String,
-        port: UShort,
-    ) {
-        val notification =
-            notificationManager.buildNotification(
-                ServiceState.STARTING,
-            )
-        startForeground(
-            DaemonNotificationManager.NOTIFICATION_ID,
-            notification,
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
-        )
-        acquireWakeLock()
-        retryPolicy.reset()
-        attemptStart(configToml, host, port)
-    }
-
     private fun handleStop() {
         startJob?.cancel()
         statusPollJob?.cancel()
