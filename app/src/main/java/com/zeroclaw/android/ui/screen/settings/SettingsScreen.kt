@@ -47,71 +47,31 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.zeroclaw.android.navigation.SettingsNavAction
 import com.zeroclaw.android.ui.component.SectionHeader
 import com.zeroclaw.android.ui.component.SettingsListItem
 
 /**
  * Root settings screen displaying a sectioned list of configuration options.
  *
- * Each item navigates to a dedicated sub-screen when tapped.
+ * Each item navigates to a dedicated sub-screen when tapped. Navigation is
+ * dispatched through a single [onNavigate] callback using [SettingsNavAction].
  *
- * @param onNavigateToServiceConfig Navigate to service configuration.
- * @param onNavigateToBattery Navigate to battery settings.
- * @param onNavigateToApiKeys Navigate to API key management.
- * @param onNavigateToChannels Navigate to connected channels management.
- * @param onNavigateToLogViewer Navigate to log viewer.
- * @param onNavigateToDoctor Navigate to ZeroClaw Doctor diagnostics.
- * @param onNavigateToIdentity Navigate to agent identity editor.
- * @param onNavigateToAbout Navigate to about screen.
- * @param onNavigateToUpdates Navigate to updates screen.
- * @param onNavigateToAutonomy Navigate to autonomy level screen.
- * @param onNavigateToTunnel Navigate to tunnel configuration screen.
- * @param onNavigateToGateway Navigate to gateway and pairing screen.
- * @param onNavigateToToolManagement Navigate to tool management screen.
- * @param onNavigateToModelRoutes Navigate to model routes screen.
- * @param onNavigateToMemoryAdvanced Navigate to memory advanced config screen.
- * @param onNavigateToScheduler Navigate to scheduler and heartbeat screen.
- * @param onNavigateToObservability Navigate to observability backend screen.
- * @param onNavigateToSecurityOverview Navigate to security posture overview screen.
- * @param onNavigateToPluginRegistry Navigate to plugin registry sync settings.
- * @param onNavigateToCronJobs Navigate to scheduled cron jobs management screen.
- * @param onNavigateToToolsBrowser Navigate to tools inventory browser screen.
- * @param onNavigateToMemoryBrowser Navigate to memory entries browser screen.
+ * @param onNavigate Callback invoked with a [SettingsNavAction] when the user taps a setting.
  * @param onRerunWizard Callback to reset onboarding and navigate to the setup wizard.
  * @param edgeMargin Horizontal padding based on window width size class.
  * @param settingsViewModel ViewModel providing current settings for dynamic subtitles.
  * @param modifier Modifier applied to the root layout.
  */
-@Suppress("LongParameterList")
 @Composable
 fun SettingsScreen(
-    onNavigateToServiceConfig: () -> Unit,
-    onNavigateToBattery: () -> Unit,
-    onNavigateToApiKeys: () -> Unit,
-    onNavigateToChannels: () -> Unit,
-    onNavigateToLogViewer: () -> Unit,
-    onNavigateToDoctor: () -> Unit,
-    onNavigateToIdentity: () -> Unit,
-    onNavigateToAbout: () -> Unit,
-    onNavigateToUpdates: () -> Unit,
-    onNavigateToAutonomy: () -> Unit,
-    onNavigateToTunnel: () -> Unit,
-    onNavigateToGateway: () -> Unit,
-    onNavigateToToolManagement: () -> Unit,
-    onNavigateToModelRoutes: () -> Unit,
-    onNavigateToMemoryAdvanced: () -> Unit,
-    onNavigateToScheduler: () -> Unit,
-    onNavigateToObservability: () -> Unit,
-    onNavigateToSecurityOverview: () -> Unit,
-    onNavigateToPluginRegistry: () -> Unit = {},
-    onNavigateToCronJobs: () -> Unit = {},
-    onNavigateToToolsBrowser: () -> Unit = {},
-    onNavigateToMemoryBrowser: () -> Unit = {},
+    onNavigate: (SettingsNavAction) -> Unit,
     onRerunWizard: () -> Unit,
-    edgeMargin: androidx.compose.ui.unit.Dp,
+    edgeMargin: Dp,
     settingsViewModel: SettingsViewModel = viewModel(),
     modifier: Modifier = Modifier,
 ) {
@@ -127,26 +87,26 @@ fun SettingsScreen(
     ) {
         Spacer(modifier = Modifier.height(8.dp))
 
-        SectionHeader(title = "Service")
+        SectionHeader(title = "Daemon")
         SettingsListItem(
             icon = Icons.Outlined.Settings,
             title = "Service Configuration",
             subtitle =
                 "${settings.host}:${settings.port}" +
                     if (settings.autoStartOnBoot) " | auto-start" else "",
-            onClick = onNavigateToServiceConfig,
+            onClick = { onNavigate(SettingsNavAction.ServiceConfig) },
         )
         SettingsListItem(
             icon = Icons.Outlined.BatteryAlert,
             title = "Battery Settings",
             subtitle = "Optimization exemptions",
-            onClick = onNavigateToBattery,
+            onClick = { onNavigate(SettingsNavAction.Battery) },
         )
         SettingsListItem(
             icon = Icons.Outlined.Fingerprint,
             title = "Agent Identity",
             subtitle = if (settings.identityJson.isNotBlank()) "Configured" else "Not set",
-            onClick = onNavigateToIdentity,
+            onClick = { onNavigate(SettingsNavAction.Identity) },
         )
 
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
@@ -156,25 +116,25 @@ fun SettingsScreen(
             icon = Icons.Outlined.VerifiedUser,
             title = "Security Overview",
             subtitle = "View current security posture",
-            onClick = onNavigateToSecurityOverview,
+            onClick = { onNavigate(SettingsNavAction.SecurityOverview) },
         )
         SettingsListItem(
             icon = Icons.Outlined.Key,
             title = "API Keys",
             subtitle = "Manage provider credentials",
-            onClick = onNavigateToApiKeys,
+            onClick = { onNavigate(SettingsNavAction.ApiKeys) },
         )
         SettingsListItem(
             icon = Icons.Outlined.Security,
             title = "Autonomy Level",
             subtitle = settings.autonomyLevel,
-            onClick = onNavigateToAutonomy,
+            onClick = { onNavigate(SettingsNavAction.Autonomy) },
         )
         SettingsListItem(
             icon = Icons.Outlined.Forum,
             title = "Connected Channels",
             subtitle = "Telegram, Discord, Slack, and more",
-            onClick = onNavigateToChannels,
+            onClick = { onNavigate(SettingsNavAction.Channels) },
         )
 
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
@@ -185,73 +145,55 @@ fun SettingsScreen(
             title = "Gateway & Pairing",
             subtitle =
                 if (settings.gatewayRequirePairing) "Pairing required" else "Open access",
-            onClick = onNavigateToGateway,
+            onClick = { onNavigate(SettingsNavAction.Gateway) },
         )
         SettingsListItem(
             icon = Icons.Outlined.VpnKey,
             title = "Tunnel",
             subtitle = settings.tunnelProvider,
-            onClick = onNavigateToTunnel,
+            onClick = { onNavigate(SettingsNavAction.Tunnel) },
         )
         SettingsListItem(
             icon = Icons.Outlined.Sync,
             title = "Plugin Registry",
             subtitle =
                 if (settings.pluginSyncEnabled) "Auto-sync enabled" else "Manual only",
-            onClick = onNavigateToPluginRegistry,
+            onClick = { onNavigate(SettingsNavAction.PluginRegistry) },
         )
 
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
-        SectionHeader(title = "Daemon Config")
+        SectionHeader(title = "Advanced Configuration")
         SettingsListItem(
             icon = Icons.Outlined.Route,
             title = "Model Routes",
             subtitle = "Hint-based provider routing",
-            onClick = onNavigateToModelRoutes,
+            onClick = { onNavigate(SettingsNavAction.ModelRoutes) },
         )
         SettingsListItem(
             icon = Icons.Outlined.Memory,
             title = "Memory Advanced",
             subtitle = "Embedding, hygiene, recall weights",
-            onClick = onNavigateToMemoryAdvanced,
+            onClick = { onNavigate(SettingsNavAction.MemoryAdvanced) },
         )
         SettingsListItem(
             icon = Icons.Outlined.Tune,
             title = "Tool Management",
             subtitle = "Browser, HTTP, Composio",
-            onClick = onNavigateToToolManagement,
-        )
-        SettingsListItem(
-            icon = Icons.Outlined.Token,
-            title = "Tools Browser",
-            subtitle = "View all available tools",
-            onClick = onNavigateToToolsBrowser,
-        )
-        SettingsListItem(
-            icon = Icons.Outlined.Psychology,
-            title = "Memory Browser",
-            subtitle = "Browse and search memory entries",
-            onClick = onNavigateToMemoryBrowser,
+            onClick = { onNavigate(SettingsNavAction.ToolManagement) },
         )
         SettingsListItem(
             icon = Icons.Outlined.Schedule,
             title = "Scheduler & Heartbeat",
             subtitle =
                 if (settings.schedulerEnabled) "Scheduler on" else "Scheduler off",
-            onClick = onNavigateToScheduler,
-        )
-        SettingsListItem(
-            icon = Icons.Outlined.TaskAlt,
-            title = "Scheduled Tasks",
-            subtitle = "View and manage cron jobs",
-            onClick = onNavigateToCronJobs,
+            onClick = { onNavigate(SettingsNavAction.Scheduler) },
         )
         SettingsListItem(
             icon = Icons.Outlined.Speed,
             title = "Observability",
             subtitle = settings.observabilityBackend,
-            onClick = onNavigateToObservability,
+            onClick = { onNavigate(SettingsNavAction.Observability) },
         )
 
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
@@ -261,13 +203,35 @@ fun SettingsScreen(
             icon = Icons.AutoMirrored.Outlined.Subject,
             title = "Log Viewer",
             subtitle = "View daemon and service logs",
-            onClick = onNavigateToLogViewer,
+            onClick = { onNavigate(SettingsNavAction.LogViewer) },
         )
         SettingsListItem(
             icon = Icons.Outlined.HealthAndSafety,
             title = "ZeroClaw Doctor",
             subtitle = "Validate config, keys, and connectivity",
-            onClick = onNavigateToDoctor,
+            onClick = { onNavigate(SettingsNavAction.Doctor) },
+        )
+
+        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+        SectionHeader(title = "Inspect & Browse")
+        SettingsListItem(
+            icon = Icons.Outlined.Token,
+            title = "Tools Browser",
+            subtitle = "View all available tools",
+            onClick = { onNavigate(SettingsNavAction.ToolsBrowser) },
+        )
+        SettingsListItem(
+            icon = Icons.Outlined.Psychology,
+            title = "Memory Browser",
+            subtitle = "Browse and search memory entries",
+            onClick = { onNavigate(SettingsNavAction.MemoryBrowser) },
+        )
+        SettingsListItem(
+            icon = Icons.Outlined.TaskAlt,
+            title = "Scheduled Tasks",
+            subtitle = "View and manage cron jobs",
+            onClick = { onNavigate(SettingsNavAction.CronJobs) },
         )
 
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
@@ -283,13 +247,13 @@ fun SettingsScreen(
             icon = Icons.Outlined.SystemUpdate,
             title = "Updates",
             subtitle = "Check for new versions",
-            onClick = onNavigateToUpdates,
+            onClick = { onNavigate(SettingsNavAction.Updates) },
         )
         SettingsListItem(
             icon = Icons.Outlined.Info,
             title = "About",
             subtitle = "Version, licenses, links",
-            onClick = onNavigateToAbout,
+            onClick = { onNavigate(SettingsNavAction.About) },
         )
 
         Spacer(modifier = Modifier.height(16.dp))
