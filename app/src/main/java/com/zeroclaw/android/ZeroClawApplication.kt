@@ -157,6 +157,7 @@ class ZeroClawApplication :
 
     override fun onCreate() {
         super.onCreate()
+        System.loadLibrary("sqlcipher")
         System.loadLibrary("zeroclaw")
 
         @Suppress("InjectDispatcher")

@@ -14,13 +14,15 @@ import java.security.SecureRandom
 /**
  * Provides the SQLCipher passphrase for the Room database.
  *
- * On first access, a random 32-byte passphrase is generated and stored
- * in [EncryptedSharedPreferences] backed by an AES-256 [MasterKey].
- * Subsequent calls return the same passphrase. On devices with a hardware
- * security module (StrongBox), the master key is hardware-backed.
+ * On first access, a random 32-byte seed is generated, hex-encoded to a
+ * 64-character printable string, and stored in [EncryptedSharedPreferences]
+ * backed by an AES-256 [MasterKey]. The hex string itself is the passphrase
+ * (not the decoded raw bytes). This guarantees the passphrase is safe for
+ * SQL string literals (no null bytes) while remaining cryptographically
+ * strong via PBKDF2 key derivation inside SQLCipher.
  *
- * The passphrase is stored as a hex-encoded string to survive
- * SharedPreferences serialisation without encoding issues.
+ * On devices with a hardware security module (StrongBox), the master key
+ * is hardware-backed.
  */
 object DatabasePassphrase {
     private const val PREFS_NAME = "zeroclaw_db_passphrase"
@@ -28,12 +30,17 @@ object DatabasePassphrase {
     private const val PASSPHRASE_BYTES = 32
 
     /**
-     * Returns the database passphrase, generating one if it does not exist.
+     * Returns the database passphrase as a printable hex string.
+     *
+     * The string is used directly as the SQLCipher passphrase (passed to
+     * PBKDF2 inside SQLCipher). Callers that need a [ByteArray] for
+     * [net.zetetic.database.sqlcipher.SupportOpenHelperFactory] should
+     * convert via [String.toByteArray] with [Charsets.UTF_8].
      *
      * @param context Application context for [EncryptedSharedPreferences].
-     * @return Passphrase bytes suitable for [net.zetetic.database.sqlcipher.SupportOpenHelperFactory].
+     * @return 64-character hex passphrase string.
      */
-    fun getOrCreate(context: Context): ByteArray {
+    fun getOrCreate(context: Context): String {
         val masterKey =
             MasterKey
                 .Builder(context)
@@ -51,20 +58,13 @@ object DatabasePassphrase {
 
         val existing = prefs.getString(KEY_PASSPHRASE, null)
         if (existing != null) {
-            return hexToBytes(existing)
+            return existing
         }
 
-        val passphrase = ByteArray(PASSPHRASE_BYTES)
-        SecureRandom().nextBytes(passphrase)
-        prefs.edit().putString(KEY_PASSPHRASE, bytesToHex(passphrase)).apply()
-        return passphrase
+        val seed = ByteArray(PASSPHRASE_BYTES)
+        SecureRandom().nextBytes(seed)
+        val hex = seed.joinToString("") { "%02x".format(it) }
+        prefs.edit().putString(KEY_PASSPHRASE, hex).apply()
+        return hex
     }
-
-    private fun bytesToHex(bytes: ByteArray): String = bytes.joinToString("") { "%02x".format(it) }
-
-    @Suppress("MagicNumber")
-    private fun hexToBytes(hex: String): ByteArray =
-        ByteArray(hex.length / 2) { i ->
-            hex.substring(i * 2, i * 2 + 2).toInt(16).toByte()
-        }
 }

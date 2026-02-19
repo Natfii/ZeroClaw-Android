@@ -186,7 +186,8 @@ abstract class ZeroClawDatabase : RoomDatabase() {
         ): ZeroClawDatabase {
             var instance: ZeroClawDatabase? = null
             val passphrase = DatabasePassphrase.getOrCreate(context)
-            val factory = SupportOpenHelperFactory(passphrase)
+            DatabaseEncryptionMigrator.migrateIfNeeded(context, passphrase)
+            val factory = SupportOpenHelperFactory(passphrase.toByteArray(Charsets.UTF_8))
             val db =
                 Room
                     .databaseBuilder(
