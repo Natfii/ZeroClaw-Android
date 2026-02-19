@@ -19,6 +19,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -158,7 +160,24 @@ fun ChannelDetailScreen(
                 },
             style = MaterialTheme.typography.headlineSmall,
         )
-        Spacer(modifier = Modifier.height(HEADING_SPACING_DP.dp))
+        if (currentType.tomlKey == "irc" || currentType.tomlKey == "lark") {
+            Card(
+                colors =
+                    CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    ),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+            ) {
+                Text(
+                    text = "This channel type does not support automatic restart on failure.",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(FIELD_SPACING_DP.dp),
+                )
+            }
+        }
 
         requiredFields.forEach { spec ->
             ChannelField(

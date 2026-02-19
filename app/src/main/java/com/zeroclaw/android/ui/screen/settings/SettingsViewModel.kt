@@ -12,6 +12,7 @@ import androidx.lifecycle.viewModelScope
 import com.zeroclaw.android.ZeroClawApplication
 import com.zeroclaw.android.data.repository.SettingsRepository
 import com.zeroclaw.android.model.AppSettings
+import com.zeroclaw.android.model.ThemeMode
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -398,6 +399,11 @@ class SettingsViewModel(
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setStripThinkingTags */
     fun updateStripThinkingTags(enabled: Boolean) {
         viewModelScope.launch { repository.setStripThinkingTags(enabled) }
+    }
+
+    /** @see com.zeroclaw.android.data.repository.SettingsRepository.setTheme */
+    fun updateTheme(theme: ThemeMode) {
+        viewModelScope.launch { repository.setTheme(theme) }
     }
 
     /**

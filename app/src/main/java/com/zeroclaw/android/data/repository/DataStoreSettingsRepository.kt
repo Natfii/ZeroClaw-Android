@@ -18,6 +18,7 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.zeroclaw.android.model.AppSettings
+import com.zeroclaw.android.model.ThemeMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -167,6 +168,10 @@ class DataStoreSettingsRepository(
                     ?: AppSettings.DEFAULT_PLUGIN_SYNC_INTERVAL,
             lastPluginSyncTimestamp = prefs[KEY_LAST_PLUGIN_SYNC] ?: 0L,
             stripThinkingTags = prefs[KEY_STRIP_THINKING_TAGS] ?: false,
+            theme =
+                prefs[KEY_THEME]?.let { name ->
+                    runCatching { ThemeMode.valueOf(name) }.getOrNull()
+                } ?: ThemeMode.SYSTEM,
         )
 
     override suspend fun setHost(host: String) = edit { it[KEY_HOST] = host }
@@ -307,6 +312,8 @@ class DataStoreSettingsRepository(
 
     override suspend fun setStripThinkingTags(enabled: Boolean) = edit { it[KEY_STRIP_THINKING_TAGS] = enabled }
 
+    override suspend fun setTheme(theme: ThemeMode) = edit { it[KEY_THEME] = theme.name }
+
     private suspend fun edit(transform: (MutablePreferences) -> Unit) {
         context.settingsDataStore.edit { prefs -> transform(prefs) }
     }
@@ -384,5 +391,6 @@ class DataStoreSettingsRepository(
         val KEY_PLUGIN_SYNC_INTERVAL = intPreferencesKey("plugin_sync_interval_hours")
         val KEY_LAST_PLUGIN_SYNC = longPreferencesKey("last_plugin_sync_timestamp")
         val KEY_STRIP_THINKING_TAGS = booleanPreferencesKey("strip_thinking_tags")
+        val KEY_THEME = stringPreferencesKey("theme")
     }
 }

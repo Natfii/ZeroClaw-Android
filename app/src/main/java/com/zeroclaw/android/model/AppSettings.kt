@@ -11,7 +11,7 @@ package com.zeroclaw.android.model
  *
  * @property host Gateway bind address.
  * @property port Gateway bind port.
- * @property autoStartOnBoot Whether to start the daemon automatically after reboot.
+ * @property autoStartOnBoot Android-only. Controls boot receiver, not passed to daemon TOML.
  * @property defaultProvider Default provider ID for new agents (e.g. "openai").
  * @property defaultModel Default model name for new agents (e.g. "gpt-4o").
  * @property defaultTemperature Global inference temperature (0.0–2.0).
@@ -71,13 +71,14 @@ package com.zeroclaw.android.model
  * @property browserAllowedDomains Comma-separated list of allowed browser domains.
  * @property httpRequestEnabled Whether the HTTP request tool is enabled.
  * @property httpRequestAllowedDomains Comma-separated list of allowed HTTP domains.
- * @property biometricForService Whether biometric auth is required for service start/stop.
- * @property biometricForSettings Whether biometric auth is required for sensitive settings.
- * @property pluginRegistryUrl URL of the remote plugin registry catalog.
- * @property pluginSyncEnabled Whether automatic plugin registry sync is active.
- * @property pluginSyncIntervalHours Interval in hours between automatic syncs.
- * @property lastPluginSyncTimestamp Unix timestamp of the most recent successful sync.
- * @property stripThinkingTags Whether to remove thinking tags from model responses in the console.
+ * @property biometricForService Android-only. Gates service start/stop with biometric, not passed to daemon TOML.
+ * @property biometricForSettings Android-only. Gates settings access with biometric, not passed to daemon TOML.
+ * @property pluginRegistryUrl Android-only. Plugin registry preference, not passed to daemon TOML.
+ * @property pluginSyncEnabled Android-only. Plugin registry preference, not passed to daemon TOML.
+ * @property pluginSyncIntervalHours Android-only. Plugin registry preference, not passed to daemon TOML.
+ * @property lastPluginSyncTimestamp Android-only. Plugin registry preference, not passed to daemon TOML.
+ * @property stripThinkingTags Android-only. Client-side display filter, not passed to daemon TOML.
+ * @property theme Android-only. UI theme preference, not passed to daemon TOML.
  */
 @Suppress("LongParameterList")
 data class AppSettings(
@@ -150,6 +151,7 @@ data class AppSettings(
     val pluginSyncIntervalHours: Int = DEFAULT_PLUGIN_SYNC_INTERVAL,
     val lastPluginSyncTimestamp: Long = 0L,
     val stripThinkingTags: Boolean = false,
+    val theme: ThemeMode = ThemeMode.SYSTEM,
 ) {
     /** Constants for [AppSettings]. */
     companion object {
@@ -239,4 +241,21 @@ data class AppSettings(
         /** Default plugin sync interval in hours. */
         const val DEFAULT_PLUGIN_SYNC_INTERVAL = 24
     }
+}
+
+/**
+ * Determines which colour scheme variant the app uses.
+ *
+ * Used by the theme layer in [ZeroClawTheme][com.zeroclaw.android.ui.theme.ZeroClawTheme]
+ * to select between system-default, forced-light, or forced-dark rendering.
+ */
+enum class ThemeMode {
+    /** Follow the device system theme. */
+    SYSTEM,
+
+    /** Always use the light colour scheme. */
+    LIGHT,
+
+    /** Always use the dark colour scheme. */
+    DARK,
 }

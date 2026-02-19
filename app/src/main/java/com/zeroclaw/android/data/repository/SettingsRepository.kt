@@ -7,6 +7,7 @@
 package com.zeroclaw.android.data.repository
 
 import com.zeroclaw.android.model.AppSettings
+import com.zeroclaw.android.model.ThemeMode
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -502,4 +503,11 @@ interface SettingsRepository {
      * @param enabled Whether to strip thinking tags.
      */
     suspend fun setStripThinkingTags(enabled: Boolean)
+
+    /**
+     * Updates the UI theme preference.
+     *
+     * @param theme The desired [ThemeMode].
+     */
+    suspend fun setTheme(theme: ThemeMode)
 }

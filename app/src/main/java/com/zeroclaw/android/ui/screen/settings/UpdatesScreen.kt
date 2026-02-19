@@ -27,19 +27,15 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.zeroclaw.android.BuildConfig
 import com.zeroclaw.android.ui.component.SectionHeader
 
 /** GitHub releases URL for the ZeroClaw-Android project. */
 private const val RELEASES_URL = "https://github.com/Natfii/ZeroClaw-Android/releases"
 
 /**
- * Updates screen displaying current app version information and a manual
- * update check button that opens the GitHub releases page.
- *
- * Shows the installed version name and code from [BuildConfig], the build date
- * from [BuildConfig.BUILD_DATE], a "Check for Updates" button linking to GitHub
- * releases, and an informational note about future automatic update checking.
+ * Updates screen with a manual update check button that opens the GitHub
+ * releases page, and an informational note about future automatic update
+ * checking. Version details are displayed on the About screen instead.
  *
  * @param edgeMargin Horizontal padding based on window width size class.
  * @param modifier Modifier applied to the root layout.
@@ -60,10 +56,6 @@ fun UpdatesScreen(
     ) {
         Spacer(modifier = Modifier.height(8.dp))
 
-        SectionHeader(title = "Current Version")
-
-        VersionInfoCard()
-
         SectionHeader(title = "Check for Updates")
 
         ManualUpdateCard(
@@ -79,41 +71,6 @@ fun UpdatesScreen(
         AutoCheckInfoCard()
 
         Spacer(modifier = Modifier.height(16.dp))
-    }
-}
-
-/**
- * Card displaying the currently installed app version, build code, and build date.
- *
- * Reads [BuildConfig.VERSION_NAME] and [BuildConfig.VERSION_CODE] to show the
- * exact build installed on the device.
- */
-@Composable
-private fun VersionInfoCard() {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors =
-            CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            ),
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "ZeroClaw Android",
-                style = MaterialTheme.typography.titleSmall,
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "Version ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "Build: ${BuildConfig.BUILD_DATE}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
     }
 }
 
