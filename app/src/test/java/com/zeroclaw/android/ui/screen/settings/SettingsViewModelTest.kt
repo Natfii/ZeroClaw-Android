@@ -8,7 +8,6 @@ package com.zeroclaw.android.ui.screen.settings
 
 import com.zeroclaw.android.data.repository.SettingsRepository
 import com.zeroclaw.android.model.AppSettings
-import com.zeroclaw.android.model.LogLevel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
@@ -35,7 +34,6 @@ class SettingsViewModelTest {
             assertEquals(AppSettings.DEFAULT_HOST, settings.host)
             assertEquals(AppSettings.DEFAULT_PORT, settings.port)
             assertEquals(false, settings.autoStartOnBoot)
-            assertEquals(LogLevel.INFO, settings.logLevel)
         }
 
     @Test
@@ -47,17 +45,6 @@ class SettingsViewModelTest {
             assertEquals(true, repo.settings.first().autoStartOnBoot)
             repo.setAutoStartOnBoot(false)
             assertEquals(false, repo.settings.first().autoStartOnBoot)
-        }
-
-    @Test
-    @DisplayName("log level update round-trips correctly")
-    fun `log level update round-trips correctly`() =
-        runTest {
-            val repo = TestSettingsRepository()
-            LogLevel.entries.forEach { level ->
-                repo.setLogLevel(level)
-                assertEquals(level, repo.settings.first().logLevel)
-            }
         }
 }
 
@@ -78,10 +65,6 @@ private class TestSettingsRepository : SettingsRepository {
 
     override suspend fun setAutoStartOnBoot(enabled: Boolean) {
         _settings.update { it.copy(autoStartOnBoot = enabled) }
-    }
-
-    override suspend fun setLogLevel(level: LogLevel) {
-        _settings.update { it.copy(logLevel = level) }
     }
 
     override suspend fun setDefaultProvider(provider: String) {

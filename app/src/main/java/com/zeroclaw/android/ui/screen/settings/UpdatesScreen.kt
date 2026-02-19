@@ -33,16 +33,13 @@ import com.zeroclaw.android.ui.component.SectionHeader
 /** GitHub releases URL for the ZeroClaw-Android project. */
 private const val RELEASES_URL = "https://github.com/Natfii/ZeroClaw-Android/releases"
 
-/** Hardcoded build date string displayed alongside the version information. */
-private const val BUILD_DATE = "Feb 2026"
-
 /**
  * Updates screen displaying current app version information and a manual
  * update check button that opens the GitHub releases page.
  *
- * Shows the installed version name and code from [BuildConfig], a hardcoded
- * build date, a "Check for Updates" button linking to GitHub releases, and
- * an informational note about future automatic update checking.
+ * Shows the installed version name and code from [BuildConfig], the build date
+ * from [BuildConfig.BUILD_DATE], a "Check for Updates" button linking to GitHub
+ * releases, and an informational note about future automatic update checking.
  *
  * @param edgeMargin Horizontal padding based on window width size class.
  * @param modifier Modifier applied to the root layout.
@@ -112,7 +109,7 @@ private fun VersionInfoCard() {
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Build: $BUILD_DATE",
+                text = "Build: ${BuildConfig.BUILD_DATE}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

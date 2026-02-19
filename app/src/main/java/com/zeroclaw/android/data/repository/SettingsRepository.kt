@@ -7,7 +7,6 @@
 package com.zeroclaw.android.data.repository
 
 import com.zeroclaw.android.model.AppSettings
-import com.zeroclaw.android.model.LogLevel
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -41,13 +40,6 @@ interface SettingsRepository {
      * @param enabled Whether to start the daemon on boot.
      */
     suspend fun setAutoStartOnBoot(enabled: Boolean)
-
-    /**
-     * Updates the minimum log level.
-     *
-     * @param level New minimum severity.
-     */
-    suspend fun setLogLevel(level: LogLevel)
 
     /**
      * Updates the default provider for new agents.

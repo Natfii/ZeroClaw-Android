@@ -18,7 +18,6 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.zeroclaw.android.model.AppSettings
-import com.zeroclaw.android.model.LogLevel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -50,10 +49,6 @@ class DataStoreSettingsRepository(
             host = prefs[KEY_HOST] ?: AppSettings.DEFAULT_HOST,
             port = prefs[KEY_PORT] ?: AppSettings.DEFAULT_PORT,
             autoStartOnBoot = prefs[KEY_AUTO_START] ?: false,
-            logLevel =
-                prefs[KEY_LOG_LEVEL]?.let { name ->
-                    runCatching { LogLevel.valueOf(name) }.getOrNull()
-                } ?: LogLevel.INFO,
             defaultProvider = prefs[KEY_DEFAULT_PROVIDER] ?: "",
             defaultModel = prefs[KEY_DEFAULT_MODEL] ?: "",
             defaultTemperature =
@@ -179,8 +174,6 @@ class DataStoreSettingsRepository(
     override suspend fun setPort(port: Int) = edit { it[KEY_PORT] = port }
 
     override suspend fun setAutoStartOnBoot(enabled: Boolean) = edit { it[KEY_AUTO_START] = enabled }
-
-    override suspend fun setLogLevel(level: LogLevel) = edit { it[KEY_LOG_LEVEL] = level.name }
 
     override suspend fun setDefaultProvider(provider: String) = edit { it[KEY_DEFAULT_PROVIDER] = provider }
 
@@ -324,7 +317,6 @@ class DataStoreSettingsRepository(
         val KEY_HOST = stringPreferencesKey("host")
         val KEY_PORT = intPreferencesKey("port")
         val KEY_AUTO_START = booleanPreferencesKey("auto_start_on_boot")
-        val KEY_LOG_LEVEL = stringPreferencesKey("log_level")
         val KEY_DEFAULT_PROVIDER = stringPreferencesKey("default_provider")
         val KEY_DEFAULT_MODEL = stringPreferencesKey("default_model")
         val KEY_DEFAULT_TEMPERATURE = floatPreferencesKey("default_temperature")

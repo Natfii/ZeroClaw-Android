@@ -177,7 +177,7 @@ private fun InferenceSection(
 
     SettingsToggleRow(
         title = "Strip thinking tags",
-        subtitle = "Remove <think> / <thinking> blocks from model responses",
+        subtitle = "Client-side only — strips thinking tags from console display without affecting daemon behavior",
         checked = settings.stripThinkingTags,
         onCheckedChange = { viewModel.updateStripThinkingTags(it) },
         contentDescription = "Strip thinking tags from responses",

@@ -12,7 +12,6 @@ package com.zeroclaw.android.model
  * @property host Gateway bind address.
  * @property port Gateway bind port.
  * @property autoStartOnBoot Whether to start the daemon automatically after reboot.
- * @property logLevel Minimum severity for log output.
  * @property defaultProvider Default provider ID for new agents (e.g. "openai").
  * @property defaultModel Default model name for new agents (e.g. "gpt-4o").
  * @property defaultTemperature Global inference temperature (0.0–2.0).
@@ -85,7 +84,6 @@ data class AppSettings(
     val host: String = DEFAULT_HOST,
     val port: Int = DEFAULT_PORT,
     val autoStartOnBoot: Boolean = false,
-    val logLevel: LogLevel = LogLevel.INFO,
     val defaultProvider: String = "",
     val defaultModel: String = "",
     val defaultTemperature: Float = DEFAULT_TEMPERATURE,
@@ -159,7 +157,7 @@ data class AppSettings(
         const val DEFAULT_HOST = "127.0.0.1"
 
         /** Default gateway bind port. */
-        const val DEFAULT_PORT = 8080
+        const val DEFAULT_PORT = 3000
 
         /** Default inference temperature. */
         const val DEFAULT_TEMPERATURE = 0.7f
@@ -241,21 +239,4 @@ data class AppSettings(
         /** Default plugin sync interval in hours. */
         const val DEFAULT_PLUGIN_SYNC_INTERVAL = 24
     }
-}
-
-/**
- * Log severity levels for daemon output filtering.
- */
-enum class LogLevel {
-    /** Verbose debug output. */
-    DEBUG,
-
-    /** Standard informational messages. */
-    INFO,
-
-    /** Warning conditions. */
-    WARN,
-
-    /** Error conditions. */
-    ERROR,
 }
