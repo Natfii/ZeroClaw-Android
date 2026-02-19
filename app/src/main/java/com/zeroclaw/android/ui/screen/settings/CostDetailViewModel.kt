@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.zeroclaw.android.ZeroClawApplication
 import com.zeroclaw.android.model.CostSummary
 import com.zeroclaw.android.service.CostBridge
+import com.zeroclaw.android.util.ErrorSanitizer
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -115,9 +116,7 @@ class CostDetailViewModel(
                     )
             } catch (e: Exception) {
                 _uiState.value =
-                    CostDetailUiState.Error(
-                        e.message ?: "Failed to load cost data",
-                    )
+                    CostDetailUiState.Error(ErrorSanitizer.sanitizeForUi(e))
             }
         }
     }

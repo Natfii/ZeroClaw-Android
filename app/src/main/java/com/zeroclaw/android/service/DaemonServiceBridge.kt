@@ -258,10 +258,10 @@ class DaemonServiceBridge(
         withContext(ioDispatcher) {
             scaffoldWorkspace(
                 "$dataDir/zeroclaw/workspace",
-                agentName,
-                userName,
-                timezone,
-                communicationStyle,
+                agentName.take(MAX_IDENTITY_LENGTH),
+                userName.take(MAX_IDENTITY_LENGTH),
+                timezone.take(MAX_IDENTITY_LENGTH),
+                communicationStyle.take(MAX_IDENTITY_LENGTH),
             )
         }
     }
@@ -331,10 +331,16 @@ class DaemonServiceBridge(
             )
         } catch (e: org.json.JSONException) {
             throw IllegalStateException(
-                "Native layer returned invalid status JSON: ${e.message}",
+                "Native layer returned invalid status JSON",
                 e,
             )
         }
+    }
+
+    /** Constants for [DaemonServiceBridge]. */
+    companion object {
+        /** Maximum length for workspace identity strings passed to FFI. */
+        private const val MAX_IDENTITY_LENGTH = 100
     }
 }
 

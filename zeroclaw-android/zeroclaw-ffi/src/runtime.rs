@@ -114,38 +114,55 @@ pub(crate) fn with_daemon_config<T>(f: impl FnOnce(&Config) -> T) -> Result<T, F
 /// calls originate from Kotlin's IO dispatcher (not from our tokio
 /// runtime), `block_on` is safe and will not deadlock.
 ///
+/// The daemon mutex is released **before** the closure executes. This
+/// prevents deadlocks when the `Memory` implementation itself needs to
+/// acquire the mutex or perform blocking I/O.
+///
 /// Returns [`FfiError::StateError`] if the daemon is not running or the
 /// memory backend was not initialised.
 pub(crate) fn with_memory<T>(
     f: impl FnOnce(&dyn zeroclaw::memory::Memory, &Runtime) -> Result<T, FfiError>,
 ) -> Result<T, FfiError> {
-    let guard = daemon_mutex()
-        .lock()
-        .map_err(|_| FfiError::StateCorrupted {
-            detail: "daemon mutex poisoned".into(),
+    let memory_arc = {
+        let guard = daemon_mutex()
+            .lock()
+            .map_err(|_| FfiError::StateCorrupted {
+                detail: "daemon mutex poisoned".into(),
+            })?;
+        let state = guard.as_ref().ok_or_else(|| FfiError::StateError {
+            detail: "daemon not running".into(),
         })?;
-    let state = guard.as_ref().ok_or_else(|| FfiError::StateError {
-        detail: "daemon not running".into(),
-    })?;
-    let memory = state.memory.as_ref().ok_or_else(|| FfiError::StateError {
-        detail: "memory backend not available".into(),
-    })?;
-    let runtime = get_or_create_runtime();
-    f(memory.as_ref(), runtime)
+        Arc::clone(state.memory.as_ref().ok_or_else(|| FfiError::StateError {
+            detail: "memory backend not available".into(),
+        })?)
+    }; // guard dropped here
+    let runtime = get_or_create_runtime()?;
+    f(memory_arc.as_ref(), runtime)
 }
 
 /// Returns a reference to the tokio runtime, creating it on first access.
 ///
-/// Uses [`OnceLock::get_or_init`] for atomic, race-free initialisation.
-/// Panics only if the tokio runtime builder fails, which is unrecoverable.
-pub(crate) fn get_or_create_runtime() -> &'static Runtime {
-    RUNTIME.get_or_init(|| {
-        tokio::runtime::Builder::new_multi_thread()
-            .enable_all()
-            .thread_name("zeroclaw-ffi")
-            .build()
-            .expect("fatal: failed to create tokio runtime")
-    })
+/// Uses the `get()`+`set()` pattern because `OnceLock::get_or_try_init`
+/// is unstable on Rust 1.93. The final `expect` is safe because we
+/// just called `set()` successfully.
+///
+/// # Errors
+///
+/// Returns [`FfiError::SpawnError`] if the tokio runtime builder fails.
+pub(crate) fn get_or_create_runtime() -> Result<&'static Runtime, FfiError> {
+    if let Some(rt) = RUNTIME.get() {
+        return Ok(rt);
+    }
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .thread_name("zeroclaw-ffi")
+        .build()
+        .map_err(|e| FfiError::SpawnError {
+            detail: format!("failed to create tokio runtime: {e}"),
+        })?;
+    let _ = RUNTIME.set(rt);
+    // Safe: we just called set() — at least one thread succeeded.
+    Ok(RUNTIME.get().expect("just set"))
 }
 
 /// Starts the `ZeroClaw` daemon with the provided configuration.
@@ -204,7 +221,7 @@ pub(crate) fn start_daemon_inner(
         detail: format!("failed to create workspace dir: {e}"),
     })?;
 
-    let runtime = get_or_create_runtime();
+    let runtime = get_or_create_runtime()?;
 
     let mut guard = daemon_mutex()
         .lock()
@@ -348,7 +365,7 @@ pub(crate) fn start_daemon_inner(
 /// Returns [`FfiError::StateError`] if the daemon is not running,
 /// or [`FfiError::StateCorrupted`] if the daemon mutex is poisoned.
 pub(crate) fn stop_daemon_inner() -> Result<(), FfiError> {
-    let runtime = get_or_create_runtime();
+    let runtime = get_or_create_runtime()?;
 
     let mut guard = daemon_mutex()
         .lock()
@@ -427,7 +444,7 @@ pub(crate) fn send_message_inner(message: String) -> Result<String, FfiError> {
         });
     }
 
-    let runtime = get_or_create_runtime();
+    let runtime = get_or_create_runtime()?;
 
     let gateway_port = {
         let guard = daemon_mutex()
@@ -656,7 +673,7 @@ pub(crate) fn doctor_channels_inner(
     config.workspace_dir = data_path.join("workspace");
     config.config_path = data_path.join("config.toml");
 
-    let runtime = get_or_create_runtime();
+    let runtime = get_or_create_runtime()?;
 
     let results = runtime.block_on(async {
         match tokio::time::timeout(

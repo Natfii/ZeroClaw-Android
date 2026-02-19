@@ -26,6 +26,7 @@ import com.zeroclaw.android.data.local.entity.LogEntryEntity
 import com.zeroclaw.android.data.local.entity.PluginEntity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 
 /**
  * Room database for persistent storage of agents, plugins, log entries,
@@ -184,13 +185,16 @@ abstract class ZeroClawDatabase : RoomDatabase() {
             scope: CoroutineScope,
         ): ZeroClawDatabase {
             var instance: ZeroClawDatabase? = null
+            val passphrase = DatabasePassphrase.getOrCreate(context)
+            val factory = SupportOpenHelperFactory(passphrase)
             val db =
                 Room
                     .databaseBuilder(
                         context.applicationContext,
                         ZeroClawDatabase::class.java,
                         DATABASE_NAME,
-                    ).apply { MIGRATIONS.forEach { addMigrations(it) } }
+                    ).openHelperFactory(factory)
+                    .apply { MIGRATIONS.forEach { addMigrations(it) } }
                     .fallbackToDestructiveMigration()
                     .addCallback(
                         object : Callback() {

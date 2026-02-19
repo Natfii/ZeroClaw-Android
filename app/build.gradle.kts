@@ -40,8 +40,8 @@ android {
         applicationId = "com.zeroclaw.android"
         minSdk = 26
         targetSdk = 35
-        versionCode = 13
-        versionName = "0.0.13"
+        versionCode = 14
+        versionName = "0.0.14"
 
         ndk {
             abiFilters += listOf("arm64-v8a", "x86_64")
@@ -134,6 +134,7 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
+    implementation(libs.sqlcipher)
     implementation(libs.okhttp)
     implementation(libs.work.runtime.ktx)
     implementation(libs.camera.core)

@@ -8,6 +8,14 @@
 ///
 /// Each variant uses a `detail` field (not `message`) to avoid
 /// conflicting with Kotlin's `Throwable.message` property.
+///
+/// # UniFFI naming convention
+///
+/// UniFFI generates Kotlin exception subclasses under `FfiException` with
+/// names matching the Rust variant (e.g. `FfiError::ConfigError` becomes
+/// `FfiException.ConfigException`). The `Exception` suffix is added
+/// automatically by UniFFI's Kotlin code generator. Kotlin code should
+/// pattern-match on these subclasses when distinguishing error categories.
 #[derive(Debug, thiserror::Error, uniffi::Error)]
 pub enum FfiError {
     /// TOML parse failures, missing fields, or invalid paths.

@@ -11,6 +11,8 @@ package com.zeroclaw.android.model
  * @property description Human-readable description of the tool.
  * @property source Origin of the tool: "built-in" or the skill name.
  * @property parametersJson JSON schema for the tool parameters, or "{}" if unavailable.
+ *   **Security note:** this field may contain user-supplied JSON from skill definitions.
+ *   Display it read-only and never evaluate it as executable code.
  */
 data class ToolSpec(
     val name: String,

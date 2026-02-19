@@ -118,7 +118,7 @@ private fun parseEvent(json: String): DaemonEvent? =
     } catch (
         @Suppress("TooGenericExceptionCaught", "SwallowedException") e: Exception,
     ) {
-        Log.w(EVENT_BRIDGE_TAG, "Malformed event JSON: ${e.message}")
+        Log.w(EVENT_BRIDGE_TAG, "Malformed event JSON — skipping")
         null
     }
 
@@ -141,7 +141,7 @@ private fun DaemonEvent.toActivityRecord(): Pair<ActivityType, String> {
             "tool_call" -> "Tool: ${data["tool"]} (${data["duration_ms"]}ms)"
             "tool_call_start" -> "Tool Starting: ${data["tool"]}"
             "channel_message" -> "Channel: ${data["channel"]} (${data["direction"]})"
-            "error" -> "Error: ${data["component"]} — ${data["message"]}"
+            "error" -> "Error: ${data["component"]} — ${sanitizeActivityMessage(data["message"])}"
             "heartbeat_tick" -> "Heartbeat"
             "turn_complete" -> "Turn Complete"
             "agent_start" -> "Agent Start: ${data["provider"]} / ${data["model"]}"
@@ -149,4 +149,26 @@ private fun DaemonEvent.toActivityRecord(): Pair<ActivityType, String> {
             else -> "Event: $kind"
         }
     return type to message
+}
+
+/** Maximum length for error messages recorded in the activity feed. */
+private const val MAX_ACTIVITY_MESSAGE_LENGTH = 120
+
+/** Pattern matching URLs in error messages. */
+private val URL_PATTERN = Regex("""https?://\S+""")
+
+/**
+ * Truncates and strips URLs from an error message for activity feed display.
+ *
+ * @param msg Raw error message from the daemon event, or `null`.
+ * @return Sanitised message safe for the activity feed.
+ */
+private fun sanitizeActivityMessage(msg: String?): String {
+    if (msg.isNullOrBlank()) return "unknown"
+    val stripped = msg.replace(URL_PATTERN, "[url]")
+    return if (stripped.length > MAX_ACTIVITY_MESSAGE_LENGTH) {
+        stripped.take(MAX_ACTIVITY_MESSAGE_LENGTH) + "..."
+    } else {
+        stripped
+    }
 }

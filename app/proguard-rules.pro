@@ -14,3 +14,7 @@
 # WorkManager: keep the worker factory and generated initializer.
 -keep class * extends androidx.work.Worker
 -keep class * extends androidx.work.ListenableWorker
+
+# SQLCipher: keep native library loader and JNI bindings.
+-keep class net.zetetic.database.** { *; }
+-dontwarn net.zetetic.database.**

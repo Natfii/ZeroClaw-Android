@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.zeroclaw.android.ZeroClawApplication
 import com.zeroclaw.android.model.MemoryEntry
 import com.zeroclaw.android.service.MemoryBridge
+import com.zeroclaw.android.util.ErrorSanitizer
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -171,9 +172,7 @@ class MemoryBrowserViewModel(
             _uiState.value = MemoryUiState.Content(entries)
         } catch (e: Exception) {
             _uiState.value =
-                MemoryUiState.Error(
-                    e.message ?: "Failed to load memory entries",
-                )
+                MemoryUiState.Error(ErrorSanitizer.sanitizeForUi(e))
         }
     }
 
@@ -184,9 +183,7 @@ class MemoryBrowserViewModel(
             _uiState.value = MemoryUiState.Content(entries)
         } catch (e: Exception) {
             _uiState.value =
-                MemoryUiState.Error(
-                    e.message ?: "Failed to search memory",
-                )
+                MemoryUiState.Error(ErrorSanitizer.sanitizeForUi(e))
         }
     }
 
@@ -210,7 +207,7 @@ class MemoryBrowserViewModel(
             loadMemoriesInternal()
             loadCountInternal()
         } catch (e: Exception) {
-            _snackbarMessage.value = "Error: ${e.message ?: "unknown"}"
+            _snackbarMessage.value = ErrorSanitizer.sanitizeForUi(e)
         }
     }
 }

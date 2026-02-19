@@ -45,6 +45,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zeroclaw.android.model.LogEntry
 import com.zeroclaw.android.model.LogSeverity
+import com.zeroclaw.android.util.LogSanitizer
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -243,5 +244,6 @@ private fun formatTimestamp(epochMs: Long): String = timeFormat.format(Instant.o
  */
 private fun formatLogsForExport(entries: List<LogEntry>): String =
     entries.joinToString("\n") { entry ->
-        "${formatTimestamp(entry.timestamp)} [${entry.severity.name}] ${entry.tag}: ${entry.message}"
+        "${formatTimestamp(entry.timestamp)} [${entry.severity.name}] ${entry.tag}: " +
+            LogSanitizer.sanitizeLogMessage(entry.message)
     }

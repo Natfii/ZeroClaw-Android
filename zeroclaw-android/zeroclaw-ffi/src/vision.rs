@@ -286,7 +286,7 @@ pub(crate) fn send_vision_message_inner(
             ),
         })?;
 
-    let runtime = get_or_create_runtime();
+    let runtime = get_or_create_runtime()?;
     runtime.block_on(dispatch_vision_request(
         &vision_provider,
         &text,

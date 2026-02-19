@@ -23,6 +23,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import com.zeroclaw.android.service.ZeroClawDaemonService
+import com.zeroclaw.android.ui.component.BiometricSettingsGate
 import com.zeroclaw.android.ui.screen.agents.AddAgentScreen
 import com.zeroclaw.android.ui.screen.agents.AgentDetailScreen
 import com.zeroclaw.android.ui.screen.agents.AgentsScreen
@@ -493,7 +494,11 @@ fun ZeroClawNavHost(
         }
 
         composable<MemoryBrowserRoute> {
-            MemoryBrowserScreen(edgeMargin = edgeMargin)
+            val settingsVmMemory: SettingsViewModel = viewModel()
+            val settingsMemory by settingsVmMemory.settings.collectAsStateWithLifecycle()
+            BiometricSettingsGate(requireBiometric = settingsMemory.biometricForSettings) {
+                MemoryBrowserScreen(edgeMargin = edgeMargin)
+            }
         }
 
         composable<OnboardingRoute> {
