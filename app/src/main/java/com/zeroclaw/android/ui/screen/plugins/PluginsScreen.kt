@@ -30,11 +30,14 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -75,72 +78,85 @@ fun PluginsScreen(
     val selectedTab by pluginsViewModel.selectedTab.collectAsStateWithLifecycle()
     val searchQuery by pluginsViewModel.searchQuery.collectAsStateWithLifecycle()
     val syncState by pluginsViewModel.syncState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    Column(
-        modifier =
-            modifier
-                .fillMaxSize()
-                .padding(horizontal = edgeMargin),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
+    LaunchedEffect(Unit) {
+        pluginsViewModel.snackbarMessage.collect { message ->
+            snackbarHostState.showSnackbar(message)
+        }
+    }
+
+    Box(modifier = modifier.fillMaxSize()) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = edgeMargin),
         ) {
-            TabRow(
-                selectedTabIndex = selectedTab,
-                modifier = Modifier.weight(1f),
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Tab(
-                    selected = selectedTab == TAB_INSTALLED,
-                    onClick = { pluginsViewModel.selectTab(TAB_INSTALLED) },
-                    text = { Text("Installed") },
-                )
-                Tab(
-                    selected = selectedTab == TAB_AVAILABLE,
-                    onClick = { pluginsViewModel.selectTab(TAB_AVAILABLE) },
-                    text = { Text("Available") },
-                )
-                Tab(
-                    selected = selectedTab == TAB_SKILLS,
-                    onClick = { pluginsViewModel.selectTab(TAB_SKILLS) },
-                    text = { Text("Skills") },
-                )
-            }
-            if (selectedTab != TAB_SKILLS) {
-                IconButton(
-                    onClick = { pluginsViewModel.syncNow() },
-                    enabled = syncState !is SyncUiState.Syncing,
-                    modifier =
-                        Modifier.semantics {
-                            contentDescription = "Sync plugin registry"
-                        },
+                TabRow(
+                    selectedTabIndex = selectedTab,
+                    modifier = Modifier.weight(1f),
                 ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Refresh,
-                        contentDescription = null,
+                    Tab(
+                        selected = selectedTab == TAB_INSTALLED,
+                        onClick = { pluginsViewModel.selectTab(TAB_INSTALLED) },
+                        text = { Text("Installed") },
+                    )
+                    Tab(
+                        selected = selectedTab == TAB_AVAILABLE,
+                        onClick = { pluginsViewModel.selectTab(TAB_AVAILABLE) },
+                        text = { Text("Available") },
+                    )
+                    Tab(
+                        selected = selectedTab == TAB_SKILLS,
+                        onClick = { pluginsViewModel.selectTab(TAB_SKILLS) },
+                        text = { Text("Skills") },
                     )
                 }
+                if (selectedTab != TAB_SKILLS) {
+                    IconButton(
+                        onClick = { pluginsViewModel.syncNow() },
+                        enabled = syncState !is SyncUiState.Syncing,
+                        modifier =
+                            Modifier.semantics {
+                                contentDescription = "Sync plugin registry"
+                            },
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Refresh,
+                            contentDescription = null,
+                        )
+                    }
+                }
+            }
+
+            if (syncState is SyncUiState.Syncing && selectedTab != TAB_SKILLS) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (selectedTab == TAB_SKILLS) {
+                SkillsTab(skillsViewModel = skillsViewModel)
+            } else {
+                PluginTabContent(
+                    plugins = plugins,
+                    searchQuery = searchQuery,
+                    selectedTab = selectedTab,
+                    onSearchChange = { pluginsViewModel.updateSearch(it) },
+                    onToggle = { pluginsViewModel.togglePlugin(it) },
+                    onInstall = { pluginsViewModel.installPlugin(it) },
+                    onNavigateToDetail = onNavigateToDetail,
+                )
             }
         }
-
-        if (syncState is SyncUiState.Syncing && selectedTab != TAB_SKILLS) {
-            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-        }
-        Spacer(modifier = Modifier.height(12.dp))
-
-        if (selectedTab == TAB_SKILLS) {
-            SkillsTab(skillsViewModel = skillsViewModel)
-        } else {
-            PluginTabContent(
-                plugins = plugins,
-                searchQuery = searchQuery,
-                selectedTab = selectedTab,
-                onSearchChange = { pluginsViewModel.updateSearch(it) },
-                onToggle = { pluginsViewModel.togglePlugin(it) },
-                onInstall = { pluginsViewModel.installPlugin(it) },
-                onNavigateToDetail = onNavigateToDetail,
-            )
-        }
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter),
+        )
     }
 }
 

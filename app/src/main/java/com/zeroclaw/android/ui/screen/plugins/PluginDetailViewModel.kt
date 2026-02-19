@@ -12,9 +12,12 @@ import androidx.lifecycle.viewModelScope
 import com.zeroclaw.android.ZeroClawApplication
 import com.zeroclaw.android.model.Plugin
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
@@ -37,6 +40,14 @@ class PluginDetailViewModel(
     private val repository = (application as ZeroClawApplication).pluginRepository
 
     private val pluginId = MutableStateFlow<String?>(null)
+
+    private val _navigateBack = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
+    /**
+     * One-shot event emitted after an uninstall completes, signalling the
+     * screen to navigate back.
+     */
+    val navigateBack: SharedFlow<Unit> = _navigateBack.asSharedFlow()
 
     /**
      * The currently observed plugin, or null if no plugin ID has been set
@@ -89,6 +100,7 @@ class PluginDetailViewModel(
     fun uninstall(pluginId: String) {
         viewModelScope.launch {
             repository.uninstall(pluginId)
+            _navigateBack.tryEmit(Unit)
         }
     }
 

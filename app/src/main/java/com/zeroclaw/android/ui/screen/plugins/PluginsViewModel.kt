@@ -7,14 +7,19 @@
 package com.zeroclaw.android.ui.screen.plugins
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.zeroclaw.android.ZeroClawApplication
 import com.zeroclaw.android.data.remote.OkHttpPluginRegistryClient
 import com.zeroclaw.android.model.Plugin
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
@@ -61,6 +66,11 @@ class PluginsViewModel(
 
     /** Current state of the plugin registry sync operation. */
     val syncState: StateFlow<SyncUiState> = _syncState.asStateFlow()
+
+    private val _snackbarMessage = MutableSharedFlow<String>(extraBufferCapacity = 1)
+
+    /** One-shot messages for display in a [SnackbarHost]. */
+    val snackbarMessage: SharedFlow<String> = _snackbarMessage.asSharedFlow()
 
     /** Filtered plugin list based on tab and search query. */
     val plugins: StateFlow<List<Plugin>> =
@@ -112,33 +122,57 @@ class PluginsViewModel(
     /**
      * Installs the plugin with the given identifier.
      *
+     * Emits a [snackbarMessage] on failure.
+     *
      * @param pluginId Unique plugin identifier.
      */
+    @Suppress("TooGenericExceptionCaught")
     fun installPlugin(pluginId: String) {
         viewModelScope.launch {
-            repository.install(pluginId)
+            try {
+                repository.install(pluginId)
+            } catch (e: Exception) {
+                Log.w(TAG, "Install failed for $pluginId", e)
+                _snackbarMessage.tryEmit("Install failed: ${e.message}")
+            }
         }
     }
 
     /**
      * Uninstalls the plugin with the given identifier.
      *
+     * Emits a [snackbarMessage] on failure.
+     *
      * @param pluginId Unique plugin identifier.
      */
+    @Suppress("TooGenericExceptionCaught")
     fun uninstallPlugin(pluginId: String) {
         viewModelScope.launch {
-            repository.uninstall(pluginId)
+            try {
+                repository.uninstall(pluginId)
+            } catch (e: Exception) {
+                Log.w(TAG, "Uninstall failed for $pluginId", e)
+                _snackbarMessage.tryEmit("Uninstall failed: ${e.message}")
+            }
         }
     }
 
     /**
      * Toggles the enabled state of the given plugin.
      *
+     * Emits a [snackbarMessage] on failure.
+     *
      * @param pluginId Unique plugin identifier.
      */
+    @Suppress("TooGenericExceptionCaught")
     fun togglePlugin(pluginId: String) {
         viewModelScope.launch {
-            repository.toggleEnabled(pluginId)
+            try {
+                repository.toggleEnabled(pluginId)
+            } catch (e: Exception) {
+                Log.w(TAG, "Toggle failed for $pluginId", e)
+                _snackbarMessage.tryEmit("Toggle failed: ${e.message}")
+            }
         }
     }
 
@@ -160,11 +194,22 @@ class PluginsViewModel(
                 val remotePlugins = client.fetchPlugins(settings.pluginRegistryUrl)
                 repository.mergeRemotePlugins(remotePlugins)
                 settingsRepository.setLastPluginSyncTimestamp(System.currentTimeMillis())
-                _syncState.value = SyncUiState.Success(remotePlugins.size)
+                val successState = SyncUiState.Success(remotePlugins.size)
+                _syncState.value = successState
+                launch {
+                    delay(SYNC_SUCCESS_DISPLAY_MS)
+                    _syncState.compareAndSet(successState, SyncUiState.Idle)
+                }
             } catch (e: Exception) {
                 _syncState.value =
                     SyncUiState.Error(e.message ?: "Sync failed")
             }
         }
+    }
+
+    /** Constants for [PluginsViewModel]. */
+    companion object {
+        private const val TAG = "PluginsVM"
+        private const val SYNC_SUCCESS_DISPLAY_MS = 3000L
     }
 }

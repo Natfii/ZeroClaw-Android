@@ -6,6 +6,7 @@
 
 package com.zeroclaw.android.data.repository
 
+import android.util.Log
 import com.zeroclaw.android.data.local.dao.PluginDao
 import com.zeroclaw.android.data.local.entity.PluginEntity
 import com.zeroclaw.android.data.local.entity.toModel
@@ -13,6 +14,7 @@ import com.zeroclaw.android.model.Plugin
 import com.zeroclaw.android.model.RemotePlugin
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -56,11 +58,19 @@ class RoomPluginRepository(
     ) {
         val entity = dao.getById(pluginId) ?: return
         val currentConfig: Map<String, String> =
-            runCatching {
+            try {
                 json.decodeFromString<Map<String, String>>(entity.configJson)
-            }.getOrDefault(emptyMap())
+            } catch (e: SerializationException) {
+                Log.w(TAG, "Corrupted config JSON for $pluginId, skipping update", e)
+                return
+            }
         val updatedConfig = currentConfig + (key to value)
         dao.updateConfigJson(pluginId, json.encodeToString(updatedConfig))
+    }
+
+    /** Constants for [RoomPluginRepository]. */
+    companion object {
+        private const val TAG = "PluginRepo"
     }
 
     override suspend fun mergeRemotePlugins(remotePlugins: List<RemotePlugin>) {

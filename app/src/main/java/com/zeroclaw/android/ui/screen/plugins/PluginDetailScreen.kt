@@ -6,6 +6,7 @@
 
 package com.zeroclaw.android.ui.screen.plugins
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -27,7 +28,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
@@ -38,6 +41,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zeroclaw.android.ui.component.CategoryBadge
 import com.zeroclaw.android.ui.component.CollapsibleSection
+import com.zeroclaw.android.ui.component.LoadingIndicator
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.drop
 
 /**
  * Plugin detail screen showing full information, install/enable controls,
@@ -49,6 +56,7 @@ import com.zeroclaw.android.ui.component.CollapsibleSection
  * @param detailViewModel The [PluginDetailViewModel] for plugin state.
  * @param modifier Modifier applied to the root layout.
  */
+@OptIn(FlowPreview::class)
 @Composable
 fun PluginDetailScreen(
     pluginId: String,
@@ -61,8 +69,22 @@ fun PluginDetailScreen(
         detailViewModel.loadPlugin(pluginId)
     }
 
+    LaunchedEffect(Unit) {
+        detailViewModel.navigateBack.collect { onBack() }
+    }
+
     val plugin by detailViewModel.plugin.collectAsStateWithLifecycle()
-    val loadedPlugin = plugin ?: return
+    val loadedPlugin = plugin
+
+    if (loadedPlugin == null) {
+        Box(
+            modifier = modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
+        ) {
+            LoadingIndicator()
+        }
+        return
+    }
 
     Column(
         modifier =
@@ -127,12 +149,18 @@ fun PluginDetailScreen(
             ) {
                 loadedPlugin.configFields.forEach { (key, value) ->
                     var fieldValue by remember(key, value) { mutableStateOf(value) }
+                    val currentValue by rememberUpdatedState(fieldValue)
+
+                    LaunchedEffect(key) {
+                        snapshotFlow { currentValue }
+                            .drop(1)
+                            .debounce(CONFIG_DEBOUNCE_MS)
+                            .collect { detailViewModel.updateConfig(pluginId, key, it) }
+                    }
+
                     OutlinedTextField(
                         value = fieldValue,
-                        onValueChange = {
-                            fieldValue = it
-                            detailViewModel.updateConfig(pluginId, key, it)
-                        },
+                        onValueChange = { fieldValue = it },
                         label = { Text(key) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
@@ -145,10 +173,7 @@ fun PluginDetailScreen(
 
         if (loadedPlugin.isInstalled) {
             OutlinedButton(
-                onClick = {
-                    detailViewModel.uninstall(pluginId)
-                    onBack()
-                },
+                onClick = { detailViewModel.uninstall(pluginId) },
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(
@@ -167,3 +192,6 @@ fun PluginDetailScreen(
         Spacer(modifier = Modifier.height(24.dp))
     }
 }
+
+/** Delay before writing config changes to the database after typing stops. */
+private const val CONFIG_DEBOUNCE_MS = 500L

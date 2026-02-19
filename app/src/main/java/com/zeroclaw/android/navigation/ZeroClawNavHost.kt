@@ -30,6 +30,7 @@ import com.zeroclaw.android.ui.screen.dashboard.DashboardScreen
 import com.zeroclaw.android.ui.screen.onboarding.OnboardingScreen
 import com.zeroclaw.android.ui.screen.plugins.PluginDetailScreen
 import com.zeroclaw.android.ui.screen.plugins.PluginsScreen
+import com.zeroclaw.android.ui.screen.plugins.PluginsViewModel
 import com.zeroclaw.android.ui.screen.settings.AboutScreen
 import com.zeroclaw.android.ui.screen.settings.AutonomyScreen
 import com.zeroclaw.android.ui.screen.settings.BatterySettingsScreen
@@ -80,6 +81,7 @@ fun ZeroClawNavHost(
     modifier: Modifier = Modifier,
 ) {
     val daemonViewModel: DaemonViewModel = viewModel()
+    val pluginsViewModel: PluginsViewModel = viewModel()
     val pendingBiometricAction by daemonViewModel.pendingBiometricAction
         .collectAsStateWithLifecycle()
     val biometricActivity = LocalContext.current as? FragmentActivity
@@ -162,6 +164,7 @@ fun ZeroClawNavHost(
                     navController.navigate(PluginDetailRoute(pluginId = pluginId))
                 },
                 edgeMargin = edgeMargin,
+                pluginsViewModel = pluginsViewModel,
             )
         }
 
@@ -416,7 +419,10 @@ fun ZeroClawNavHost(
         }
 
         composable<PluginRegistryRoute> {
-            PluginRegistryScreen(edgeMargin = edgeMargin)
+            PluginRegistryScreen(
+                edgeMargin = edgeMargin,
+                onSyncNow = { pluginsViewModel.syncNow() },
+            )
         }
 
         composable<QrScannerRoute> {

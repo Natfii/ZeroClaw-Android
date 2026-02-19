@@ -52,6 +52,7 @@ import java.time.format.DateTimeFormatter
  * manual sync. Shows the last successful sync timestamp.
  *
  * @param edgeMargin Horizontal padding based on window width size class.
+ * @param onSyncNow Callback to trigger an immediate plugin registry sync.
  * @param settingsViewModel The shared [SettingsViewModel].
  * @param modifier Modifier applied to the root layout.
  */
@@ -59,6 +60,7 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun PluginRegistryScreen(
     edgeMargin: Dp,
+    onSyncNow: () -> Unit,
     settingsViewModel: SettingsViewModel = viewModel(),
     modifier: Modifier = Modifier,
 ) {
@@ -133,7 +135,7 @@ fun PluginRegistryScreen(
         )
 
         FilledTonalButton(
-            onClick = { /* manual sync handled at PluginsScreen level */ },
+            onClick = onSyncNow,
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text("Sync Now")
