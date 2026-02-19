@@ -37,6 +37,18 @@ interface PluginDao {
     suspend fun getById(id: String): PluginEntity?
 
     /**
+     * Observes the plugin with the given [id].
+     *
+     * Emits a new value whenever the row changes, or null if the plugin
+     * does not exist or is deleted.
+     *
+     * @param id Unique plugin identifier.
+     * @return A [Flow] emitting the current state of the plugin.
+     */
+    @Query("SELECT * FROM plugins WHERE id = :id")
+    fun observeById(id: String): Flow<PluginEntity?>
+
+    /**
      * Inserts or updates a plugin.
      *
      * @param entity The plugin entity to upsert.
@@ -117,6 +129,18 @@ interface PluginDao {
         category: String,
         remoteVersion: String?,
     )
+
+    /**
+     * Returns the IDs from [ids] that already exist in the plugins table.
+     *
+     * Used by [RoomPluginRepository.mergeRemotePlugins] to batch-check
+     * existence in a single query instead of N individual lookups.
+     *
+     * @param ids Plugin identifiers to check.
+     * @return Subset of [ids] that have matching rows.
+     */
+    @Query("SELECT id FROM plugins WHERE id IN (:ids)")
+    suspend fun getExistingIds(ids: List<String>): List<String>
 
     /**
      * Returns the total number of plugins.

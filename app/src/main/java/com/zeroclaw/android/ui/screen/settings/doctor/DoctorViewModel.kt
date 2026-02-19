@@ -16,6 +16,7 @@ import com.zeroclaw.android.service.DoctorValidator
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
@@ -70,12 +71,13 @@ class DoctorViewModel(
             _summary.value = null
 
             val accumulated = mutableListOf<DiagnosticCheck>()
+            val agents = app.agentRepository.agents.first()
 
-            val configChecks = validator.runConfigChecks()
+            val configChecks = validator.runConfigChecks(preloadedAgents = agents)
             accumulated.addAll(configChecks)
             _checks.value = accumulated.toList()
 
-            val apiKeyChecks = validator.runApiKeyChecks()
+            val apiKeyChecks = validator.runApiKeyChecks(preloadedAgents = agents)
             accumulated.addAll(apiKeyChecks)
             _checks.value = accumulated.toList()
 

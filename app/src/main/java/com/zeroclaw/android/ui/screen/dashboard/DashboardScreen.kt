@@ -46,12 +46,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.zeroclaw.android.ZeroClawApplication
-import com.zeroclaw.android.model.Agent
 import com.zeroclaw.android.model.ComponentHealth
 import com.zeroclaw.android.model.DaemonStatus
 import com.zeroclaw.android.model.HealthDetail
-import com.zeroclaw.android.model.Plugin
 import com.zeroclaw.android.model.ServiceState
 import com.zeroclaw.android.ui.component.LoadingIndicator
 import com.zeroclaw.android.ui.component.SectionHeader
@@ -130,19 +127,9 @@ fun DashboardScreen(
             }
         }
 
-        val app = context.applicationContext as ZeroClawApplication
-        val agents by app.agentRepository.agents
-            .collectAsStateWithLifecycle(initialValue = emptyList())
-        val plugins by app.pluginRepository.plugins
-            .collectAsStateWithLifecycle(initialValue = emptyList())
-        val lastStatus by app.daemonBridge.lastStatus
-            .collectAsStateWithLifecycle()
-
         SectionHeader(title = "At a Glance")
         MetricCardsRow(
-            agents = agents,
-            plugins = plugins,
-            daemonStatus = lastStatus,
+            viewModel = viewModel,
             serviceState = serviceState,
         )
 
@@ -163,8 +150,7 @@ fun DashboardScreen(
         }
 
         SectionHeader(title = "Recent Activity")
-        val activityEvents by app.activityRepository.events
-            .collectAsStateWithLifecycle(initialValue = emptyList())
+        val activityEvents by viewModel.activityEvents.collectAsStateWithLifecycle()
         ActivityFeedSection(events = activityEvents)
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -343,25 +329,22 @@ private const val SECONDS_PER_HOUR = 3600L
  * Row of three compact metric cards summarising agent count, plugin count,
  * and daemon uptime. Each card occupies equal width via [Modifier.weight].
  *
- * The cards provide an at-a-glance overview of the system state on the
- * dashboard without requiring the user to navigate to detail screens.
+ * State reads are scoped to this composable so that changes to agent/plugin
+ * counts or daemon status only recompose this row rather than the entire
+ * dashboard screen.
  *
- * @param agents Current list of all agents; only enabled agents are counted.
- * @param plugins Current list of all plugins; only installed plugins are counted.
- * @param daemonStatus Latest daemon health snapshot, used for uptime. May be null
- *   if the daemon has not been polled yet.
+ * @param viewModel The [DaemonViewModel] providing derived metric flows.
  * @param serviceState Current service lifecycle state; used to determine whether
  *   to show uptime or "Offline".
  */
 @Composable
 private fun MetricCardsRow(
-    agents: List<Agent>,
-    plugins: List<Plugin>,
-    daemonStatus: DaemonStatus?,
+    viewModel: DaemonViewModel,
     serviceState: ServiceState,
 ) {
-    val enabledAgentCount = agents.count { it.isEnabled }
-    val installedPluginCount = plugins.count { it.isInstalled }
+    val enabledAgentCount by viewModel.enabledAgentCount.collectAsStateWithLifecycle()
+    val installedPluginCount by viewModel.installedPluginCount.collectAsStateWithLifecycle()
+    val daemonStatus by viewModel.daemonStatus.collectAsStateWithLifecycle()
     val uptimeText = formatUptime(daemonStatus, serviceState)
 
     Row(

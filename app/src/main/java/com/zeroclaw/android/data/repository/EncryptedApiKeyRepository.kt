@@ -81,24 +81,20 @@ class EncryptedApiKeyRepository(
     override suspend fun getById(id: String): ApiKey? = _keys.value.find { it.id == id }
 
     override suspend fun save(apiKey: ApiKey) {
-        val json =
-            JSONObject().apply {
-                put(JSON_KEY_ID, apiKey.id)
-                put(JSON_KEY_PROVIDER, apiKey.provider)
-                put(JSON_KEY_KEY, apiKey.key)
-                put(JSON_KEY_BASE_URL, apiKey.baseUrl)
-                put(JSON_KEY_CREATED_AT, apiKey.createdAt)
-                put(JSON_KEY_STATUS, apiKey.status.name)
-                put(JSON_KEY_REFRESH_TOKEN, apiKey.refreshToken)
-                put(JSON_KEY_EXPIRES_AT, apiKey.expiresAt)
-            }
-        prefs.edit().putString(apiKey.id, json.toString()).apply()
-        _keys.value = loadAll()
+        persistToPrefs(apiKey)
+        val current = _keys.value.toMutableList()
+        val index = current.indexOfFirst { it.id == apiKey.id }
+        if (index >= 0) {
+            current[index] = apiKey
+        } else {
+            current.add(apiKey)
+        }
+        _keys.value = current.sortedByDescending { it.createdAt }
     }
 
     override suspend fun delete(id: String) {
         prefs.edit().remove(id).apply()
-        _keys.value = loadAll()
+        _keys.value = _keys.value.filter { it.id != id }
     }
 
     override suspend fun exportAll(passphrase: String): String {
@@ -156,9 +152,10 @@ class EncryptedApiKeyRepository(
                     refreshToken = obj.optString(JSON_KEY_REFRESH_TOKEN, ""),
                     expiresAt = obj.optLong(JSON_KEY_EXPIRES_AT, 0L),
                 )
-            save(apiKey)
+            persistToPrefs(apiKey)
             count++
         }
+        _keys.value = loadAll()
         return count
     }
 
@@ -174,8 +171,30 @@ class EncryptedApiKeyRepository(
         return _keys.value.firstOrNull { key ->
             val keyResolved = ProviderRegistry.findById(key.provider)
             val keyId = keyResolved?.id ?: key.provider.lowercase()
-            keyId in targetAliases || targetAliases.contains(keyId)
+            keyId in targetAliases
         }
+    }
+
+    /**
+     * Writes a single [ApiKey] to encrypted preferences as a JSON string.
+     *
+     * This is the low-level persistence operation extracted from [save] so
+     * that batch callers like [importFrom] can write many keys without
+     * triggering a full [loadAll] on each iteration.
+     */
+    private fun persistToPrefs(apiKey: ApiKey) {
+        val json =
+            JSONObject().apply {
+                put(JSON_KEY_ID, apiKey.id)
+                put(JSON_KEY_PROVIDER, apiKey.provider)
+                put(JSON_KEY_KEY, apiKey.key)
+                put(JSON_KEY_BASE_URL, apiKey.baseUrl)
+                put(JSON_KEY_CREATED_AT, apiKey.createdAt)
+                put(JSON_KEY_STATUS, apiKey.status.name)
+                put(JSON_KEY_REFRESH_TOKEN, apiKey.refreshToken)
+                put(JSON_KEY_EXPIRES_AT, apiKey.expiresAt)
+            }
+        prefs.edit().putString(apiKey.id, json.toString()).apply()
     }
 
     @Suppress("TooGenericExceptionCaught")

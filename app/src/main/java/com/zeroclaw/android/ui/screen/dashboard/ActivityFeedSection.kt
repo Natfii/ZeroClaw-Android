@@ -20,9 +20,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.zeroclaw.android.model.ActivityEvent
 import com.zeroclaw.android.model.ActivityType
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 /**
  * Activity feed section for the dashboard showing recent events.
@@ -109,8 +109,15 @@ private fun activityIcon(type: ActivityType): String =
         ActivityType.CONFIG_CHANGE -> "\u2699"
     }
 
-private val activityTimeFormat = SimpleDateFormat("HH:mm", Locale.US)
+private val activityTimeFormat: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("HH:mm").withZone(ZoneId.systemDefault())
 
-private fun formatTime(epochMs: Long): String = activityTimeFormat.format(Date(epochMs))
+/**
+ * Formats a Unix timestamp in milliseconds to a time string.
+ *
+ * @param epochMs Milliseconds since epoch.
+ * @return Formatted time string (HH:mm).
+ */
+private fun formatTime(epochMs: Long): String = activityTimeFormat.format(Instant.ofEpochMilli(epochMs))
 
 private const val MAX_VISIBLE_EVENTS = 5

@@ -58,9 +58,10 @@ fun ToolsBrowserScreen(
     toolsBrowserViewModel: ToolsBrowserViewModel = viewModel(),
     modifier: Modifier = Modifier,
 ) {
-    val uiState by toolsBrowserViewModel.uiState.collectAsStateWithLifecycle()
+    val filteredState by toolsBrowserViewModel.filteredUiState.collectAsStateWithLifecycle()
     val searchQuery by toolsBrowserViewModel.searchQuery.collectAsStateWithLifecycle()
     val sourceFilter by toolsBrowserViewModel.sourceFilter.collectAsStateWithLifecycle()
+    val sources by toolsBrowserViewModel.availableSources.collectAsStateWithLifecycle()
 
     Column(
         modifier =
@@ -80,13 +81,13 @@ fun ToolsBrowserScreen(
         Spacer(modifier = Modifier.height(8.dp))
 
         SourceFilterRow(
-            sources = toolsBrowserViewModel.availableSources(),
+            sources = sources,
             selected = sourceFilter,
             onSelect = { toolsBrowserViewModel.setSourceFilter(it) },
         )
         Spacer(modifier = Modifier.height(12.dp))
 
-        when (val state = uiState) {
+        when (val state = filteredState) {
             is ToolsUiState.Loading -> {
                 LoadingIndicator(
                     modifier = Modifier.align(Alignment.CenterHorizontally),
@@ -99,9 +100,7 @@ fun ToolsBrowserScreen(
                 )
             }
             is ToolsUiState.Content -> {
-                val filtered = filterTools(state.data, searchQuery, sourceFilter)
-
-                if (filtered.isEmpty()) {
+                if (state.data.isEmpty()) {
                     EmptyState(
                         icon = Icons.Outlined.Build,
                         message =
@@ -112,7 +111,7 @@ fun ToolsBrowserScreen(
                             },
                     )
                 } else {
-                    ToolsList(tools = filtered)
+                    ToolsList(tools = state.data)
                 }
             }
         }
@@ -148,33 +147,6 @@ private fun SourceFilterRow(
             )
         }
     }
-}
-
-/**
- * Filters tools by search query and source.
- *
- * @param tools All tools from the daemon.
- * @param query Search query text.
- * @param source Source filter value.
- * @return Filtered list of tools.
- */
-private fun filterTools(
-    tools: List<ToolSpec>,
-    query: String,
-    source: String,
-): List<ToolSpec> {
-    var result = tools
-    if (source != SOURCE_ALL) {
-        result = result.filter { it.source == source }
-    }
-    if (query.isNotBlank()) {
-        result =
-            result.filter { tool ->
-                tool.name.contains(query, ignoreCase = true) ||
-                    tool.description.contains(query, ignoreCase = true)
-            }
-    }
-    return result
 }
 
 /**

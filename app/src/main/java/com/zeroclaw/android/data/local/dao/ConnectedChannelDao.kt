@@ -60,6 +60,17 @@ interface ConnectedChannelDao {
     suspend fun deleteById(id: String)
 
     /**
+     * Returns all enabled channels as a one-shot list.
+     *
+     * Unlike [observeAll], this does not create a reactive [Flow] and is
+     * suited for imperative callers that need the current snapshot.
+     *
+     * @return All channels whose `is_enabled` flag is true.
+     */
+    @Query("SELECT * FROM connected_channels WHERE is_enabled = 1")
+    suspend fun getAllEnabled(): List<ConnectedChannelEntity>
+
+    /**
      * Toggles the enabled state of the channel with the given [id].
      *
      * @param id Unique channel identifier.

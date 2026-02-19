@@ -11,78 +11,106 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.zeroclaw.android.ZeroClawApplication
 import com.zeroclaw.android.model.Plugin
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /**
  * ViewModel for the plugin detail screen.
  *
- * Loads a single plugin and provides install/uninstall, toggle,
- * and configuration update operations.
+ * Derives plugin state reactively from [PluginRepository.observeById] so that
+ * database changes from any source (user actions, plugin sync, etc.) are
+ * automatically reflected without redundant one-shot `getById` calls or
+ * manual in-memory state patches.
  *
  * @param application Application context for accessing the plugin repository.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class PluginDetailViewModel(
     application: Application,
 ) : AndroidViewModel(application) {
     private val repository = (application as ZeroClawApplication).pluginRepository
 
-    private val _plugin = MutableStateFlow<Plugin?>(null)
-
-    /** The currently loaded plugin, or null if not yet loaded. */
-    val plugin: StateFlow<Plugin?> = _plugin.asStateFlow()
+    private val pluginId = MutableStateFlow<String?>(null)
 
     /**
-     * Loads the plugin with the given [pluginId].
+     * The currently observed plugin, or null if no plugin ID has been set
+     * or the plugin does not exist.
      *
-     * @param pluginId Unique identifier of the plugin to load.
+     * Derived from [PluginRepository.observeById] and updated automatically
+     * whenever the underlying database row changes.
+     */
+    val plugin: StateFlow<Plugin?> =
+        pluginId
+            .flatMapLatest { id ->
+                if (id != null) repository.observeById(id) else flowOf(null)
+            }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), null)
+
+    /**
+     * Sets the plugin ID to observe.
+     *
+     * Triggers the reactive [plugin] Flow to start emitting updates for
+     * the specified plugin. Subsequent calls with the same ID are no-ops
+     * since [MutableStateFlow] deduplicates identical values.
+     *
+     * @param pluginId Unique identifier of the plugin to observe.
      */
     fun loadPlugin(pluginId: String) {
-        viewModelScope.launch {
-            _plugin.value = repository.getById(pluginId)
-        }
+        this.pluginId.value = pluginId
     }
 
     /**
-     * Installs the currently loaded plugin.
+     * Installs the plugin with the given [pluginId].
+     *
+     * The UI updates automatically via the reactive [plugin] Flow after the
+     * database write completes.
      *
      * @param pluginId Unique identifier of the plugin.
      */
     fun install(pluginId: String) {
         viewModelScope.launch {
             repository.install(pluginId)
-            _plugin.value = repository.getById(pluginId)
         }
     }
 
     /**
-     * Uninstalls the currently loaded plugin.
+     * Uninstalls the plugin with the given [pluginId].
+     *
+     * The UI updates automatically via the reactive [plugin] Flow after the
+     * database write completes.
      *
      * @param pluginId Unique identifier of the plugin.
      */
     fun uninstall(pluginId: String) {
         viewModelScope.launch {
             repository.uninstall(pluginId)
-            _plugin.value = repository.getById(pluginId)
         }
     }
 
     /**
-     * Toggles the enabled state of the currently loaded plugin.
+     * Toggles the enabled state of the plugin with the given [pluginId].
+     *
+     * The UI updates automatically via the reactive [plugin] Flow after the
+     * database write completes.
      *
      * @param pluginId Unique identifier of the plugin.
      */
     fun toggleEnabled(pluginId: String) {
         viewModelScope.launch {
             repository.toggleEnabled(pluginId)
-            _plugin.value = repository.getById(pluginId)
         }
     }
 
     /**
      * Updates a configuration value for the plugin.
+     *
+     * The UI updates automatically via the reactive [plugin] Flow after the
+     * database write completes.
      *
      * @param pluginId Unique plugin identifier.
      * @param key Configuration field key.
@@ -95,7 +123,12 @@ class PluginDetailViewModel(
     ) {
         viewModelScope.launch {
             repository.updateConfig(pluginId, key, value)
-            _plugin.value = repository.getById(pluginId)
         }
+    }
+
+    /** Constants for [PluginDetailViewModel]. */
+    companion object {
+        /** Upstream subscription timeout for [SharingStarted.WhileSubscribed]. */
+        private const val STOP_TIMEOUT_MS = 5000L
     }
 }

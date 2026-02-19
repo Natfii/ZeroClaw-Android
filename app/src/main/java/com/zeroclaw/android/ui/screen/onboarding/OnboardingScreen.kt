@@ -90,42 +90,12 @@ fun OnboardingScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        val providerState by onboardingViewModel.selectedProvider.collectAsStateWithLifecycle()
-        val apiKeyState by onboardingViewModel.apiKey.collectAsStateWithLifecycle()
-        val baseUrlState by onboardingViewModel.baseUrl.collectAsStateWithLifecycle()
-        val modelState by onboardingViewModel.selectedModel.collectAsStateWithLifecycle()
-        val agentNameState by onboardingViewModel.agentName.collectAsStateWithLifecycle()
-        val channelTypeState by onboardingViewModel.selectedChannelType
-            .collectAsStateWithLifecycle()
-        val channelFieldsState by onboardingViewModel.channelFieldValues
-            .collectAsStateWithLifecycle()
-
         Column(modifier = Modifier.weight(1f)) {
             when (currentStep) {
                 STEP_PERMISSIONS -> PermissionsStep()
-                STEP_PROVIDER ->
-                    ProviderStep(
-                        selectedProvider = providerState,
-                        apiKey = apiKeyState,
-                        baseUrl = baseUrlState,
-                        selectedModel = modelState,
-                        onProviderChanged = onboardingViewModel::setProvider,
-                        onApiKeyChanged = onboardingViewModel::setApiKey,
-                        onBaseUrlChanged = onboardingViewModel::setBaseUrl,
-                        onModelChanged = onboardingViewModel::setModel,
-                    )
-                STEP_AGENT_CONFIG ->
-                    AgentConfigStep(
-                        agentName = agentNameState,
-                        onAgentNameChanged = onboardingViewModel::setAgentName,
-                    )
-                STEP_CHANNELS ->
-                    ChannelSetupStep(
-                        selectedType = channelTypeState,
-                        channelFieldValues = channelFieldsState,
-                        onTypeSelected = onboardingViewModel::setChannelType,
-                        onFieldChanged = onboardingViewModel::setChannelField,
-                    )
+                STEP_PROVIDER -> ProviderStepCollector(onboardingViewModel)
+                STEP_AGENT_CONFIG -> AgentConfigStepCollector(onboardingViewModel)
+                STEP_CHANNELS -> ChannelSetupStepCollector(onboardingViewModel)
                 STEP_ACTIVATION ->
                     ActivationStep(
                         onActivate = {
@@ -153,4 +123,70 @@ fun OnboardingScreen(
             }
         }
     }
+}
+
+/**
+ * Collects provider-related flows and delegates to [ProviderStep].
+ *
+ * Isolating the flow collections here prevents provider state changes from
+ * recomposing the parent [OnboardingScreen] layout (progress bar, buttons).
+ *
+ * @param viewModel The [OnboardingViewModel] owning the provider state flows.
+ */
+@Composable
+private fun ProviderStepCollector(viewModel: OnboardingViewModel) {
+    val provider by viewModel.selectedProvider.collectAsStateWithLifecycle()
+    val apiKey by viewModel.apiKey.collectAsStateWithLifecycle()
+    val baseUrl by viewModel.baseUrl.collectAsStateWithLifecycle()
+    val model by viewModel.selectedModel.collectAsStateWithLifecycle()
+
+    ProviderStep(
+        selectedProvider = provider,
+        apiKey = apiKey,
+        baseUrl = baseUrl,
+        selectedModel = model,
+        onProviderChanged = viewModel::setProvider,
+        onApiKeyChanged = viewModel::setApiKey,
+        onBaseUrlChanged = viewModel::setBaseUrl,
+        onModelChanged = viewModel::setModel,
+    )
+}
+
+/**
+ * Collects the agent name flow and delegates to [AgentConfigStep].
+ *
+ * Isolating the flow collection here prevents agent name changes from
+ * recomposing the parent [OnboardingScreen] layout.
+ *
+ * @param viewModel The [OnboardingViewModel] owning the agent name flow.
+ */
+@Composable
+private fun AgentConfigStepCollector(viewModel: OnboardingViewModel) {
+    val agentName by viewModel.agentName.collectAsStateWithLifecycle()
+
+    AgentConfigStep(
+        agentName = agentName,
+        onAgentNameChanged = viewModel::setAgentName,
+    )
+}
+
+/**
+ * Collects channel-related flows and delegates to [ChannelSetupStep].
+ *
+ * Isolating the flow collections here prevents channel state changes from
+ * recomposing the parent [OnboardingScreen] layout.
+ *
+ * @param viewModel The [OnboardingViewModel] owning the channel state flows.
+ */
+@Composable
+private fun ChannelSetupStepCollector(viewModel: OnboardingViewModel) {
+    val channelType by viewModel.selectedChannelType.collectAsStateWithLifecycle()
+    val channelFields by viewModel.channelFieldValues.collectAsStateWithLifecycle()
+
+    ChannelSetupStep(
+        selectedType = channelType,
+        channelFieldValues = channelFields,
+        onTypeSelected = viewModel::setChannelType,
+        onFieldChanged = viewModel::setChannelField,
+    )
 }

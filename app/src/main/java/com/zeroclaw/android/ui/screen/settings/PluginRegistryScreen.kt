@@ -40,9 +40,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zeroclaw.android.ui.component.SectionHeader
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 /**
  * Plugin registry sync configuration screen.
@@ -191,16 +191,17 @@ private fun SyncIntervalDropdown(
     }
 }
 
+/** Date-time formatter for plugin registry sync timestamps. */
+private val registryTimestampFormat: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(ZoneId.systemDefault())
+
 /**
  * Formats a Unix timestamp in milliseconds to a human-readable date/time string.
  *
  * @param timestamp Milliseconds since epoch.
  * @return Formatted date/time string.
  */
-private fun formatTimestamp(timestamp: Long): String {
-    val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
-    return formatter.format(Date(timestamp))
-}
+private fun formatTimestamp(timestamp: Long): String = registryTimestampFormat.format(Instant.ofEpochMilli(timestamp))
 
 /** Sync interval options as (hours, label) pairs. */
 private val INTERVAL_OPTIONS =

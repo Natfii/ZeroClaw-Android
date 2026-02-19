@@ -52,6 +52,10 @@ import com.zeroclaw.android.ui.component.LoadingIndicator
 /** Maximum number of content lines to show in a memory card. */
 private const val CONTENT_MAX_LINES = 4
 
+/** Ordered list of category filter options for the filter chip row. */
+private val CATEGORY_FILTERS =
+    listOf(CATEGORY_ALL, CATEGORY_CORE, CATEGORY_DAILY, CATEGORY_CONVERSATION)
+
 /**
  * Screen for browsing and managing daemon memory entries.
  *
@@ -177,14 +181,11 @@ private fun CategoryFilterRow(
     selected: String,
     onSelect: (String) -> Unit,
 ) {
-    val categories =
-        listOf(CATEGORY_ALL, CATEGORY_CORE, CATEGORY_DAILY, CATEGORY_CONVERSATION)
-
     Row(
         modifier = Modifier.horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        categories.forEach { category ->
+        CATEGORY_FILTERS.forEach { category ->
             FilterChip(
                 selected = category == selected,
                 onClick = { onSelect(category) },

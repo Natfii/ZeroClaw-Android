@@ -9,8 +9,12 @@ import com.zeroclaw.android.ZeroClawApplication
 import com.zeroclaw.android.model.ToolSpec
 import com.zeroclaw.android.service.ToolsBridge
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /**
@@ -78,6 +82,46 @@ class ToolsBrowserViewModel(
     /** Current source filter value. */
     val sourceFilter: StateFlow<String> = _sourceFilter.asStateFlow()
 
+    /** Distinct source values derived from the current tool list. */
+    val availableSources: StateFlow<List<String>> =
+        _uiState
+            .map { state ->
+                if (state is ToolsUiState.Content) {
+                    val sources =
+                        state.data
+                            .map { it.source }
+                            .distinct()
+                            .sorted()
+                    listOf(SOURCE_ALL) + sources
+                } else {
+                    listOf(SOURCE_ALL)
+                }
+            }.stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(),
+                initialValue = listOf(SOURCE_ALL),
+            )
+
+    /**
+     * Pre-filtered UI state combining the raw tools list with
+     * the current search query and source filter.
+     *
+     * Filtering runs in the ViewModel so the composable receives
+     * an already-filtered list without recomputing on every recomposition.
+     */
+    val filteredUiState: StateFlow<ToolsUiState<List<ToolSpec>>> =
+        combine(_uiState, _searchQuery, _sourceFilter) { state, query, source ->
+            if (state is ToolsUiState.Content) {
+                ToolsUiState.Content(filterTools(state.data, query, source))
+            } else {
+                state
+            }
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(),
+            initialValue = ToolsUiState.Loading,
+        )
+
     init {
         loadTools()
     }
@@ -108,25 +152,6 @@ class ToolsBrowserViewModel(
         _sourceFilter.value = source
     }
 
-    /**
-     * Returns the unique source values from the current tool list.
-     *
-     * @return Sorted list of unique sources including [SOURCE_ALL].
-     */
-    fun availableSources(): List<String> {
-        val state = _uiState.value
-        return if (state is ToolsUiState.Content) {
-            val sources =
-                state.data
-                    .map { it.source }
-                    .distinct()
-                    .sorted()
-            listOf(SOURCE_ALL) + sources
-        } else {
-            listOf(SOURCE_ALL)
-        }
-    }
-
     @Suppress("TooGenericExceptionCaught")
     private suspend fun loadToolsInternal() {
         try {
@@ -137,6 +162,36 @@ class ToolsBrowserViewModel(
                 ToolsUiState.Error(
                     e.message ?: "Failed to load tools",
                 )
+        }
+    }
+
+    /** Utility functions for tools filtering. */
+    companion object {
+        /**
+         * Filters tools by search query and source.
+         *
+         * @param tools All tools from the daemon.
+         * @param query Search query text.
+         * @param source Source filter value.
+         * @return Filtered list of tools.
+         */
+        private fun filterTools(
+            tools: List<ToolSpec>,
+            query: String,
+            source: String,
+        ): List<ToolSpec> {
+            var result = tools
+            if (source != SOURCE_ALL) {
+                result = result.filter { it.source == source }
+            }
+            if (query.isNotBlank()) {
+                result =
+                    result.filter { tool ->
+                        tool.name.contains(query, ignoreCase = true) ||
+                            tool.description.contains(query, ignoreCase = true)
+                    }
+            }
+            return result
         }
     }
 }

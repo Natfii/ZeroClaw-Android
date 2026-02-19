@@ -13,19 +13,25 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import coil3.compose.SubcomposeAsyncImage
+import coil3.request.ImageRequest
 import com.zeroclaw.android.data.ProviderRegistry
 
 /** Minimum touch target size for accessibility. */
 private const val ICON_SIZE_DP = 40
+
+/** Pre-scaled pixel size for Coil image requests (40dp at 4x density). */
+private const val ICON_SIZE_PX = 160
 
 /** Brand color for Anthropic provider. */
 private const val COLOR_ANTHROPIC = 0xFFD97706
@@ -76,9 +82,39 @@ private const val COLOR_CLOUDFLARE = 0xFFF48120
 private const val COLOR_BEDROCK = 0xFFFF9900
 
 /**
+ * Pre-computed brand color pairs (background, foreground) keyed by provider ID.
+ *
+ * File-level constant map avoids allocating new [Color] and [Pair] objects on
+ * every recomposition. Providers not in this map fall back to Material theme
+ * colors at the call site.
+ */
+private val PROVIDER_COLORS: Map<String, Pair<Color, Color>> =
+    mapOf(
+        "anthropic" to Pair(Color(COLOR_ANTHROPIC), Color.White),
+        "openai" to Pair(Color(COLOR_OPENAI), Color.White),
+        "google-gemini" to Pair(Color(COLOR_GOOGLE), Color.White),
+        "mistral" to Pair(Color(COLOR_MISTRAL), Color.White),
+        "meta" to Pair(Color(COLOR_META), Color.White),
+        "openrouter" to Pair(Color(COLOR_OPENROUTER), Color.White),
+        "groq" to Pair(Color(COLOR_GROQ), Color.White),
+        "xai" to Pair(Color(COLOR_XAI), Color.White),
+        "deepseek" to Pair(Color(COLOR_DEEPSEEK), Color.White),
+        "together" to Pair(Color(COLOR_TOGETHER), Color.White),
+        "fireworks" to Pair(Color(COLOR_FIREWORKS), Color.White),
+        "perplexity" to Pair(Color(COLOR_PERPLEXITY), Color.White),
+        "cohere" to Pair(Color(COLOR_COHERE), Color.White),
+        "ollama" to Pair(Color(COLOR_OLLAMA), Color.White),
+        "cloudflare" to Pair(Color(COLOR_CLOUDFLARE), Color.White),
+        "bedrock" to Pair(Color(COLOR_BEDROCK), Color.White),
+    )
+
+/**
  * Circular icon showing the provider's logo fetched via Coil, with a
  * colored-circle-with-initial fallback when no icon URL is available or
  * loading fails.
+ *
+ * The image request includes an explicit size so Coil can decode at
+ * the correct resolution without needing to measure the composable.
  *
  * Uses [ProviderRegistry] to resolve aliases so that e.g. "google" and
  * "google-gemini" both produce the same icon.
@@ -97,8 +133,17 @@ fun ProviderIcon(
     val iconUrl = resolved?.iconUrl.orEmpty()
 
     if (iconUrl.isNotEmpty()) {
+        val context = LocalContext.current
+        val imageRequest =
+            remember(iconUrl) {
+                ImageRequest
+                    .Builder(context)
+                    .data(iconUrl)
+                    .size(ICON_SIZE_PX, ICON_SIZE_PX)
+                    .build()
+            }
         SubcomposeAsyncImage(
-            model = iconUrl,
+            model = imageRequest,
             contentDescription = "$displayName provider",
             contentScale = ContentScale.Crop,
             modifier =
@@ -126,7 +171,11 @@ private fun InitialCircle(
     displayName: String,
     modifier: Modifier,
 ) {
-    val (bgColor, fgColor) = providerColors(providerId)
+    val fallbackBg = MaterialTheme.colorScheme.secondaryContainer
+    val fallbackFg = MaterialTheme.colorScheme.onSecondaryContainer
+    val (bgColor, fgColor) =
+        PROVIDER_COLORS[providerId]
+            ?: Pair(fallbackBg, fallbackFg)
     val initial = displayName.firstOrNull()?.uppercase() ?: "?"
 
     Box(
@@ -145,35 +194,3 @@ private fun InitialCircle(
         )
     }
 }
-
-/**
- * Returns background and foreground colors for the given provider ID.
- *
- * @param providerId Resolved canonical provider ID.
- * @return Pair of (background, foreground) colors.
- */
-@Composable
-private fun providerColors(providerId: String): Pair<Color, Color> =
-    when (providerId) {
-        "anthropic" -> Pair(Color(COLOR_ANTHROPIC), Color.White)
-        "openai" -> Pair(Color(COLOR_OPENAI), Color.White)
-        "google-gemini" -> Pair(Color(COLOR_GOOGLE), Color.White)
-        "mistral" -> Pair(Color(COLOR_MISTRAL), Color.White)
-        "meta" -> Pair(Color(COLOR_META), Color.White)
-        "openrouter" -> Pair(Color(COLOR_OPENROUTER), Color.White)
-        "groq" -> Pair(Color(COLOR_GROQ), Color.White)
-        "xai" -> Pair(Color(COLOR_XAI), Color.White)
-        "deepseek" -> Pair(Color(COLOR_DEEPSEEK), Color.White)
-        "together" -> Pair(Color(COLOR_TOGETHER), Color.White)
-        "fireworks" -> Pair(Color(COLOR_FIREWORKS), Color.White)
-        "perplexity" -> Pair(Color(COLOR_PERPLEXITY), Color.White)
-        "cohere" -> Pair(Color(COLOR_COHERE), Color.White)
-        "ollama" -> Pair(Color(COLOR_OLLAMA), Color.White)
-        "cloudflare" -> Pair(Color(COLOR_CLOUDFLARE), Color.White)
-        "bedrock" -> Pair(Color(COLOR_BEDROCK), Color.White)
-        else ->
-            Pair(
-                MaterialTheme.colorScheme.secondaryContainer,
-                MaterialTheme.colorScheme.onSecondaryContainer,
-            )
-    }

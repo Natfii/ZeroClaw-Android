@@ -9,8 +9,11 @@ import com.zeroclaw.android.ZeroClawApplication
 import com.zeroclaw.android.model.Skill
 import com.zeroclaw.android.service.SkillsBridge
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /**
@@ -75,6 +78,26 @@ class SkillsViewModel(
      * after displaying.
      */
     val snackbarMessage: StateFlow<String?> = _snackbarMessage.asStateFlow()
+
+    /**
+     * Pre-filtered UI state combining the raw skills list with the
+     * current search query.
+     *
+     * Filtering runs in the ViewModel so the composable receives
+     * an already-filtered list without recomputing on every recomposition.
+     */
+    val filteredUiState: StateFlow<SkillsUiState<List<Skill>>> =
+        combine(_uiState, _searchQuery) { state, query ->
+            if (state is SkillsUiState.Content) {
+                SkillsUiState.Content(filterSkills(state.data, query))
+            } else {
+                state
+            }
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(),
+            initialValue = SkillsUiState.Loading,
+        )
 
     init {
         loadSkills()
@@ -152,6 +175,27 @@ class SkillsViewModel(
             loadSkillsInternal()
         } catch (e: Exception) {
             _snackbarMessage.value = "Error: ${e.message ?: "unknown"}"
+        }
+    }
+
+    /** Utility functions for skills filtering. */
+    companion object {
+        /**
+         * Filters skills by search query against name and description.
+         *
+         * @param skills All skills from the bridge.
+         * @param query Search query text.
+         * @return Filtered list of skills.
+         */
+        private fun filterSkills(
+            skills: List<Skill>,
+            query: String,
+        ): List<Skill> {
+            if (query.isBlank()) return skills
+            return skills.filter { skill ->
+                skill.name.contains(query, ignoreCase = true) ||
+                    skill.description.contains(query, ignoreCase = true)
+            }
         }
     }
 }

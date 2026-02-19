@@ -30,8 +30,8 @@ import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -70,7 +70,7 @@ fun SecurityOverviewScreen(
 ) {
     val settings by settingsViewModel.settings.collectAsStateWithLifecycle()
     val application = LocalContext.current.applicationContext as ZeroClawApplication
-    val apiKeys by application.apiKeyRepository.keys.collectAsState(initial = emptyList())
+    val apiKeys by application.apiKeyRepository.keys.collectAsStateWithLifecycle(initialValue = emptyList())
     val storageHealth = application.apiKeyRepository.storageHealth
 
     Column(
@@ -380,8 +380,8 @@ private fun AllowedForbiddenSection(
     allowedCommands: String,
     forbiddenPaths: String,
 ) {
-    val commands = parseCommaSeparated(allowedCommands)
-    val paths = parseCommaSeparated(forbiddenPaths)
+    val commands = remember(allowedCommands) { parseCommaSeparated(allowedCommands) }
+    val paths = remember(forbiddenPaths) { parseCommaSeparated(forbiddenPaths) }
 
     CollapsibleSection(title = "Allowed Commands (${commands.size})") {
         if (commands.isEmpty()) {

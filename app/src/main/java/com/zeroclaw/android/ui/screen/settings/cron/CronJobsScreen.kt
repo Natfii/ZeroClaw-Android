@@ -176,11 +176,23 @@ private fun CronJobsList(
             key = { it.id },
             contentType = { "cron_job" },
         ) { job ->
+            val onPauseJob =
+                remember(job.id) {
+                    { onPause(job.id) }
+                }
+            val onResumeJob =
+                remember(job.id) {
+                    { onResume(job.id) }
+                }
+            val onRemoveJob =
+                remember(job.id) {
+                    { onRemove(job.id) }
+                }
             CronJobCard(
                 job = job,
-                onPause = { onPause(job.id) },
-                onResume = { onResume(job.id) },
-                onRemove = { onRemove(job.id) },
+                onPause = onPauseJob,
+                onResume = onResumeJob,
+                onRemove = onRemoveJob,
             )
         }
         item { Spacer(modifier = Modifier.height(80.dp)) }

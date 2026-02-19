@@ -11,6 +11,7 @@ import android.content.Intent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.zeroclaw.android.ZeroClawApplication
+import com.zeroclaw.android.model.ActivityEvent
 import com.zeroclaw.android.model.CostSummary
 import com.zeroclaw.android.model.CronJob
 import com.zeroclaw.android.model.DaemonStatus
@@ -22,13 +23,15 @@ import com.zeroclaw.android.service.CronBridge
 import com.zeroclaw.android.service.DaemonServiceBridge
 import com.zeroclaw.android.service.HealthBridge
 import com.zeroclaw.android.service.ZeroClawDaemonService
-import com.zeroclaw.ffi.FfiException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /**
@@ -101,6 +104,32 @@ class DaemonViewModel(
     private val costBridge: CostBridge = app.costBridge
     private val cronBridge: CronBridge = app.cronBridge
 
+    /**
+     * Count of enabled agents, derived from the agent repository flow.
+     *
+     * Scoped with [SharingStarted.WhileSubscribed] so collection stops
+     * when no UI is observing, saving database query overhead.
+     */
+    val enabledAgentCount: StateFlow<Int> =
+        app.agentRepository.agents
+            .map { list -> list.count { it.isEnabled } }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), 0)
+
+    /**
+     * Count of installed plugins, derived from the plugin repository flow.
+     */
+    val installedPluginCount: StateFlow<Int> =
+        app.pluginRepository.plugins
+            .map { list -> list.count { it.isInstalled } }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), 0)
+
+    /**
+     * Recent activity events for the dashboard feed.
+     */
+    val activityEvents: StateFlow<List<ActivityEvent>> =
+        app.activityRepository.events
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), emptyList())
+
     private val _pendingBiometricAction = MutableStateFlow<BiometricAction?>(null)
 
     /**
@@ -164,7 +193,6 @@ class DaemonViewModel(
      */
     val cronJobs: StateFlow<List<CronJob>> = _cronJobs.asStateFlow()
 
-    private var statusPollJob: Job? = null
     private var healthPollJob: Job? = null
     private var costPollJob: Job? = null
     private var cronPollJob: Job? = null
@@ -174,7 +202,6 @@ class DaemonViewModel(
             bridge.serviceState.collect { state ->
                 when (state) {
                     ServiceState.RUNNING -> {
-                        startStatusPolling()
                         startHealthPolling()
                         startCostPolling()
                         startCronPolling()
@@ -316,30 +343,6 @@ class DaemonViewModel(
         _keyRejectionEvent.value = null
     }
 
-    private fun startStatusPolling() {
-        stopStatusPolling()
-        statusPollJob =
-            viewModelScope.launch {
-                while (true) {
-                    delay(STATUS_POLL_INTERVAL_MS)
-                    try {
-                        bridge.pollStatus()
-                    } catch (e: FfiException) {
-                        _statusState.value =
-                            DaemonUiState.Error(
-                                detail = e.message ?: "status poll failed",
-                                retry = { requestStart() },
-                            )
-                    }
-                }
-            }
-    }
-
-    private fun stopStatusPolling() {
-        statusPollJob?.cancel()
-        statusPollJob = null
-    }
-
     @Suppress("TooGenericExceptionCaught")
     private fun startHealthPolling() {
         stopHealthPolling()
@@ -404,7 +407,6 @@ class DaemonViewModel(
     }
 
     private fun stopAllPolling() {
-        stopStatusPolling()
         stopHealthPolling()
         stopCostPolling()
         stopCronPolling()
@@ -412,9 +414,9 @@ class DaemonViewModel(
 
     /** Constants for [DaemonViewModel]. */
     companion object {
-        private const val STATUS_POLL_INTERVAL_MS = 5_000L
-        private const val HEALTH_POLL_INTERVAL_MS = 5_000L
-        private const val COST_POLL_INTERVAL_MS = 10_000L
-        private const val CRON_POLL_INTERVAL_MS = 10_000L
+        private const val HEALTH_POLL_INTERVAL_MS = 15_000L
+        private const val COST_POLL_INTERVAL_MS = 30_000L
+        private const val CRON_POLL_INTERVAL_MS = 30_000L
+        private const val STOP_TIMEOUT_MS = 5_000L
     }
 }

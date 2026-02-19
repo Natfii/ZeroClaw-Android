@@ -34,6 +34,7 @@ class DaemonNotificationManager(
     private val notificationManager =
         context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
+    @Volatile
     private var lastUpdateTimeMs = 0L
 
     /**

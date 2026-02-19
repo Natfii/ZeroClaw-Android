@@ -48,7 +48,7 @@ import kotlinx.coroutines.launch
         ConnectedChannelEntity::class,
         ChatMessageEntity::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = true,
 )
 abstract class ZeroClawDatabase : RoomDatabase() {
@@ -143,6 +143,16 @@ abstract class ZeroClawDatabase : RoomDatabase() {
                 }
             }
 
+        /** Migration from schema version 6 to 7: adds unique index on connected_channels.type. */
+        private val MIGRATION_6_7 =
+            object : Migration(6, 7) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL(
+                        "CREATE UNIQUE INDEX IF NOT EXISTS `index_connected_channels_type` ON `connected_channels` (`type`)",
+                    )
+                }
+            }
+
         /**
          * Ordered array of schema migrations.
          *
@@ -150,7 +160,14 @@ abstract class ZeroClawDatabase : RoomDatabase() {
          * Each migration covers a single version increment (e.g. 1->2).
          */
         val MIGRATIONS: Array<Migration> =
-            arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+            arrayOf(
+                MIGRATION_1_2,
+                MIGRATION_2_3,
+                MIGRATION_3_4,
+                MIGRATION_4_5,
+                MIGRATION_5_6,
+                MIGRATION_6_7,
+            )
 
         /**
          * Builds a [ZeroClawDatabase] instance with seed data inserted on first creation.

@@ -17,8 +17,8 @@ import androidx.compose.ui.semantics.semantics
 /** Number of trailing characters shown unmasked. */
 private const val VISIBLE_SUFFIX_LENGTH = 4
 
-/** Character used as the mask placeholder. */
-private const val MASK_CHAR = '\u2022'
+/** Mask placeholder string (bullet character). */
+private const val MASK_STRING = "\u2022"
 
 /** Minimum number of mask characters to display for short or empty keys. */
 private const val MINIMUM_MASK_LENGTH = 4
@@ -77,11 +77,11 @@ fun MaskedText(
  * @return Masked representation.
  */
 internal fun maskText(text: String): String {
-    if (text.isEmpty()) return MASK_CHAR.toString().repeat(MINIMUM_MASK_LENGTH)
+    if (text.isEmpty()) return MASK_STRING.repeat(MINIMUM_MASK_LENGTH)
     if (text.length <= VISIBLE_SUFFIX_LENGTH) {
-        return MASK_CHAR.toString().repeat(MINIMUM_MASK_LENGTH)
+        return MASK_STRING.repeat(MINIMUM_MASK_LENGTH)
     }
     val maskLength = text.length - VISIBLE_SUFFIX_LENGTH
-    return MASK_CHAR.toString().repeat(maskLength) +
+    return MASK_STRING.repeat(maskLength) +
         text.takeLast(VISIBLE_SUFFIX_LENGTH)
 }

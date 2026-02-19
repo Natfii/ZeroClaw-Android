@@ -258,7 +258,11 @@ fun ApiKeysScreen(
                     )
                 }
 
-                items(items = keys, key = { it.id }) { apiKey ->
+                items(
+                    items = keys,
+                    key = { it.id },
+                    contentType = { "api_key" },
+                ) { apiKey ->
                     ApiKeyItem(
                         apiKey = apiKey,
                         isRevealed = revealedKeyId == apiKey.id,
@@ -697,26 +701,32 @@ private fun KeyRotateDialog(
  */
 @Composable
 private fun ExpiryLabel(expiresAt: Long) {
-    val now = System.currentTimeMillis()
-    val remainingMs = expiresAt - now
+    val expiryText =
+        remember(expiresAt) {
+            val now = System.currentTimeMillis()
+            val remainingMs = expiresAt - now
+            if (remainingMs <= 0) {
+                null
+            } else {
+                val totalMinutes = remainingMs / MILLIS_PER_MINUTE
+                val hours = totalMinutes / MINUTES_PER_HOUR
+                val minutes = totalMinutes % MINUTES_PER_HOUR
+                when {
+                    hours > 0 -> "Expires in ${hours}h ${minutes}m"
+                    else -> "Expires in ${minutes}m"
+                }
+            }
+        }
 
-    if (remainingMs <= 0) {
+    if (expiryText == null) {
         Text(
             text = "Expired",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.error,
         )
     } else {
-        val totalMinutes = remainingMs / MILLIS_PER_MINUTE
-        val hours = totalMinutes / MINUTES_PER_HOUR
-        val minutes = totalMinutes % MINUTES_PER_HOUR
-        val label =
-            when {
-                hours > 0 -> "Expires in ${hours}h ${minutes}m"
-                else -> "Expires in ${minutes}m"
-            }
         Text(
-            text = label,
+            text = expiryText,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

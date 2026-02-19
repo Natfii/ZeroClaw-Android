@@ -35,6 +35,8 @@ class RoomPluginRepository(
 
     override suspend fun getById(id: String): Plugin? = dao.getById(id)?.toModel()
 
+    override fun observeById(id: String): Flow<Plugin?> = dao.observeById(id).map { it?.toModel() }
+
     override suspend fun install(id: String) {
         dao.setInstalled(id)
     }
@@ -62,34 +64,37 @@ class RoomPluginRepository(
     }
 
     override suspend fun mergeRemotePlugins(remotePlugins: List<RemotePlugin>) {
-        for (remote in remotePlugins) {
-            val existing = dao.getById(remote.id)
-            if (existing != null) {
-                dao.updateMetadata(
+        if (remotePlugins.isEmpty()) return
+        val existingIds = dao.getExistingIds(remotePlugins.map { it.id }).toSet()
+        val (updates, inserts) = remotePlugins.partition { it.id in existingIds }
+
+        dao.insertAllIgnoreConflicts(
+            inserts.map { remote ->
+                PluginEntity(
                     id = remote.id,
                     name = remote.name,
                     description = remote.description,
                     version = remote.version,
                     author = remote.author,
                     category = remote.category,
+                    isInstalled = false,
+                    isEnabled = false,
+                    configJson = "{}",
                     remoteVersion = remote.version,
                 )
-            } else {
-                dao.upsert(
-                    PluginEntity(
-                        id = remote.id,
-                        name = remote.name,
-                        description = remote.description,
-                        version = remote.version,
-                        author = remote.author,
-                        category = remote.category,
-                        isInstalled = false,
-                        isEnabled = false,
-                        configJson = "{}",
-                        remoteVersion = remote.version,
-                    ),
-                )
-            }
+            },
+        )
+
+        for (remote in updates) {
+            dao.updateMetadata(
+                id = remote.id,
+                name = remote.name,
+                description = remote.description,
+                version = remote.version,
+                author = remote.author,
+                category = remote.category,
+                remoteVersion = remote.version,
+            )
         }
     }
 }

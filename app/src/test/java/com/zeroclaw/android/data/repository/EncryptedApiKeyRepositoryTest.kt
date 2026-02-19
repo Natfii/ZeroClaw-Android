@@ -72,8 +72,8 @@ class EncryptedApiKeyRepositoryTest {
         }
 
     @Test
-    @DisplayName("corrupt count resets on reload after save")
-    fun `corrupt count resets on reload after save`() =
+    @DisplayName("corrupt count resets on reload after import")
+    fun `corrupt count resets on reload after import`() =
         runTest {
             val prefs = MapSharedPreferences()
             prefs.edit().putString("bad", "broken json").apply()
@@ -82,13 +82,19 @@ class EncryptedApiKeyRepositoryTest {
             assertEquals(1, repo.corruptKeyCount.value)
 
             prefs.edit().remove("bad").apply()
-            repo.save(
-                com.zeroclaw.android.model.ApiKey(
-                    id = "new",
-                    provider = "Test",
-                    key = "test-key",
-                ),
-            )
+            val payload =
+                KeyExportCrypto.encrypt(
+                    org.json
+                        .JSONArray()
+                        .put(
+                            JSONObject().apply {
+                                put("provider", "Test")
+                                put("key", "test-key")
+                            },
+                        ).toString(),
+                    "pass",
+                )
+            repo.importFrom(payload, "pass")
             assertEquals(0, repo.corruptKeyCount.value)
         }
 

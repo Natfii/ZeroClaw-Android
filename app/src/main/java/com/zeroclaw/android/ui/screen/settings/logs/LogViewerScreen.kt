@@ -43,9 +43,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zeroclaw.android.model.LogEntry
 import com.zeroclaw.android.model.LogSeverity
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 /**
  * Log viewer screen with severity filter chips, pause/resume, and clear.
@@ -157,7 +157,11 @@ fun LogViewerScreen(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            items(items = entries, key = { it.id }) { entry ->
+            items(
+                items = entries,
+                key = { it.id },
+                contentType = { "log_entry" },
+            ) { entry ->
                 LogEntryRow(entry = entry)
             }
         }
@@ -209,9 +213,16 @@ private fun LogEntryRow(entry: LogEntry) {
     }
 }
 
-private val timeFormat = SimpleDateFormat("HH:mm:ss.SSS", Locale.US)
+private val timeFormat: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("HH:mm:ss.SSS").withZone(ZoneId.systemDefault())
 
-private fun formatTimestamp(epochMs: Long): String = timeFormat.format(Date(epochMs))
+/**
+ * Formats a Unix timestamp in milliseconds to a time string.
+ *
+ * @param epochMs Milliseconds since epoch.
+ * @return Formatted time string (HH:mm:ss.SSS).
+ */
+private fun formatTimestamp(epochMs: Long): String = timeFormat.format(Instant.ofEpochMilli(epochMs))
 
 /**
  * Formats a list of log entries as plain text for sharing.

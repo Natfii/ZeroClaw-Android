@@ -6,7 +6,6 @@
 
 package com.zeroclaw.android.ui.component
 
-import android.os.PowerManager
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.fadeIn
@@ -55,6 +54,7 @@ import com.zeroclaw.android.data.remote.NetworkScanner
 import com.zeroclaw.android.model.DiscoveredServer
 import com.zeroclaw.android.model.LocalServerType
 import com.zeroclaw.android.model.ScanState
+import com.zeroclaw.android.util.LocalPowerSaveMode
 
 /** Padding around the bottom sheet content. */
 private const val SHEET_PADDING_DP = 24
@@ -102,6 +102,7 @@ fun NetworkScanSheet(
     var scanState by remember { mutableStateOf<ScanState>(ScanState.Idle) }
     var discoveredServers by remember { mutableStateOf(emptyList<DiscoveredServer>()) }
     var scanTrigger by remember { mutableStateOf(0) }
+    val isPowerSave = LocalPowerSaveMode.current
 
     LaunchedEffect(scanTrigger) {
         discoveredServers = emptyList()
@@ -140,9 +141,6 @@ fun NetworkScanSheet(
                         EmptyScanResult()
                     }
                 }
-
-                val pm = context.getSystemService(PowerManager::class.java)
-                val isPowerSave = pm?.isPowerSaveMode == true
 
                 itemsIndexed(
                     items = discoveredServers,

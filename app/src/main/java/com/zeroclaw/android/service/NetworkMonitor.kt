@@ -52,9 +52,8 @@ class NetworkMonitor(
                 capabilities: NetworkCapabilities,
             ) {
                 _isConnected.value =
-                    capabilities.hasCapability(
-                        NetworkCapabilities.NET_CAPABILITY_INTERNET,
-                    )
+                    capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+                    capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
             }
         }
 

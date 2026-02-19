@@ -62,11 +62,16 @@ class DoctorValidator(
      * Uses the FFI [validateConfig] function which parses TOML without
      * starting the daemon.
      *
+     * @param preloadedAgents Optional pre-loaded agent list to avoid a
+     *   redundant database query. When null, agents are fetched from
+     *   [agentRepository].
      * @return List of diagnostic checks for the config category.
      */
-    suspend fun runConfigChecks(): List<DiagnosticCheck> {
+    suspend fun runConfigChecks(
+        preloadedAgents: List<Agent>? = null,
+    ): List<DiagnosticCheck> {
         val checks = mutableListOf<DiagnosticCheck>()
-        val agents = agentRepository.agents.first()
+        val agents = preloadedAgents ?: agentRepository.agents.first()
 
         checks.add(checkNameUniqueness(agents))
 
@@ -84,11 +89,16 @@ class DoctorValidator(
      * Self-hosted providers (those with [ProviderAuthType.URL_ONLY] or
      * [ProviderAuthType.NONE]) are exempt from the key requirement.
      *
+     * @param preloadedAgents Optional pre-loaded agent list to avoid a
+     *   redundant database query. When null, agents are fetched from
+     *   [agentRepository].
      * @return List of diagnostic checks for the API keys category.
      */
-    suspend fun runApiKeyChecks(): List<DiagnosticCheck> {
+    suspend fun runApiKeyChecks(
+        preloadedAgents: List<Agent>? = null,
+    ): List<DiagnosticCheck> {
         val checks = mutableListOf<DiagnosticCheck>()
-        val agents = agentRepository.agents.first()
+        val agents = preloadedAgents ?: agentRepository.agents.first()
         val keys = apiKeyRepository.keys.first()
         val enabledAgents = agents.filter { it.isEnabled }
 

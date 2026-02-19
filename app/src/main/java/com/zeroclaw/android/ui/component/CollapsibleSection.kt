@@ -6,7 +6,6 @@
 
 package com.zeroclaw.android.ui.component
 
-import android.os.PowerManager
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
@@ -31,10 +30,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.zeroclaw.android.util.LocalPowerSaveMode
 
 /**
  * Expandable card section with power-save-aware animation.
@@ -55,9 +54,7 @@ fun CollapsibleSection(
     content: @Composable () -> Unit,
 ) {
     var expanded by rememberSaveable { mutableStateOf(initiallyExpanded) }
-    val context = LocalContext.current
-    val powerManager = context.getSystemService(PowerManager::class.java)
-    val isPowerSave = powerManager?.isPowerSaveMode == true
+    val isPowerSave = LocalPowerSaveMode.current
 
     Card(modifier = modifier.fillMaxWidth()) {
         Column {

@@ -56,7 +56,7 @@ fun SkillsTab(
     skillsViewModel: SkillsViewModel,
     modifier: Modifier = Modifier,
 ) {
-    val uiState by skillsViewModel.uiState.collectAsStateWithLifecycle()
+    val filteredState by skillsViewModel.filteredUiState.collectAsStateWithLifecycle()
     val searchQuery by skillsViewModel.searchQuery.collectAsStateWithLifecycle()
 
     Column(modifier = modifier.fillMaxSize()) {
@@ -69,7 +69,7 @@ fun SkillsTab(
         )
         Spacer(modifier = Modifier.height(16.dp))
 
-        when (val state = uiState) {
+        when (val state = filteredState) {
             is SkillsUiState.Loading -> {
                 LoadingIndicator(
                     modifier = Modifier.align(Alignment.CenterHorizontally),
@@ -82,17 +82,7 @@ fun SkillsTab(
                 )
             }
             is SkillsUiState.Content -> {
-                val filtered =
-                    if (searchQuery.isBlank()) {
-                        state.data
-                    } else {
-                        state.data.filter { skill ->
-                            skill.name.contains(searchQuery, ignoreCase = true) ||
-                                skill.description.contains(searchQuery, ignoreCase = true)
-                        }
-                    }
-
-                if (filtered.isEmpty()) {
+                if (state.data.isEmpty()) {
                     EmptyState(
                         icon = Icons.Outlined.AutoFixHigh,
                         message =
@@ -107,7 +97,7 @@ fun SkillsTab(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         items(
-                            items = filtered,
+                            items = state.data,
                             key = { it.name },
                             contentType = { "skill" },
                         ) { skill ->

@@ -34,6 +34,8 @@ class RoomLogRepository(
     private val ioScope: CoroutineScope,
     private val maxEntries: Int = DEFAULT_MAX_ENTRIES,
 ) : LogRepository {
+    private var insertCounter = 0
+
     override val entries: Flow<List<LogEntry>> =
         dao.observeRecent(maxEntries).map { entities -> entities.map { it.toModel() } }
 
@@ -51,7 +53,9 @@ class RoomLogRepository(
                     message = message,
                 ),
             )
-            pruneIfNeeded()
+            if (++insertCounter % PRUNE_CHECK_INTERVAL == 0) {
+                dao.pruneOldest(maxEntries)
+            }
         }
     }
 
@@ -61,19 +65,11 @@ class RoomLogRepository(
         }
     }
 
-    /**
-     * Prunes old entries when the total count exceeds [maxEntries].
-     */
-    private suspend fun pruneIfNeeded() {
-        val count = dao.count()
-        if (count > maxEntries) {
-            dao.pruneOldest(maxEntries)
-        }
-    }
-
     /** Constants for [RoomLogRepository]. */
     companion object {
         /** Default maximum number of log entries retained. */
         const val DEFAULT_MAX_ENTRIES = 5000
+
+        private const val PRUNE_CHECK_INTERVAL = 50
     }
 }

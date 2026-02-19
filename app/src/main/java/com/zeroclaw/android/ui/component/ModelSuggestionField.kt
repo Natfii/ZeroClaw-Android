@@ -76,7 +76,8 @@ fun ModelSuggestionField(
             if (value.isBlank()) {
                 activeSuggestions
             } else {
-                activeSuggestions.filter { it.lowercase().contains(value.lowercase()) }
+                val query = value.lowercase()
+                activeSuggestions.filter { it.lowercase().contains(query) }
             }
         }
 

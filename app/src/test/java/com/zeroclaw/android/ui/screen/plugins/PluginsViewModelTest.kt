@@ -9,8 +9,10 @@ package com.zeroclaw.android.ui.screen.plugins
 import com.zeroclaw.android.data.repository.PluginRepository
 import com.zeroclaw.android.model.Plugin
 import com.zeroclaw.android.model.PluginCategory
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -134,6 +136,8 @@ private class TestPluginRepository(
     override val plugins = _plugins
 
     override suspend fun getById(id: String) = _plugins.value.find { it.id == id }
+
+    override fun observeById(id: String): Flow<Plugin?> = _plugins.map { list -> list.find { it.id == id } }
 
     override suspend fun install(id: String) {
         _plugins.update { current ->

@@ -72,12 +72,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
+import coil3.size.Size
 import com.zeroclaw.android.model.ChatMessage
 import com.zeroclaw.android.model.ProcessedImage
 import com.zeroclaw.android.ui.component.LoadingIndicator
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import com.zeroclaw.android.util.LocalPowerSaveMode
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.launch
 
 /** Bubble corner radius in dp. */
@@ -128,8 +130,24 @@ private const val COUNTER_BADGE_H_PAD_DP = 8
 /** Counter badge vertical padding in dp. */
 private const val COUNTER_BADGE_V_PAD_DP = 2
 
+/** Decode pixel size for pending thumbnails (THUMBNAIL_SIZE_DP * 4x density). */
+private const val THUMBNAIL_DECODE_PX = 224
+
+/** Decode pixel size for message grid images (IMAGE_GRID_SIZE_DP * 4x density). */
+private const val IMAGE_GRID_DECODE_PX = 320
+
+/** Reusable shape for chat bubble corners. */
+private val bubbleShape = RoundedCornerShape(BUBBLE_CORNER_DP.dp)
+
+/** Reusable shape for image thumbnail corners. */
+private val thumbnailShape = RoundedCornerShape(THUMBNAIL_CORNER_DP.dp)
+
+/** Reusable shape for the image count badge. */
+private val counterBadgeShape = RoundedCornerShape(COUNTER_BADGE_CORNER_DP.dp)
+
 /** Timestamp format for chat messages. */
-private val chatTimeFormat = SimpleDateFormat("HH:mm", Locale.US)
+private val chatTimeFormat: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("HH:mm").withZone(ZoneId.systemDefault())
 
 /**
  * Global daemon console screen for sending messages to the ZeroClaw gateway.
@@ -169,9 +187,24 @@ fun ConsoleScreen(
             }
         }
 
+    val isPowerSave = LocalPowerSaveMode.current
+
+    val onClearHistory: () -> Unit =
+        remember(consoleViewModel) {
+            { consoleViewModel.clearHistory() }
+        }
+    val onRemoveImage: (Int) -> Unit =
+        remember(consoleViewModel) {
+            { index -> consoleViewModel.removeImage(index) }
+        }
+
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.size - 1)
+            if (isPowerSave) {
+                listState.scrollToItem(messages.size - 1)
+            } else {
+                listState.animateScrollToItem(messages.size - 1)
+            }
         }
     }
 
@@ -187,7 +220,7 @@ fun ConsoleScreen(
                     .imePadding(),
         ) {
             ClearHistoryBar(
-                onClear = { consoleViewModel.clearHistory() },
+                onClear = onClearHistory,
                 hasMessages = messages.isNotEmpty(),
                 modifier = Modifier.padding(horizontal = edgeMargin),
             )
@@ -205,25 +238,31 @@ fun ConsoleScreen(
                     key = { it.id },
                     contentType = { if (it.isFromUser) "user" else "daemon" },
                 ) { message ->
-                    ChatBubble(
-                        message = message,
-                        onCopy = {
-                            copyToClipboard(context, message.content)
-                            scope.launch {
-                                snackbarHostState.showSnackbar("Copied to clipboard")
-                            }
-                        },
-                        onRetry =
-                            if (!message.isFromUser && message.content.startsWith("Error:")) {
-                                {
-                                    val lastUserMsg =
-                                        messages
-                                            .lastOrNull { it.isFromUser && it.id < message.id }
-                                    lastUserMsg?.let { consoleViewModel.sendMessage(it.content) }
+                    val onCopy: () -> Unit =
+                        remember(message.id) {
+                            {
+                                copyToClipboard(context, message.content)
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Copied to clipboard")
                                 }
+                                Unit
+                            }
+                        }
+                    val isError =
+                        !message.isFromUser &&
+                            message.content.startsWith("Error:")
+                    val onRetry =
+                        remember(message.id) {
+                            if (isError) {
+                                { consoleViewModel.retryMessage(message.id) }
                             } else {
                                 null
-                            },
+                            }
+                        }
+                    ChatBubble(
+                        message = message,
+                        onCopy = onCopy,
+                        onRetry = onRetry,
                     )
                 }
 
@@ -238,7 +277,7 @@ fun ConsoleScreen(
                 PendingImageStrip(
                     images = pendingImages,
                     isProcessing = isProcessingImages,
-                    onRemove = { consoleViewModel.removeImage(it) },
+                    onRemove = onRemoveImage,
                     modifier = Modifier.padding(horizontal = edgeMargin),
                 )
             }
@@ -298,7 +337,7 @@ private fun PendingImageStrip(
                     Modifier
                         .background(
                             MaterialTheme.colorScheme.surfaceVariant,
-                            RoundedCornerShape(COUNTER_BADGE_CORNER_DP.dp),
+                            counterBadgeShape,
                         ).padding(
                             horizontal = COUNTER_BADGE_H_PAD_DP.dp,
                             vertical = COUNTER_BADGE_V_PAD_DP.dp,
@@ -323,9 +362,13 @@ private fun PendingImageStrip(
                 items = images,
                 key = { _, img -> img.originalUri },
             ) { index, image ->
+                val stableOnRemove =
+                    remember(index) {
+                        { onRemove(index) }
+                    }
                 PendingThumbnail(
                     image = image,
-                    onRemove = { onRemove(index) },
+                    onRemove = stableOnRemove,
                 )
             }
         }
@@ -343,19 +386,24 @@ private fun PendingThumbnail(
     image: ProcessedImage,
     onRemove: () -> Unit,
 ) {
+    val context = LocalContext.current
+    val imageRequest =
+        remember(image.originalUri) {
+            ImageRequest
+                .Builder(context)
+                .data(Uri.parse(image.originalUri))
+                .size(Size(THUMBNAIL_DECODE_PX, THUMBNAIL_DECODE_PX))
+                .build()
+        }
     Box(modifier = Modifier.size(THUMBNAIL_SIZE_DP.dp)) {
         AsyncImage(
-            model =
-                ImageRequest
-                    .Builder(LocalContext.current)
-                    .data(Uri.parse(image.originalUri))
-                    .build(),
+            model = imageRequest,
             contentDescription = image.displayName,
             contentScale = ContentScale.Crop,
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .clip(RoundedCornerShape(THUMBNAIL_CORNER_DP.dp)),
+                    .clip(thumbnailShape),
         )
         Box(
             modifier =
@@ -386,6 +434,7 @@ private fun PendingThumbnail(
  */
 @Composable
 private fun MessageImageGrid(imageUris: List<String>) {
+    val context = LocalContext.current
     LazyRow(
         horizontalArrangement = Arrangement.spacedBy(SMALL_SPACING_DP.dp),
         contentPadding = PaddingValues(bottom = MESSAGE_SPACING_DP.dp),
@@ -394,18 +443,22 @@ private fun MessageImageGrid(imageUris: List<String>) {
             items = imageUris,
             key = { it },
         ) { uriString ->
-            AsyncImage(
-                model =
+            val imageRequest =
+                remember(uriString) {
                     ImageRequest
-                        .Builder(LocalContext.current)
+                        .Builder(context)
                         .data(Uri.parse(uriString))
-                        .build(),
+                        .size(Size(IMAGE_GRID_DECODE_PX, IMAGE_GRID_DECODE_PX))
+                        .build()
+                }
+            AsyncImage(
+                model = imageRequest,
                 contentDescription = "Attached image",
                 contentScale = ContentScale.Crop,
                 modifier =
                     Modifier
                         .size(IMAGE_GRID_SIZE_DP.dp)
-                        .clip(RoundedCornerShape(THUMBNAIL_CORNER_DP.dp)),
+                        .clip(thumbnailShape),
             )
         }
     }
@@ -480,7 +533,7 @@ private fun ChatBubble(
             horizontalAlignment = if (isUser) Alignment.End else Alignment.Start,
         ) {
             Surface(
-                shape = RoundedCornerShape(BUBBLE_CORNER_DP.dp),
+                shape = bubbleShape,
                 color =
                     when {
                         isError -> MaterialTheme.colorScheme.errorContainer
@@ -520,7 +573,7 @@ private fun ChatBubble(
                         modifier = Modifier.padding(top = SMALL_SPACING_DP.dp),
                     ) {
                         Text(
-                            text = chatTimeFormat.format(Date(message.timestamp)),
+                            text = chatTimeFormat.format(Instant.ofEpochMilli(message.timestamp)),
                             style = MaterialTheme.typography.labelSmall,
                             color =
                                 when {

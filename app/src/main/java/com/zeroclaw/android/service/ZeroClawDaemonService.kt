@@ -42,7 +42,10 @@ import kotlinx.coroutines.launch
  * ensure the daemon remains running across process restarts. Includes
  * a status polling loop that feeds [DaemonServiceBridge.lastStatus],
  * network connectivity monitoring via [NetworkMonitor], and a partial
- * wake lock to keep the CPU active while the daemon processes requests.
+ * wake lock held only during startup (Rust FFI init and tokio runtime
+ * boot). The foreground notification keeps the process alive after
+ * startup, so the wake lock is released once [DaemonServiceBridge.start]
+ * returns successfully.
  *
  * The service communicates with the Rust native layer exclusively through
  * the shared [DaemonServiceBridge] obtained from [ZeroClawApplication].
@@ -390,6 +393,7 @@ class ZeroClawDaemonService : Service() {
                             host = host,
                             port = port,
                         )
+                        releaseWakeLock()
                         persistence.recordRunning(configToml, host, port)
                         retryPolicy.reset()
                         activityRepository.record(
@@ -490,8 +494,23 @@ class ZeroClawDaemonService : Service() {
         }
     }
 
+    /**
+     * Acquires a partial wake lock for the startup phase.
+     *
+     * If a previous wake lock reference exists but is no longer held
+     * (e.g. from a timed expiry or prior release), it is discarded and
+     * a fresh lock is acquired. The lock is acquired without a timeout
+     * because the foreground service notification already prevents
+     * process death; callers are responsible for releasing the lock
+     * after startup completes via [releaseWakeLock].
+     */
+    @Suppress("WakelockTimeout")
     private fun acquireWakeLock() {
-        if (wakeLock != null) return
+        wakeLock?.let { existing ->
+            if (existing.isHeld) return
+            wakeLock = null
+        }
+        // SAFETY: PARTIAL_WAKE_LOCK only keeps the CPU running; the screen stays off.
         val powerManager = getSystemService(POWER_SERVICE) as PowerManager
         wakeLock =
             powerManager
@@ -499,10 +518,17 @@ class ZeroClawDaemonService : Service() {
                     PowerManager.PARTIAL_WAKE_LOCK,
                     WAKE_LOCK_TAG,
                 ).apply {
-                    acquire(WAKE_LOCK_TIMEOUT_MS)
+                    acquire()
                 }
     }
 
+    /**
+     * Releases the partial wake lock if it is currently held and clears
+     * the reference.
+     *
+     * Safe to call multiple times; subsequent calls are no-ops when
+     * [wakeLock] is already null or released.
+     */
     private fun releaseWakeLock() {
         wakeLock?.let { lock ->
             if (lock.isHeld) lock.release()
@@ -524,7 +550,6 @@ class ZeroClawDaemonService : Service() {
         private const val TAG = "ZeroClawDaemonService"
         private const val STATUS_POLL_INTERVAL_MS = 5_000L
         private const val WAKE_LOCK_TAG = "zeroclaw:daemon"
-        private const val WAKE_LOCK_TIMEOUT_MS = 4L * 60 * 60 * 1000
     }
 }
 

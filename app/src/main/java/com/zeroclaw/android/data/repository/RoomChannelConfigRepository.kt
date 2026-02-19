@@ -13,7 +13,6 @@ import com.zeroclaw.android.data.local.entity.toModel
 import com.zeroclaw.android.model.ChannelType
 import com.zeroclaw.android.model.ConnectedChannel
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 /**
@@ -82,17 +81,21 @@ class RoomChannelConfigRepository(
             }
     }
 
-    override suspend fun getEnabledWithSecrets(): List<Pair<ConnectedChannel, Map<String, String>>> =
-        dao
-            .observeAll()
-            .first()
-            .mapNotNull { it.toModel() }
-            .filter { it.isEnabled }
-            .map { channel ->
-                val secrets = getSecrets(channel.id)
-                val merged = channel.configValues + secrets
-                channel to merged
-            }
+    override suspend fun getEnabledWithSecrets(): List<Pair<ConnectedChannel, Map<String, String>>> {
+        val enabledChannels = dao.getAllEnabled().mapNotNull { it.toModel() }
+        val allSecrets = securePrefs.all
+        return enabledChannels.map { channel ->
+            val prefix = "channel_${channel.id}_"
+            val secrets =
+                allSecrets.entries
+                    .filter { it.key.startsWith(prefix) }
+                    .associate { (key, value) ->
+                        key.removePrefix(prefix) to (value as? String).orEmpty()
+                    }
+            val merged = channel.configValues + secrets
+            channel to merged
+        }
+    }
 
     /**
      * Builds the encrypted preferences key for a secret field.

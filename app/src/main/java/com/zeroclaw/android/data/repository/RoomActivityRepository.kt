@@ -34,6 +34,8 @@ class RoomActivityRepository(
     private val ioScope: CoroutineScope,
     private val maxEvents: Int = DEFAULT_MAX_EVENTS,
 ) : ActivityRepository {
+    private var insertCounter = 0
+
     override val events: Flow<List<ActivityEvent>> =
         dao.observeRecent(maxEvents).map { entities -> entities.map { it.toModel() } }
 
@@ -49,17 +51,9 @@ class RoomActivityRepository(
                     message = message,
                 ),
             )
-            pruneIfNeeded()
-        }
-    }
-
-    /**
-     * Prunes old events when the total count exceeds [maxEvents].
-     */
-    private suspend fun pruneIfNeeded() {
-        val count = dao.count()
-        if (count > maxEvents) {
-            dao.pruneOldest(maxEvents)
+            if (++insertCounter % PRUNE_CHECK_INTERVAL == 0) {
+                dao.pruneOldest(maxEvents)
+            }
         }
     }
 
@@ -67,5 +61,7 @@ class RoomActivityRepository(
     companion object {
         /** Default maximum number of activity events retained. */
         const val DEFAULT_MAX_EVENTS = 500
+
+        private const val PRUNE_CHECK_INTERVAL = 50
     }
 }

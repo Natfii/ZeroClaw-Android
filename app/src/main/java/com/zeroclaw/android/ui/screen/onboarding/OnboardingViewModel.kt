@@ -345,8 +345,10 @@ class OnboardingViewModel(
                 .filter { it.isSecret }
                 .map { it.key }
                 .toSet()
-        val secrets = fields.filter { it.key in secretKeys }
-        val nonSecrets = fields.filter { it.key !in secretKeys }
+        val (secretEntries, nonSecretEntries) =
+            fields.entries.partition { it.key in secretKeys }
+        val secrets = secretEntries.associate { it.toPair() }
+        val nonSecrets = nonSecretEntries.associate { it.toPair() }
 
         val channel =
             ConnectedChannel(

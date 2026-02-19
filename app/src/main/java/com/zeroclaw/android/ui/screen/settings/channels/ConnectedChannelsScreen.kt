@@ -148,9 +148,11 @@ fun ConnectedChannelsScreen(
         }
     }
 
+    val configuredTypes = remember(channels) { channels.map { it.type }.toSet() }
+
     if (showTypePicker) {
         ChannelTypePickerDialog(
-            configuredTypes = channels.map { it.type }.toSet(),
+            configuredTypes = configuredTypes,
             onTypeSelected = { type ->
                 showTypePicker = false
                 onNavigateToDetail(null, type.name)

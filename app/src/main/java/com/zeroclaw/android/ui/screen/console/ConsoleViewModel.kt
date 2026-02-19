@@ -11,6 +11,7 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.zeroclaw.android.ZeroClawApplication
+import com.zeroclaw.android.model.AppSettings
 import com.zeroclaw.android.model.ChatMessage
 import com.zeroclaw.android.model.ProcessedImage
 import com.zeroclaw.android.util.ImageProcessor
@@ -19,7 +20,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -46,6 +46,10 @@ class ConsoleViewModel(
     val messages: StateFlow<List<ChatMessage>> =
         chatMessageRepository.messages
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), emptyList())
+
+    private val cachedSettings: StateFlow<AppSettings> =
+        settingsRepository.settings
+            .stateIn(viewModelScope, SharingStarted.Eagerly, AppSettings())
 
     private val _isLoading = MutableStateFlow(false)
 
@@ -134,9 +138,8 @@ class ConsoleViewModel(
                     } else {
                         daemonBridge.send(text)
                     }
-                val settings = settingsRepository.settings.first()
                 val response =
-                    if (settings.stripThinkingTags) {
+                    if (cachedSettings.value.stripThinkingTags) {
                         stripThinkingTags(rawResponse)
                     } else {
                         rawResponse
@@ -155,6 +158,22 @@ class ConsoleViewModel(
             } finally {
                 _isLoading.value = false
             }
+        }
+    }
+
+    /**
+     * Retries a failed daemon response by re-sending the preceding user message.
+     *
+     * Looks up the most recent user message with an [id] less than [errorMessageId]
+     * and re-sends its content through [sendMessage].
+     *
+     * @param errorMessageId The [ChatMessage.id] of the error response to retry.
+     */
+    fun retryMessage(errorMessageId: Long) {
+        viewModelScope.launch {
+            val current = messages.value
+            val lastUserMsg = current.lastOrNull { it.isFromUser && it.id < errorMessageId }
+            lastUserMsg?.let { sendMessage(it.content) }
         }
     }
 

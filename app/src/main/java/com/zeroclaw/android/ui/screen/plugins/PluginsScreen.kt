@@ -36,6 +36,7 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
@@ -196,11 +197,23 @@ private fun PluginTabContent(
                 key = { it.id },
                 contentType = { "plugin" },
             ) { plugin ->
+                val onToggleItem =
+                    remember(plugin.id) {
+                        { onToggle(plugin.id) }
+                    }
+                val onInstallItem =
+                    remember(plugin.id) {
+                        { onInstall(plugin.id) }
+                    }
+                val onClickItem =
+                    remember(plugin.id) {
+                        { onNavigateToDetail(plugin.id) }
+                    }
                 PluginListItem(
                     plugin = plugin,
-                    onToggle = { onToggle(plugin.id) },
-                    onInstall = { onInstall(plugin.id) },
-                    onClick = { onNavigateToDetail(plugin.id) },
+                    onToggle = onToggleItem,
+                    onInstall = onInstallItem,
+                    onClick = onClickItem,
                 )
             }
         }

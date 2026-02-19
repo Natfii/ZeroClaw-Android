@@ -8,6 +8,7 @@ package com.zeroclaw.android.data.local.entity
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
@@ -23,7 +24,10 @@ import androidx.room.PrimaryKey
  * @property configJson JSON-serialized map of non-secret configuration values.
  * @property createdAt Epoch milliseconds when the channel was configured.
  */
-@Entity(tableName = "connected_channels")
+@Entity(
+    tableName = "connected_channels",
+    indices = [Index(value = ["type"], unique = true)],
+)
 data class ConnectedChannelEntity(
     @PrimaryKey
     val id: String,

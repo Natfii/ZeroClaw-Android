@@ -71,8 +71,10 @@ class ChannelsViewModel(
                         .filter { it.isSecret }
                         .map { it.key }
                         .toSet()
-                val secrets = allFieldValues.filter { it.key in secretKeys }
-                val nonSecrets = allFieldValues.filter { it.key !in secretKeys }
+                val (secretEntries, nonSecretEntries) =
+                    allFieldValues.entries.partition { it.key in secretKeys }
+                val secrets = secretEntries.associate { it.toPair() }
+                val nonSecrets = nonSecretEntries.associate { it.toPair() }
                 val updated = channel.copy(configValues = nonSecrets)
                 repository.save(updated, secrets)
                 _saveState.value = SaveState.Saved

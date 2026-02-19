@@ -27,6 +27,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -94,10 +95,11 @@ fun ConnectionPickerSection(
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(CARD_SPACING_DP.dp)) {
                 keys.forEach { key ->
+                    val onClick = remember(key.id) { { onKeySelected(key) } }
                     ConnectionCard(
                         apiKey = key,
                         isSelected = key.id == selectedKeyId,
-                        onClick = { onKeySelected(key) },
+                        onClick = onClick,
                     )
                 }
             }

@@ -210,7 +210,7 @@ class ZeroClawApplication :
                             .build()
                     workManager.enqueueUniquePeriodicWork(
                         PluginSyncWorker.WORK_NAME,
-                        ExistingPeriodicWorkPolicy.KEEP,
+                        ExistingPeriodicWorkPolicy.UPDATE,
                         request,
                     )
                 } else {

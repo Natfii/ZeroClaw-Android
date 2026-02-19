@@ -26,6 +26,17 @@ interface PluginRepository {
     suspend fun getById(id: String): Plugin?
 
     /**
+     * Observes the plugin with the given [id].
+     *
+     * Emits a new value whenever the plugin changes, or null if the
+     * plugin does not exist or is deleted.
+     *
+     * @param id Unique plugin identifier.
+     * @return A [Flow] emitting the current state of the plugin.
+     */
+    fun observeById(id: String): Flow<Plugin?>
+
+    /**
      * Installs the plugin with the given [id].
      *
      * @param id Unique plugin identifier.
