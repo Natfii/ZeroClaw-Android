@@ -21,8 +21,9 @@ import com.zeroclaw.android.model.ServiceState
  * Manages the notification channel and ongoing notification for
  * [ZeroClawDaemonService].
  *
- * Creates a low-importance channel to avoid audible alerts while keeping
- * the notification visible in the shade and status bar. Notification
+ * Creates a default-importance channel with sound, vibration, and lights
+ * disabled to avoid audible alerts while keeping the notification visible
+ * in the shade and status bar. Notification
  * updates are throttled to a maximum of once per [MIN_UPDATE_INTERVAL_MS]
  * to avoid CPU spikes from rapid state changes.
  *
@@ -37,6 +38,9 @@ class DaemonNotificationManager(
     @Volatile
     private var lastUpdateTimeMs = 0L
 
+    @Volatile
+    private var lastState: ServiceState? = null
+
     /**
      * Creates the notification channel if it does not already exist.
      *
@@ -44,14 +48,18 @@ class DaemonNotificationManager(
      * [ZeroClawDaemonService.onCreate].
      */
     fun createChannel() {
+        notificationManager.deleteNotificationChannel(LEGACY_CHANNEL_ID)
         val channel =
             NotificationChannel(
                 CHANNEL_ID,
                 context.getString(R.string.notification_channel_name),
-                NotificationManager.IMPORTANCE_LOW,
+                NotificationManager.IMPORTANCE_DEFAULT,
             ).apply {
                 description = context.getString(R.string.notification_channel_description)
                 setShowBadge(false)
+                setSound(null, null)
+                enableVibration(false)
+                enableLights(false)
             }
         notificationManager.createNotificationChannel(channel)
     }
@@ -134,7 +142,8 @@ class DaemonNotificationManager(
 
     /**
      * Updates the posted notification if at least [MIN_UPDATE_INTERVAL_MS]
-     * has elapsed since the last update.
+     * has elapsed since the last update, or immediately when the [state]
+     * differs from the previously posted state.
      *
      * @param state Current lifecycle state of the service.
      * @param errorDetail Optional error message forwarded to [buildNotification].
@@ -144,8 +153,10 @@ class DaemonNotificationManager(
         errorDetail: String? = null,
     ) {
         val now = System.currentTimeMillis()
-        if (now - lastUpdateTimeMs < MIN_UPDATE_INTERVAL_MS) return
+        val stateChanged = state != lastState
+        if (!stateChanged && now - lastUpdateTimeMs < MIN_UPDATE_INTERVAL_MS) return
         lastUpdateTimeMs = now
+        lastState = state
         notificationManager.notify(NOTIFICATION_ID, buildNotification(state, errorDetail))
     }
 
@@ -173,7 +184,10 @@ class DaemonNotificationManager(
     /** Constants for [DaemonNotificationManager]. */
     companion object {
         /** Notification channel identifier. */
-        const val CHANNEL_ID = "zeroclaw_daemon"
+        const val CHANNEL_ID = "zeroclaw_daemon_v2"
+
+        /** Legacy channel identifier, deleted during migration. */
+        private const val LEGACY_CHANNEL_ID = "zeroclaw_daemon"
 
         /** Identifier for the ongoing foreground notification. */
         const val NOTIFICATION_ID = 1

@@ -19,8 +19,9 @@ import android.provider.Settings
  * Provides methods to check if the app is exempt from Android's Doze and
  * App Standby restrictions, and to detect OEM-specific battery management
  * systems (Xiaomi MIUI, Samsung Device Care, Huawei Battery Manager,
- * OnePlus Battery Optimization) that aggressively terminate foreground
- * services beyond the stock Android behaviour.
+ * OnePlus Battery Optimization, Oppo ColorOS, Vivo Funtouch/OriginOS,
+ * and Realme RealmeUI) that aggressively terminate foreground services
+ * beyond the stock Android behaviour.
  *
  * The [android.Manifest.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS]
  * permission must be declared in the manifest before calling
@@ -56,7 +57,7 @@ object BatteryOptimization {
         Intent(
             Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
             Uri.parse("package:${context.packageName}"),
-        )
+        ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
     /**
      * Detects whether the device manufacturer uses an aggressive
@@ -80,6 +81,10 @@ object BatteryOptimization {
                 OemBatteryType.HUAWEI
             manufacturer.contains("oneplus") ->
                 OemBatteryType.ONEPLUS
+            manufacturer.contains("oppo") || manufacturer.contains("realme") ->
+                OemBatteryType.OPPO
+            manufacturer.contains("vivo") ->
+                OemBatteryType.VIVO
             else -> null
         }
     }
@@ -98,6 +103,8 @@ object BatteryOptimization {
                 OemBatteryType.SAMSUNG -> "samsung"
                 OemBatteryType.HUAWEI -> "huawei"
                 OemBatteryType.ONEPLUS -> "oneplus"
+                OemBatteryType.OPPO -> "oppo"
+                OemBatteryType.VIVO -> "vivo"
             }
         return "$BASE_URL/$slug"
     }
@@ -118,6 +125,12 @@ object BatteryOptimization {
 
         /** OnePlus Battery Optimization. */
         ONEPLUS,
+
+        /** Oppo ColorOS and Realme RealmeUI battery management. */
+        OPPO,
+
+        /** Vivo Funtouch/OriginOS battery management. */
+        VIVO,
     }
 
     private const val BASE_URL = "https://dontkillmyapp.com"

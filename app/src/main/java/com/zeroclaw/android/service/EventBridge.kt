@@ -6,6 +6,7 @@
 
 package com.zeroclaw.android.service
 
+import android.util.Log
 import com.zeroclaw.android.data.repository.ActivityRepository
 import com.zeroclaw.android.model.ActivityType
 import com.zeroclaw.android.model.DaemonEvent
@@ -49,8 +50,8 @@ class EventBridge(
      * Called by the native layer when a new event is produced.
      *
      * Parses the JSON string into a [DaemonEvent], emits it on [events],
-     * and records it in the [ActivityRepository]. Malformed JSON is silently
-     * dropped to avoid crashing the native callback thread.
+     * and records it in the [ActivityRepository]. Malformed JSON is logged at
+     * warning level and dropped to avoid crashing the native callback thread.
      *
      * @param eventJson Raw JSON event string from the Rust daemon.
      */
@@ -88,10 +89,14 @@ class EventBridge(
     }
 }
 
+private const val EVENT_BRIDGE_TAG = "EventBridge"
+
 /**
  * Parses a raw JSON event string into a [DaemonEvent].
  *
  * Expected schema: `{"id":N,"timestamp_ms":N,"kind":"...","data":{...}}`.
+ * Malformed JSON is logged at warning level and returns null to avoid
+ * crashing the native callback thread.
  *
  * @param json Raw JSON string from the native callback.
  * @return Parsed [DaemonEvent], or `null` if the JSON is malformed.
@@ -113,6 +118,7 @@ private fun parseEvent(json: String): DaemonEvent? =
     } catch (
         @Suppress("TooGenericExceptionCaught", "SwallowedException") e: Exception,
     ) {
+        Log.w(EVENT_BRIDGE_TAG, "Malformed event JSON: ${e.message}")
         null
     }
 

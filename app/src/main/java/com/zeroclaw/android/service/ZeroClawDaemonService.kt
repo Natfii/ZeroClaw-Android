@@ -6,11 +6,18 @@
 
 package com.zeroclaw.android.service
 
+import android.app.AlarmManager
+import android.app.PendingIntent
 import android.app.Service
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ServiceInfo
+import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
+import android.os.SystemClock
 import android.util.Log
 import com.zeroclaw.android.ZeroClawApplication
 import com.zeroclaw.android.data.repository.ActivityRepository
@@ -40,12 +47,13 @@ import kotlinx.coroutines.launch
  *
  * Uses the `specialUse` foreground service type and [START_STICKY] to
  * ensure the daemon remains running across process restarts. Includes
- * a status polling loop that feeds [DaemonServiceBridge.lastStatus],
- * network connectivity monitoring via [NetworkMonitor], and a partial
- * wake lock held only during startup (Rust FFI init and tokio runtime
- * boot). The foreground notification keeps the process alive after
- * startup, so the wake lock is released once [DaemonServiceBridge.start]
- * returns successfully.
+ * an adaptive status polling loop that feeds [DaemonServiceBridge.lastStatus]
+ * (5 s when the screen is on, 60 s when off), network connectivity
+ * monitoring via [NetworkMonitor], and a partial wake lock with a
+ * 3-minute safety timeout held only during startup (Rust FFI init and
+ * tokio runtime boot). The foreground notification keeps the process alive
+ * after startup, so the wake lock is released once
+ * [DaemonServiceBridge.start] returns successfully.
  *
  * The service communicates with the Rust native layer exclusively through
  * the shared [DaemonServiceBridge] obtained from [ZeroClawApplication].
@@ -57,7 +65,9 @@ import kotlinx.coroutines.launch
  *
  * Startup failures are retried with exponential backoff via [RetryPolicy].
  * After all retries are exhausted the service transitions to
- * [ServiceState.ERROR] and the notification offers a manual Retry action.
+ * [ServiceState.ERROR], detaches the foreground notification (keeping it
+ * visible as an error indicator), and stops itself to avoid a zombie
+ * service.
  *
  * Lifecycle control is performed via [Intent] actions:
  * - [ACTION_START] to start the daemon and enter the foreground.
@@ -86,6 +96,9 @@ class ZeroClawDaemonService : Service() {
     private var startJob: Job? = null
     private var wakeLock: PowerManager.WakeLock? = null
 
+    @Volatile private var isScreenOn: Boolean = true
+    private var screenReceiver: BroadcastReceiver? = null
+
     override fun onCreate() {
         super.onCreate()
         val app = application as ZeroClawApplication
@@ -102,6 +115,7 @@ class ZeroClawDaemonService : Service() {
 
         notificationManager.createChannel()
         networkMonitor.register()
+        registerScreenReceiver()
         observeServiceState()
         observeNetworkState()
     }
@@ -125,15 +139,57 @@ class ZeroClawDaemonService : Service() {
     /**
      * Called when the user swipes the app from the recents screen.
      *
-     * The service continues running because [START_STICKY] ensures the
-     * system will restart it if killed. No additional action is required.
+     * [START_STICKY] ensures the system will eventually restart the service
+     * if killed, but some OEM manufacturers (Xiaomi, Samsung, Huawei, Oppo,
+     * Vivo) aggressively terminate services after task removal without
+     * honouring [START_STICKY]. As a fallback, an [AlarmManager] alarm is
+     * scheduled [RESTART_DELAY_MS] (5 seconds) in the future to restart the
+     * service via [setExactAndAllowWhileIdle], which fires even in Doze mode.
+     *
+     * The alarm is only scheduled when the daemon is currently
+     * [ServiceState.RUNNING] to avoid restarting a service the user
+     * explicitly stopped.
      */
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
+        if (bridge.serviceState.value == ServiceState.RUNNING) {
+            scheduleRestartAlarm()
+        }
+    }
+
+    /**
+     * Schedules an [AlarmManager] alarm to restart this service after a
+     * short delay.
+     *
+     * Uses [AlarmManager.setExactAndAllowWhileIdle] so the alarm fires even
+     * when the device is in Doze mode. The [PendingIntent] targets this
+     * service without an explicit action, triggering the [START_STICKY] null
+     * intent path in [onStartCommand] which restores the daemon from
+     * persisted configuration.
+     */
+    private fun scheduleRestartAlarm() {
+        val restartIntent =
+            Intent(applicationContext, ZeroClawDaemonService::class.java)
+        val pendingIntent =
+            PendingIntent.getService(
+                applicationContext,
+                RESTART_REQUEST_CODE,
+                restartIntent,
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_ONE_SHOT,
+            )
+        val alarmManager =
+            getSystemService(ALARM_SERVICE) as AlarmManager
+        alarmManager.setExactAndAllowWhileIdle(
+            AlarmManager.ELAPSED_REALTIME_WAKEUP,
+            SystemClock.elapsedRealtime() + RESTART_DELAY_MS,
+            pendingIntent,
+        )
+        Log.i(TAG, "Scheduled AlarmManager restart fallback in ${RESTART_DELAY_MS}ms")
     }
 
     override fun onDestroy() {
         releaseWakeLock()
+        unregisterScreenReceiver()
         networkMonitor.unregister()
         serviceScope.cancel()
         super.onDestroy()
@@ -356,12 +412,27 @@ class ZeroClawDaemonService : Service() {
 
     /**
      * Handles a [START_STICKY] restart where the system delivers a null
-     * intent after process death. Restores the daemon using the persisted
-     * configuration if available; otherwise stops the service.
+     * intent after process death.
+     *
+     * On Android 12+ the system requires [startForeground] within a few
+     * seconds of [onStartCommand], even if the service intends to stop
+     * immediately. This method posts a minimal foreground notification
+     * before checking for persisted configuration. If no configuration is
+     * found, the notification is removed and the service stops itself.
+     * Otherwise the daemon is restored from the saved configuration.
      */
     private fun handleStickyRestart() {
+        val notification =
+            notificationManager.buildNotification(ServiceState.STARTING)
+        startForeground(
+            DaemonNotificationManager.NOTIFICATION_ID,
+            notification,
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
+        )
+
         val saved =
             persistence.restoreConfiguration() ?: run {
+                stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
                 return
             }
@@ -377,6 +448,12 @@ class ZeroClawDaemonService : Service() {
      * Launches a coroutine that tries to start the daemon, retrying
      * with exponential backoff on failure until [RetryPolicy] is
      * exhausted.
+     *
+     * The retry loop is wrapped in a `try/finally` so that the wake
+     * lock is released even if the coroutine is cancelled mid-retry.
+     * When retries are exhausted the service records itself as stopped,
+     * detaches the foreground notification (keeping it visible as an
+     * error indicator), and calls [stopSelf] to avoid a zombie service.
      */
     private fun attemptStart(
         configToml: String,
@@ -386,57 +463,97 @@ class ZeroClawDaemonService : Service() {
         startJob?.cancel()
         startJob =
             serviceScope.launch {
-                while (true) {
-                    try {
-                        bridge.start(
-                            configToml = configToml,
-                            host = host,
-                            port = port,
-                        )
-                        releaseWakeLock()
-                        persistence.recordRunning(configToml, host, port)
-                        retryPolicy.reset()
-                        activityRepository.record(
-                            ActivityType.DAEMON_STARTED,
-                            "Daemon started on $host:$port",
-                        )
-                        startStatusPolling()
-                        return@launch
-                    } catch (e: FfiException) {
-                        val errorMsg = e.message ?: "Unknown error"
-                        val delayMs = retryPolicy.nextDelay()
-                        if (delayMs != null) {
-                            Log.w(TAG, "Daemon start failed: $errorMsg, retrying in ${delayMs}ms")
-                            logRepository.append(
-                                LogSeverity.WARN,
-                                TAG,
-                                "Start failed: $errorMsg (retrying)",
+                try {
+                    while (true) {
+                        try {
+                            bridge.start(
+                                configToml = configToml,
+                                host = host,
+                                port = port,
                             )
-                            delay(delayMs)
-                        } else {
-                            Log.e(TAG, "Daemon start failed after max retries: $errorMsg")
-                            logRepository.append(LogSeverity.ERROR, TAG, "Start failed: $errorMsg")
+                            releaseWakeLock()
+                            persistence.recordRunning(configToml, host, port)
+                            retryPolicy.reset()
                             activityRepository.record(
-                                ActivityType.DAEMON_ERROR,
-                                "Start failed: $errorMsg",
+                                ActivityType.DAEMON_STARTED,
+                                "Daemon started on $host:$port",
                             )
-                            notificationManager.updateNotification(
-                                ServiceState.ERROR,
-                                errorDetail = errorMsg,
-                            )
+                            startStatusPolling()
                             return@launch
+                        } catch (e: FfiException) {
+                            val errorMsg = e.message ?: "Unknown error"
+                            val delayMs = retryPolicy.nextDelay()
+                            if (delayMs != null) {
+                                Log.w(
+                                    TAG,
+                                    "Daemon start failed: $errorMsg, retrying in ${delayMs}ms",
+                                )
+                                logRepository.append(
+                                    LogSeverity.WARN,
+                                    TAG,
+                                    "Start failed: $errorMsg (retrying)",
+                                )
+                                delay(delayMs)
+                            } else {
+                                handleStartupExhausted(errorMsg)
+                                return@launch
+                            }
                         }
                     }
+                } finally {
+                    releaseWakeLock()
                 }
             }
     }
 
+    /**
+     * Handles the case where all startup retry attempts have been exhausted.
+     *
+     * Logs the final error, updates the notification to [ServiceState.ERROR],
+     * clears the persisted "was running" flag to prevent infinite restart
+     * loops, releases the wake lock, and stops the service while keeping
+     * the error notification visible for the user.
+     *
+     * @param errorMsg Description of the last startup failure.
+     */
+    private fun handleStartupExhausted(errorMsg: String) {
+        Log.e(TAG, "Daemon start failed after max retries: $errorMsg")
+        logRepository.append(LogSeverity.ERROR, TAG, "Start failed: $errorMsg")
+        activityRepository.record(
+            ActivityType.DAEMON_ERROR,
+            "Start failed: $errorMsg",
+        )
+        notificationManager.updateNotification(
+            ServiceState.ERROR,
+            errorDetail = errorMsg,
+        )
+        persistence.recordStopped()
+        releaseWakeLock()
+        stopForeground(STOP_FOREGROUND_DETACH)
+        stopSelf()
+    }
+
+    /**
+     * Starts a coroutine that periodically polls the daemon for status.
+     *
+     * The poll interval adapts to screen state: [POLL_INTERVAL_FOREGROUND_MS]
+     * (5 s) when the screen is on, [POLL_INTERVAL_BACKGROUND_MS] (60 s) when
+     * the screen is off. This reduces CPU wake-ups and battery drain during
+     * Doze and screen-off periods while still providing responsive UI updates
+     * when the user is actively viewing the app.
+     */
     private fun startStatusPolling() {
         statusPollJob?.cancel()
         statusPollJob =
             serviceScope.launch {
                 while (true) {
-                    delay(STATUS_POLL_INTERVAL_MS)
+                    val interval =
+                        if (isScreenOn) {
+                            POLL_INTERVAL_FOREGROUND_MS
+                        } else {
+                            POLL_INTERVAL_BACKGROUND_MS
+                        }
+                    delay(interval)
                     try {
                         bridge.pollStatus()
                     } catch (e: FfiException) {
@@ -495,22 +612,61 @@ class ZeroClawDaemonService : Service() {
     }
 
     /**
+     * Registers a [BroadcastReceiver] for [Intent.ACTION_SCREEN_ON] and
+     * [Intent.ACTION_SCREEN_OFF] to toggle [isScreenOn].
+     *
+     * The flag is read by [startStatusPolling] to choose between the
+     * foreground and background poll intervals.
+     */
+    @Suppress("UnspecifiedRegisterReceiverFlag")
+    private fun registerScreenReceiver() {
+        val receiver =
+            object : BroadcastReceiver() {
+                override fun onReceive(
+                    context: Context?,
+                    intent: Intent?,
+                ) {
+                    isScreenOn =
+                        intent?.action != Intent.ACTION_SCREEN_OFF
+                }
+            }
+        val filter =
+            IntentFilter().apply {
+                addAction(Intent.ACTION_SCREEN_ON)
+                addAction(Intent.ACTION_SCREEN_OFF)
+            }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(receiver, filter, RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(receiver, filter)
+        }
+        screenReceiver = receiver
+    }
+
+    /**
+     * Unregisters the screen state [BroadcastReceiver] if it was
+     * previously registered.
+     */
+    private fun unregisterScreenReceiver() {
+        screenReceiver?.let { unregisterReceiver(it) }
+        screenReceiver = null
+    }
+
+    /**
      * Acquires a partial wake lock for the startup phase.
      *
      * If a previous wake lock reference exists but is no longer held
      * (e.g. from a timed expiry or prior release), it is discarded and
-     * a fresh lock is acquired. The lock is acquired without a timeout
-     * because the foreground service notification already prevents
-     * process death; callers are responsible for releasing the lock
-     * after startup completes via [releaseWakeLock].
+     * a fresh lock is acquired. The lock is acquired with a
+     * [WAKE_LOCK_TIMEOUT_MS] (3-minute) safety timeout so that the CPU
+     * is released even if the startup coroutine is cancelled before
+     * [releaseWakeLock] is called.
      */
-    @Suppress("WakelockTimeout")
     private fun acquireWakeLock() {
         wakeLock?.let { existing ->
             if (existing.isHeld) return
             wakeLock = null
         }
-        // SAFETY: PARTIAL_WAKE_LOCK only keeps the CPU running; the screen stays off.
         val powerManager = getSystemService(POWER_SERVICE) as PowerManager
         wakeLock =
             powerManager
@@ -518,7 +674,7 @@ class ZeroClawDaemonService : Service() {
                     PowerManager.PARTIAL_WAKE_LOCK,
                     WAKE_LOCK_TAG,
                 ).apply {
-                    acquire()
+                    acquire(WAKE_LOCK_TIMEOUT_MS)
                 }
     }
 
@@ -548,8 +704,12 @@ class ZeroClawDaemonService : Service() {
         const val ACTION_RETRY = "com.zeroclaw.android.action.RETRY_DAEMON"
 
         private const val TAG = "ZeroClawDaemonService"
-        private const val STATUS_POLL_INTERVAL_MS = 5_000L
+        private const val POLL_INTERVAL_FOREGROUND_MS = 5_000L
+        private const val POLL_INTERVAL_BACKGROUND_MS = 60_000L
         private const val WAKE_LOCK_TAG = "zeroclaw:daemon"
+        private const val WAKE_LOCK_TIMEOUT_MS = 180_000L
+        private const val RESTART_DELAY_MS = 5_000L
+        private const val RESTART_REQUEST_CODE = 42
     }
 }
 

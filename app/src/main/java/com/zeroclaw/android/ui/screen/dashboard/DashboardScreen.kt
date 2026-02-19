@@ -250,6 +250,8 @@ private fun BatteryOptimizationBanner(
             BatteryOptimization.OemBatteryType.SAMSUNG -> "Samsung"
             BatteryOptimization.OemBatteryType.HUAWEI -> "Huawei"
             BatteryOptimization.OemBatteryType.ONEPLUS -> "OnePlus"
+            BatteryOptimization.OemBatteryType.OPPO -> "Oppo"
+            BatteryOptimization.OemBatteryType.VIVO -> "Vivo"
         }
 
     Card(

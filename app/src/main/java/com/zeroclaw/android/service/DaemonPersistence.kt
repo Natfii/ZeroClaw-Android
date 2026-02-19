@@ -65,6 +65,11 @@ class DaemonPersistence(
      * it after a process restart. The TOML configuration is stored in
      * encrypted preferences; host and port go to plain preferences.
      *
+     * Writes are synchronous ([SharedPreferences.Editor.commit]) so the
+     * data is guaranteed to be on disk before the method returns. The
+     * secure data is written first so that if the process dies between
+     * the two commits, the `was_running` flag remains `false` (safe state).
+     *
      * @param configToml TOML configuration string passed to the FFI layer.
      * @param host Gateway bind address (e.g. "127.0.0.1").
      * @param port Gateway bind port.
@@ -74,16 +79,16 @@ class DaemonPersistence(
         host: String,
         port: UShort,
     ) {
+        securePrefs
+            .edit()
+            .putString(KEY_CONFIG_TOML, configToml)
+            .commit()
         plainPrefs
             .edit()
             .putBoolean(KEY_WAS_RUNNING, true)
             .putString(KEY_HOST, host)
             .putInt(KEY_PORT, port.toInt())
-            .apply()
-        securePrefs
-            .edit()
-            .putString(KEY_CONFIG_TOML, configToml)
-            .apply()
+            .commit()
     }
 
     /**
@@ -91,6 +96,12 @@ class DaemonPersistence(
      *
      * Clears the "was running" flag so that [restoreConfiguration] returns
      * null on the next process start, preventing unwanted auto-restarts.
+     *
+     * Writes are synchronous ([SharedPreferences.Editor.commit]) so the
+     * data is guaranteed to be on disk before the method returns. The
+     * plain flag is cleared first so that if the process dies between
+     * the two commits, the stale config in secure storage is harmless
+     * (the flag is already `false`).
      */
     fun recordStopped() {
         plainPrefs
@@ -98,11 +109,11 @@ class DaemonPersistence(
             .putBoolean(KEY_WAS_RUNNING, false)
             .remove(KEY_HOST)
             .remove(KEY_PORT)
-            .apply()
+            .commit()
         securePrefs
             .edit()
             .remove(KEY_CONFIG_TOML)
-            .apply()
+            .commit()
     }
 
     /**

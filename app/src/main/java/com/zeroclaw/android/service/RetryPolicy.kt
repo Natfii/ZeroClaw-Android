@@ -15,7 +15,7 @@ package com.zeroclaw.android.service
  * to signal that retries are exhausted and the caller should transition
  * to a permanent error state.
  *
- * Example delay sequence: 2 s, 4 s, 8 s, 16 s, 30 s (capped).
+ * Example delay sequence: 2 s, 4 s, 8 s, 16 s, 30 s, 30 s, 30 s, 30 s (capped).
  */
 class RetryPolicy {
     private var currentAttempt = 0
@@ -56,6 +56,6 @@ class RetryPolicy {
         const val MAX_DELAY_MS = 30_000L
 
         /** Total retry attempts before giving up. */
-        const val MAX_ATTEMPTS = 5
+        const val MAX_ATTEMPTS = 8
     }
 }
