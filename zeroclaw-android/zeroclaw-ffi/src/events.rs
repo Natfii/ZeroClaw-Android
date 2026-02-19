@@ -352,7 +352,9 @@ mod tests {
         let json_str = get_recent_events_inner(10).unwrap();
         let parsed: serde_json::Value = serde_json::from_str(&json_str).unwrap();
         let arr = parsed.as_array().unwrap();
-        assert_eq!(arr.len(), 2);
+        // At least our 2 events; may be more if another test's events
+        // landed between drain_buffer() and our record_event() calls.
+        assert!(arr.len() >= 2, "expected >= 2 events, got {}", arr.len());
 
         // Verify structure of each event.
         for event in arr {
