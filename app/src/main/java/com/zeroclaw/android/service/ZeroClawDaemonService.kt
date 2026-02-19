@@ -417,9 +417,12 @@ class ZeroClawDaemonService : Service() {
      * On Android 12+ the system requires [startForeground] within a few
      * seconds of [onStartCommand], even if the service intends to stop
      * immediately. This method posts a minimal foreground notification
-     * before checking for persisted configuration. If no configuration is
-     * found, the notification is removed and the service stops itself.
-     * Otherwise the daemon is restored from the saved configuration.
+     * before checking whether the daemon was previously running. If it
+     * was not running, the notification is removed and the service stops
+     * itself. Otherwise, the daemon configuration is rebuilt fresh from
+     * current settings rather than restored from the stale persisted TOML,
+     * so any key rotation or deletion that happened since the last start
+     * is reflected immediately.
      */
     private fun handleStickyRestart() {
         val notification =
@@ -430,18 +433,17 @@ class ZeroClawDaemonService : Service() {
             ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
         )
 
-        val saved =
-            persistence.restoreConfiguration() ?: run {
-                stopForeground(STOP_FOREGROUND_REMOVE)
-                stopSelf()
-                return
-            }
-        Log.i(TAG, "Restoring daemon after process death")
+        if (!persistence.wasRunning()) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+            return
+        }
+        Log.i(TAG, "Rebuilding daemon config after process death")
         activityRepository.record(
             ActivityType.DAEMON_STARTED,
             "Daemon restored after process death",
         )
-        handleStart(saved.configToml, saved.host, saved.port)
+        handleStartFromSettings()
     }
 
     /**
