@@ -22,14 +22,17 @@ const MAX_IMAGES: usize = 5;
 /// HTTP timeout for vision API calls (5 minutes).
 const VISION_TIMEOUT_SECS: u64 = 300;
 
-/// Default `max_tokens` for Anthropic Messages API responses.
-const ANTHROPIC_MAX_TOKENS: u64 = 4096;
+/// Default `max_tokens` for vision API responses (Anthropic and OpenAI-compatible).
+const DEFAULT_MAX_TOKENS: u64 = 4096;
 
 /// Supported vision API wire formats.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum VisionProvider {
     /// Anthropic Messages API (base64 image source).
-    Anthropic,
+    Anthropic {
+        /// Base URL override; `None` means `https://api.anthropic.com`.
+        base_url: Option<String>,
+    },
     /// OpenAI Chat Completions or any compatible endpoint.
     OpenAi {
         /// Base URL override; `None` means `https://api.openai.com`.
@@ -46,9 +49,17 @@ pub(crate) enum VisionProvider {
 pub(crate) fn classify_provider(name: &str) -> Option<VisionProvider> {
     match name.to_lowercase().as_str() {
         // Anthropic family
-        "anthropic" | "claude" => Some(VisionProvider::Anthropic),
+        "anthropic" | "claude" => Some(VisionProvider::Anthropic { base_url: None }),
         // Custom Anthropic endpoint — extract URL after the prefix
-        s if s.starts_with("anthropic-custom:") => Some(VisionProvider::Anthropic),
+        s if s.starts_with("anthropic-custom:") => {
+            let url = s
+                .strip_prefix("anthropic-custom:")
+                .unwrap_or("")
+                .to_string();
+            Some(VisionProvider::Anthropic {
+                base_url: if url.is_empty() { None } else { Some(url) },
+            })
+        }
 
         // Native OpenAI
         "openai" | "gpt" | "chatgpt" => Some(VisionProvider::OpenAi { base_url: None }),
@@ -87,9 +98,18 @@ pub(crate) fn classify_provider(name: &str) -> Option<VisionProvider> {
         // Google Gemini family
         "gemini" | "google" | "google-ai" => Some(VisionProvider::Gemini),
 
-        // Local inference (OpenAI-compatible)
-        "ollama" | "lmstudio" | "vllm" | "localai" => Some(VisionProvider::OpenAi {
+        // Local inference (OpenAI-compatible, each with its default port)
+        "ollama" => Some(VisionProvider::OpenAi {
             base_url: Some("http://localhost:11434/v1".into()),
+        }),
+        "lmstudio" => Some(VisionProvider::OpenAi {
+            base_url: Some("http://localhost:1234/v1".into()),
+        }),
+        "vllm" => Some(VisionProvider::OpenAi {
+            base_url: Some("http://localhost:8000/v1".into()),
+        }),
+        "localai" => Some(VisionProvider::OpenAi {
+            base_url: Some("http://localhost:8080/v1".into()),
         }),
 
         _ => None,
@@ -121,7 +141,7 @@ pub(crate) fn build_anthropic_body(
 
     json!({
         "model": model,
-        "max_tokens": ANTHROPIC_MAX_TOKENS,
+        "max_tokens": DEFAULT_MAX_TOKENS,
         "messages": [{
             "role": "user",
             "content": content,
@@ -154,6 +174,7 @@ pub(crate) fn build_openai_body(
 
     json!({
         "model": model,
+        "max_tokens": DEFAULT_MAX_TOKENS,
         "messages": [{
             "role": "user",
             "content": content,
@@ -317,9 +338,10 @@ async fn dispatch_vision_request(
         })?;
 
     let (url, body) = match provider {
-        VisionProvider::Anthropic => {
+        VisionProvider::Anthropic { base_url } => {
+            let base = base_url.as_deref().unwrap_or("https://api.anthropic.com");
             let body = build_anthropic_body(text, image_data, mime_types, model);
-            ("https://api.anthropic.com/v1/messages".to_string(), body)
+            (format!("{base}/v1/messages"), body)
         }
         VisionProvider::OpenAi { base_url } => {
             let base = base_url.as_deref().unwrap_or("https://api.openai.com/v1");
@@ -338,7 +360,7 @@ async fn dispatch_vision_request(
 
     let mut request = client.post(&url).json(&body);
     match provider {
-        VisionProvider::Anthropic => {
+        VisionProvider::Anthropic { .. } => {
             request = request
                 .header("x-api-key", api_key)
                 .header("anthropic-version", "2023-06-01");
@@ -371,7 +393,7 @@ async fn dispatch_vision_request(
     })?;
 
     match provider {
-        VisionProvider::Anthropic => parse_anthropic_response(&response_body),
+        VisionProvider::Anthropic { .. } => parse_anthropic_response(&response_body),
         VisionProvider::OpenAi { .. } => parse_openai_response(&response_body),
         VisionProvider::Gemini => parse_gemini_response(&response_body),
     }
@@ -388,19 +410,27 @@ mod tests {
     fn test_classify_anthropic() {
         assert_eq!(
             classify_provider("anthropic"),
-            Some(VisionProvider::Anthropic)
+            Some(VisionProvider::Anthropic { base_url: None })
         );
-        assert_eq!(classify_provider("claude"), Some(VisionProvider::Anthropic));
+        assert_eq!(
+            classify_provider("claude"),
+            Some(VisionProvider::Anthropic { base_url: None })
+        );
         assert_eq!(
             classify_provider("Anthropic"),
-            Some(VisionProvider::Anthropic)
+            Some(VisionProvider::Anthropic { base_url: None })
         );
     }
 
     #[test]
     fn test_classify_anthropic_custom() {
         let result = classify_provider("anthropic-custom:https://my-proxy.example.com");
-        assert_eq!(result, Some(VisionProvider::Anthropic));
+        assert_eq!(
+            result,
+            Some(VisionProvider::Anthropic {
+                base_url: Some("https://my-proxy.example.com".into()),
+            })
+        );
     }
 
     #[test]
@@ -466,6 +496,34 @@ mod tests {
     }
 
     #[test]
+    fn test_classify_local_ports() {
+        let check_port = |name: &str, expected_port: &str| {
+            let result = classify_provider(name);
+            match result {
+                Some(VisionProvider::OpenAi {
+                    base_url: Some(url),
+                }) => {
+                    assert!(
+                        url.contains(expected_port),
+                        "expected port {expected_port} for {name}, got URL: {url}"
+                    );
+                }
+                other => panic!("expected OpenAi for {name}, got {other:?}"),
+            }
+        };
+        check_port("ollama", ":11434");
+        check_port("lmstudio", ":1234");
+        check_port("vllm", ":8000");
+        check_port("localai", ":8080");
+    }
+
+    #[test]
+    fn test_classify_anthropic_custom_empty() {
+        let result = classify_provider("anthropic-custom:");
+        assert_eq!(result, Some(VisionProvider::Anthropic { base_url: None }));
+    }
+
+    #[test]
     fn test_classify_unsupported() {
         assert_eq!(classify_provider("unknown-provider-xyz"), None);
         assert_eq!(classify_provider(""), None);
@@ -482,7 +540,7 @@ mod tests {
             "claude-sonnet-4-20250514",
         );
         assert_eq!(body["model"], "claude-sonnet-4-20250514");
-        assert_eq!(body["max_tokens"], ANTHROPIC_MAX_TOKENS);
+        assert_eq!(body["max_tokens"], DEFAULT_MAX_TOKENS);
         let content = body["messages"][0]["content"].as_array().unwrap();
         assert_eq!(content.len(), 2);
         assert_eq!(content[0]["type"], "image");
@@ -515,6 +573,7 @@ mod tests {
             "gpt-4o",
         );
         assert_eq!(body["model"], "gpt-4o");
+        assert_eq!(body["max_tokens"], DEFAULT_MAX_TOKENS);
         let content = body["messages"][0]["content"].as_array().unwrap();
         assert_eq!(content.len(), 2);
         assert_eq!(content[0]["type"], "image_url");

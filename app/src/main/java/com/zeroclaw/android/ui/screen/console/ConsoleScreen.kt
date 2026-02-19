@@ -251,9 +251,15 @@ fun ConsoleScreen(
                     val isError =
                         !message.isFromUser &&
                             message.content.startsWith("Error:")
+                    val precedingUserMsg =
+                        messages.lastOrNull { it.isFromUser && it.id < message.id }
+                    val canRetry =
+                        isError &&
+                            precedingUserMsg != null &&
+                            precedingUserMsg.imageUris.isEmpty()
                     val onRetry =
-                        remember(message.id) {
-                            if (isError) {
+                        remember(message.id, canRetry) {
+                            if (canRetry) {
                                 { consoleViewModel.retryMessage(message.id) }
                             } else {
                                 null
