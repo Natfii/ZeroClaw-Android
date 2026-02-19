@@ -6,9 +6,12 @@
 
 package com.zeroclaw.android.ui.screen.settings
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -38,7 +41,11 @@ import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.material.icons.outlined.VpnKey
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -46,6 +53,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -65,6 +73,8 @@ import com.zeroclaw.android.ui.component.SettingsListItem
  * @param onRerunWizard Callback to reset onboarding and navigate to the setup wizard.
  * @param edgeMargin Horizontal padding based on window width size class.
  * @param settingsViewModel ViewModel providing current settings for dynamic subtitles.
+ * @param restartRequired Whether the daemon needs a restart to apply settings changes.
+ * @param onRestartDaemon Callback invoked when the user taps the restart button.
  * @param modifier Modifier applied to the root layout.
  */
 @Composable
@@ -73,6 +83,8 @@ fun SettingsScreen(
     onRerunWizard: () -> Unit,
     edgeMargin: Dp,
     settingsViewModel: SettingsViewModel = viewModel(),
+    restartRequired: Boolean = false,
+    onRestartDaemon: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val settings by settingsViewModel.settings.collectAsStateWithLifecycle()
@@ -86,6 +98,13 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState()),
     ) {
         Spacer(modifier = Modifier.height(8.dp))
+
+        if (restartRequired) {
+            RestartRequiredBanner(
+                edgeMargin = edgeMargin,
+                onRestartDaemon = onRestartDaemon,
+            )
+        }
 
         SectionHeader(title = "Daemon")
         SettingsListItem(
@@ -267,6 +286,48 @@ fun SettingsScreen(
             },
             onDismiss = { showRerunDialog = false },
         )
+    }
+}
+
+/**
+ * Banner shown when daemon-affecting settings have changed and a restart is required.
+ *
+ * @param edgeMargin Horizontal padding based on window width size class.
+ * @param onRestartDaemon Callback invoked when the user taps the restart button.
+ */
+@Composable
+private fun RestartRequiredBanner(
+    edgeMargin: Dp,
+    onRestartDaemon: () -> Unit,
+) {
+    Card(
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+            ),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = edgeMargin, vertical = 8.dp),
+    ) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "Restart daemon to apply changes",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                modifier = Modifier.weight(1f),
+            )
+            FilledTonalButton(onClick = onRestartDaemon) {
+                Text("Restart")
+            }
+        }
     }
 }
 

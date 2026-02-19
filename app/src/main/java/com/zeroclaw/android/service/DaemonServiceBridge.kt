@@ -75,6 +75,11 @@ class DaemonServiceBridge(
      */
     val serviceState: StateFlow<ServiceState> = _serviceState.asStateFlow()
 
+    private val _restartRequired = MutableStateFlow(false)
+
+    /** Emits `true` when settings change while the daemon is running. */
+    val restartRequired: StateFlow<Boolean> = _restartRequired.asStateFlow()
+
     private val _lastError = MutableStateFlow<String?>(null)
 
     /**
@@ -138,6 +143,7 @@ class DaemonServiceBridge(
             }
             _lastError.value = null
             _serviceState.value = ServiceState.RUNNING
+            _restartRequired.value = false
             eventBridge?.register()
         } catch (e: FfiException) {
             _lastError.value = e.errorDetail()
@@ -258,6 +264,36 @@ class DaemonServiceBridge(
                 communicationStyle,
             )
         }
+    }
+
+    /**
+     * Marks that a restart is required to apply settings changes.
+     *
+     * Only sets the flag when the daemon is currently [ServiceState.RUNNING].
+     * Ignored in all other states.
+     */
+    fun markRestartRequired() {
+        if (_serviceState.value == ServiceState.RUNNING) {
+            _restartRequired.value = true
+        }
+    }
+
+    /**
+     * Stops and re-starts the daemon with a fresh configuration.
+     *
+     * @param configToml New TOML configuration string.
+     * @param host Gateway host address.
+     * @param port Gateway port.
+     * @throws FfiException If either stop or start fails.
+     */
+    @Throws(FfiException::class)
+    suspend fun restart(
+        configToml: String,
+        host: String,
+        port: UShort,
+    ) {
+        stop()
+        start(configToml, host, port)
     }
 
     /**

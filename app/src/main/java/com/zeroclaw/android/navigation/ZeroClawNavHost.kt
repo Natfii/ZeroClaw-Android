@@ -22,6 +22,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
+import com.zeroclaw.android.service.ZeroClawDaemonService
 import com.zeroclaw.android.ui.screen.agents.AddAgentScreen
 import com.zeroclaw.android.ui.screen.agents.AgentDetailScreen
 import com.zeroclaw.android.ui.screen.agents.AgentsScreen
@@ -183,6 +184,10 @@ fun ZeroClawNavHost(
 
         composable<SettingsRoute> {
             val settingsViewModel: SettingsViewModel = viewModel()
+            val restartRequired by settingsViewModel.restartRequired
+                .collectAsStateWithLifecycle()
+            val context = LocalContext.current
+
             SettingsScreen(
                 onNavigate = { action ->
                     when (action) {
@@ -238,7 +243,27 @@ fun ZeroClawNavHost(
                         popUpTo(navController.graph.startDestinationId) { inclusive = true }
                     }
                 },
+                restartRequired = restartRequired,
+                onRestartDaemon = {
+                    val stopIntent =
+                        Intent(
+                            context,
+                            ZeroClawDaemonService::class.java,
+                        ).apply {
+                            action = ZeroClawDaemonService.ACTION_STOP
+                        }
+                    context.startService(stopIntent)
+                    val startIntent =
+                        Intent(
+                            context,
+                            ZeroClawDaemonService::class.java,
+                        ).apply {
+                            action = ZeroClawDaemonService.ACTION_START
+                        }
+                    context.startForegroundService(startIntent)
+                },
                 edgeMargin = edgeMargin,
+                settingsViewModel = settingsViewModel,
             )
         }
 
