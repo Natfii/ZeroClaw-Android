@@ -163,6 +163,9 @@ fun AutonomyScreen(
                 v.toIntOrNull()?.let { settingsViewModel.updateMaxCostPerDayCents(it) }
             },
             label = { Text("Max cost per day (cents)") },
+            supportingText = {
+                Text("Hard limit \u2014 blocks actions when exceeded")
+            },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             modifier = Modifier.fillMaxWidth(),

@@ -105,6 +105,7 @@ fun ApiKeysScreen(
     val revealedKeyId by apiKeysViewModel.revealedKeyId.collectAsStateWithLifecycle()
     val snackbarMessage by apiKeysViewModel.snackbarMessage.collectAsStateWithLifecycle()
     val corruptCount by apiKeysViewModel.corruptKeyCount.collectAsStateWithLifecycle()
+    val unusedKeyIds by apiKeysViewModel.unusedKeyIds.collectAsStateWithLifecycle()
 
     var deleteTarget by remember { mutableStateOf<ApiKey?>(null) }
     var rotatingKeyId by remember { mutableStateOf<String?>(null) }
@@ -266,6 +267,7 @@ fun ApiKeysScreen(
                     ApiKeyItem(
                         apiKey = apiKey,
                         isRevealed = revealedKeyId == apiKey.id,
+                        isUnused = apiKey.id in unusedKeyIds,
                         onRevealToggle = {
                             if (revealedKeyId == apiKey.id) {
                                 apiKeysViewModel.hideRevealedKey()
@@ -519,10 +521,13 @@ private fun ImportPassphraseDialog(
 /**
  * Single API key list item with masked value and action buttons.
  *
- * Shows a warning icon when the key status is [KeyStatus.INVALID].
+ * Shows a warning icon when the key status is [KeyStatus.INVALID]
+ * and an amber "Unused" label when no configured agent references
+ * the key's provider.
  *
  * @param apiKey The key to display.
  * @param isRevealed Whether the key value is currently unmasked.
+ * @param isUnused Whether no agent currently uses this key's provider.
  * @param onRevealToggle Callback to toggle reveal state.
  * @param onEdit Callback to navigate to edit screen.
  * @param onRotate Callback to open the key rotation dialog.
@@ -532,6 +537,7 @@ private fun ImportPassphraseDialog(
 private fun ApiKeyItem(
     apiKey: ApiKey,
     isRevealed: Boolean,
+    isUnused: Boolean,
     onRevealToggle: () -> Unit,
     onEdit: () -> Unit,
     onRotate: () -> Unit,
@@ -572,6 +578,13 @@ private fun ApiKeyItem(
                             imageVector = Icons.Filled.Warning,
                             contentDescription = "Key may be invalid",
                             tint = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                    if (isUnused) {
+                        Text(
+                            text = "Unused",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.tertiary,
                         )
                     }
                 }

@@ -130,6 +130,7 @@ fun ServiceConfigScreen(
             contentDescription = "Auto-start on boot",
         )
 
+        DefaultsSection(settings = settings, viewModel = settingsViewModel)
         InferenceSection(settings = settings, viewModel = settingsViewModel)
         MemorySection(settings = settings, viewModel = settingsViewModel)
         ReliabilitySection(settings = settings, viewModel = settingsViewModel)
@@ -137,6 +138,39 @@ fun ServiceConfigScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
     }
+}
+
+/**
+ * Default provider and model section: free-form text fields for the
+ * provider ID and model name applied to new agents.
+ *
+ * @param settings Current application settings.
+ * @param viewModel The [SettingsViewModel] for persisting changes.
+ */
+@Composable
+private fun DefaultsSection(
+    settings: AppSettings,
+    viewModel: SettingsViewModel,
+) {
+    SectionHeader(title = "Defaults")
+
+    OutlinedTextField(
+        value = settings.defaultProvider,
+        onValueChange = { viewModel.updateDefaultProvider(it) },
+        label = { Text("Default Provider") },
+        modifier = Modifier.fillMaxWidth(),
+        singleLine = true,
+    )
+
+    Spacer(modifier = Modifier.height(8.dp))
+
+    OutlinedTextField(
+        value = settings.defaultModel,
+        onValueChange = { viewModel.updateDefaultModel(it) },
+        label = { Text("Default Model") },
+        modifier = Modifier.fillMaxWidth(),
+        singleLine = true,
+    )
 }
 
 /**
@@ -296,6 +330,12 @@ private fun CostLimitsSection(
     viewModel: SettingsViewModel,
 ) {
     SectionHeader(title = "Cost Limits")
+
+    Text(
+        text = "Budget tracking and usage warnings",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 
     SettingsToggleRow(
         title = "Enable cost limits",

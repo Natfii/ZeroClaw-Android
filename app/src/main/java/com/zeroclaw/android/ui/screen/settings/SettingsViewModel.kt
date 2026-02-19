@@ -54,6 +54,16 @@ class SettingsViewModel(
         viewModelScope.launch { repository.setAutoStartOnBoot(enabled) }
     }
 
+    /** @see com.zeroclaw.android.data.repository.SettingsRepository.setDefaultProvider */
+    fun updateDefaultProvider(provider: String) {
+        viewModelScope.launch { repository.setDefaultProvider(provider) }
+    }
+
+    /** @see com.zeroclaw.android.data.repository.SettingsRepository.setDefaultModel */
+    fun updateDefaultModel(model: String) {
+        viewModelScope.launch { repository.setDefaultModel(model) }
+    }
+
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setDefaultTemperature */
     fun updateDefaultTemperature(temperature: Float) {
         viewModelScope.launch { repository.setDefaultTemperature(temperature) }
