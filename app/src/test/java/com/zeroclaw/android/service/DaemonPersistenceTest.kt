@@ -157,4 +157,28 @@ class DaemonPersistenceTest {
         assertNull(secureStore["host"])
         assertNull(secureStore["port"])
     }
+
+    @Test
+    @DisplayName("wasRunning returns false when nothing saved")
+    fun `wasRunning returns false when nothing saved`() {
+        val persistence = createPersistence()
+        assertEquals(false, persistence.wasRunning())
+    }
+
+    @Test
+    @DisplayName("wasRunning returns true after recordRunning")
+    fun `wasRunning returns true after recordRunning`() {
+        val persistence = createPersistence()
+        persistence.recordRunning("config", "127.0.0.1", 3000u)
+        assertEquals(true, persistence.wasRunning())
+    }
+
+    @Test
+    @DisplayName("wasRunning returns false after recordStopped")
+    fun `wasRunning returns false after recordStopped`() {
+        val persistence = createPersistence()
+        persistence.recordRunning("config", "127.0.0.1", 3000u)
+        persistence.recordStopped()
+        assertEquals(false, persistence.wasRunning())
+    }
 }

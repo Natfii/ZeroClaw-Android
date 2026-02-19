@@ -137,6 +137,17 @@ class DaemonPersistence(
     }
 
     /**
+     * Returns `true` if the daemon was running when the process last died.
+     *
+     * Cheaper than [restoreConfiguration] when only the boolean is needed,
+     * e.g. in [ZeroClawDaemonService.handleStickyRestart] before rebuilding
+     * the full configuration from current settings.
+     *
+     * @return `true` if the persisted `was_running` flag is set.
+     */
+    fun wasRunning(): Boolean = plainPrefs.getBoolean(KEY_WAS_RUNNING, false)
+
+    /**
      * Saved daemon startup parameters for recovery after process death.
      *
      * @property configToml TOML configuration string.
