@@ -6,7 +6,6 @@
 
 package com.zeroclaw.android.ui.screen.settings
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -40,9 +39,6 @@ import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.material.icons.outlined.VpnKey
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -51,14 +47,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zeroclaw.android.ui.component.SectionHeader
+import com.zeroclaw.android.ui.component.SettingsListItem
 
 /**
  * Root settings screen displaying a sectioned list of configuration options.
@@ -135,7 +128,7 @@ fun SettingsScreen(
         Spacer(modifier = Modifier.height(8.dp))
 
         SectionHeader(title = "Service")
-        SettingsItem(
+        SettingsListItem(
             icon = Icons.Outlined.Settings,
             title = "Service Configuration",
             subtitle =
@@ -143,13 +136,13 @@ fun SettingsScreen(
                     if (settings.autoStartOnBoot) " | auto-start" else "",
             onClick = onNavigateToServiceConfig,
         )
-        SettingsItem(
+        SettingsListItem(
             icon = Icons.Outlined.BatteryAlert,
             title = "Battery Settings",
             subtitle = "Optimization exemptions",
             onClick = onNavigateToBattery,
         )
-        SettingsItem(
+        SettingsListItem(
             icon = Icons.Outlined.Fingerprint,
             title = "Agent Identity",
             subtitle = if (settings.identityJson.isNotBlank()) "Configured" else "Not set",
@@ -159,25 +152,25 @@ fun SettingsScreen(
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
         SectionHeader(title = "Security")
-        SettingsItem(
+        SettingsListItem(
             icon = Icons.Outlined.VerifiedUser,
             title = "Security Overview",
             subtitle = "View current security posture",
             onClick = onNavigateToSecurityOverview,
         )
-        SettingsItem(
+        SettingsListItem(
             icon = Icons.Outlined.Key,
             title = "API Keys",
             subtitle = "Manage provider credentials",
             onClick = onNavigateToApiKeys,
         )
-        SettingsItem(
+        SettingsListItem(
             icon = Icons.Outlined.Security,
             title = "Autonomy Level",
             subtitle = settings.autonomyLevel,
             onClick = onNavigateToAutonomy,
         )
-        SettingsItem(
+        SettingsListItem(
             icon = Icons.Outlined.Forum,
             title = "Connected Channels",
             subtitle = "Telegram, Discord, Slack, and more",
@@ -187,20 +180,20 @@ fun SettingsScreen(
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
         SectionHeader(title = "Network")
-        SettingsItem(
+        SettingsListItem(
             icon = Icons.Outlined.Hub,
             title = "Gateway & Pairing",
             subtitle =
                 if (settings.gatewayRequirePairing) "Pairing required" else "Open access",
             onClick = onNavigateToGateway,
         )
-        SettingsItem(
+        SettingsListItem(
             icon = Icons.Outlined.VpnKey,
             title = "Tunnel",
             subtitle = settings.tunnelProvider,
             onClick = onNavigateToTunnel,
         )
-        SettingsItem(
+        SettingsListItem(
             icon = Icons.Outlined.Sync,
             title = "Plugin Registry",
             subtitle =
@@ -211,50 +204,50 @@ fun SettingsScreen(
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
         SectionHeader(title = "Daemon Config")
-        SettingsItem(
+        SettingsListItem(
             icon = Icons.Outlined.Route,
             title = "Model Routes",
             subtitle = "Hint-based provider routing",
             onClick = onNavigateToModelRoutes,
         )
-        SettingsItem(
+        SettingsListItem(
             icon = Icons.Outlined.Memory,
             title = "Memory Advanced",
             subtitle = "Embedding, hygiene, recall weights",
             onClick = onNavigateToMemoryAdvanced,
         )
-        SettingsItem(
+        SettingsListItem(
             icon = Icons.Outlined.Tune,
             title = "Tool Management",
             subtitle = "Browser, HTTP, Composio",
             onClick = onNavigateToToolManagement,
         )
-        SettingsItem(
+        SettingsListItem(
             icon = Icons.Outlined.Token,
             title = "Tools Browser",
             subtitle = "View all available tools",
             onClick = onNavigateToToolsBrowser,
         )
-        SettingsItem(
+        SettingsListItem(
             icon = Icons.Outlined.Psychology,
             title = "Memory Browser",
             subtitle = "Browse and search memory entries",
             onClick = onNavigateToMemoryBrowser,
         )
-        SettingsItem(
+        SettingsListItem(
             icon = Icons.Outlined.Schedule,
             title = "Scheduler & Heartbeat",
             subtitle =
                 if (settings.schedulerEnabled) "Scheduler on" else "Scheduler off",
             onClick = onNavigateToScheduler,
         )
-        SettingsItem(
+        SettingsListItem(
             icon = Icons.Outlined.TaskAlt,
             title = "Scheduled Tasks",
             subtitle = "View and manage cron jobs",
             onClick = onNavigateToCronJobs,
         )
-        SettingsItem(
+        SettingsListItem(
             icon = Icons.Outlined.Speed,
             title = "Observability",
             subtitle = settings.observabilityBackend,
@@ -264,13 +257,13 @@ fun SettingsScreen(
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
         SectionHeader(title = "Diagnostics")
-        SettingsItem(
+        SettingsListItem(
             icon = Icons.AutoMirrored.Outlined.Subject,
             title = "Log Viewer",
             subtitle = "View daemon and service logs",
             onClick = onNavigateToLogViewer,
         )
-        SettingsItem(
+        SettingsListItem(
             icon = Icons.Outlined.HealthAndSafety,
             title = "ZeroClaw Doctor",
             subtitle = "Validate config, keys, and connectivity",
@@ -280,19 +273,19 @@ fun SettingsScreen(
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
         SectionHeader(title = "App")
-        SettingsItem(
+        SettingsListItem(
             icon = Icons.Outlined.Refresh,
             title = "Re-run Setup Wizard",
             subtitle = "Walk through initial configuration again",
             onClick = { showRerunDialog = true },
         )
-        SettingsItem(
+        SettingsListItem(
             icon = Icons.Outlined.SystemUpdate,
             title = "Updates",
             subtitle = "Check for new versions",
             onClick = onNavigateToUpdates,
         )
-        SettingsItem(
+        SettingsListItem(
             icon = Icons.Outlined.Info,
             title = "About",
             subtitle = "Version, licenses, links",
@@ -343,37 +336,5 @@ private fun RerunWizardDialog(
                 Text("Cancel")
             }
         },
-    )
-}
-
-/**
- * Single settings list item with icon, title, and subtitle.
- *
- * @param icon Leading icon for the item.
- * @param title Primary text label.
- * @param subtitle Secondary descriptive text.
- * @param onClick Callback invoked when the item is tapped.
- */
-@Composable
-private fun SettingsItem(
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit,
-) {
-    ListItem(
-        leadingContent = {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        },
-        headlineContent = { Text(title) },
-        supportingContent = { Text(subtitle) },
-        modifier =
-            Modifier
-                .clickable(onClick = onClick)
-                .semantics { role = Role.Button },
     )
 }

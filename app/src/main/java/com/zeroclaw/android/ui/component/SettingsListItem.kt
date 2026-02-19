@@ -48,6 +48,6 @@ fun SettingsListItem(
         modifier =
             modifier
                 .clickable(onClick = onClick)
-                .semantics { role = Role.Button },
+                .semantics(mergeDescendants = true) { role = Role.Button },
     )
 }

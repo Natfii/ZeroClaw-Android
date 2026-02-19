@@ -27,7 +27,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SuggestionChip
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -49,6 +48,7 @@ import com.zeroclaw.android.ZeroClawApplication
 import com.zeroclaw.android.data.StorageHealth
 import com.zeroclaw.android.ui.component.CollapsibleSection
 import com.zeroclaw.android.ui.component.SectionHeader
+import com.zeroclaw.android.ui.component.SettingsToggleRow
 import com.zeroclaw.android.util.BiometricGatekeeper
 
 /**
@@ -453,19 +453,21 @@ private fun BiometricProtectionSection(
 
     SectionHeader(title = "Biometric Protection")
 
-    BiometricToggleItem(
-        label = "Require biometric for service control",
+    SettingsToggleRow(
+        title = "Require biometric for service control",
         subtitle = "Authenticate before starting or stopping the daemon",
         checked = biometricForService,
         onCheckedChange = onBiometricForServiceChange,
+        contentDescription = "Require biometric for service control",
         enabled = isBiometricAvailable,
     )
 
-    BiometricToggleItem(
-        label = "Require biometric for sensitive settings",
+    SettingsToggleRow(
+        title = "Require biometric for sensitive settings",
         subtitle = "Authenticate before modifying security-related settings",
         checked = biometricForSettings,
         onCheckedChange = onBiometricForSettingsChange,
+        contentDescription = "Require biometric for sensitive settings",
         enabled = isBiometricAvailable,
     )
 
@@ -475,65 +477,6 @@ private fun BiometricProtectionSection(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(vertical = SPACING_SMALL),
-        )
-    }
-}
-
-/**
- * Toggle row for a biometric protection setting.
- *
- * @param label Primary label text.
- * @param subtitle Descriptive text below the label.
- * @param checked Current toggle state.
- * @param onCheckedChange Callback for state changes.
- * @param enabled Whether the toggle is interactive.
- */
-@Composable
-private fun BiometricToggleItem(
-    label: String,
-    subtitle: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-    enabled: Boolean,
-) {
-    val stateText = if (checked) "enabled" else "disabled"
-    val a11yDescription = "$label: $stateText"
-
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(vertical = SPACING_SMALL)
-                .semantics(mergeDescendants = true) {
-                    contentDescription = a11yDescription
-                },
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodyLarge,
-                color =
-                    if (enabled) {
-                        MaterialTheme.colorScheme.onSurface
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            enabled = enabled,
-            modifier =
-                Modifier.semantics {
-                    contentDescription = "$label toggle"
-                },
         )
     }
 }
