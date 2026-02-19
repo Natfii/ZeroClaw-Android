@@ -43,7 +43,10 @@ object DatabaseEncryptionMigrator {
      * @param passphrase Printable hex passphrase string (same value
      *   passed to [net.zetetic.database.sqlcipher.SupportOpenHelperFactory]).
      */
-    fun migrateIfNeeded(context: Context, passphrase: String) {
+    fun migrateIfNeeded(
+        context: Context,
+        passphrase: String,
+    ) {
         val dbFile = context.getDatabasePath(DATABASE_NAME)
         if (!dbFile.exists()) return
         if (!isUnencrypted(dbFile)) return
@@ -52,7 +55,9 @@ object DatabaseEncryptionMigrator {
         try {
             encrypt(dbFile, passphrase)
             Log.i(TAG, "Database encryption migration completed successfully")
-        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+        } catch (
+            @Suppress("TooGenericExceptionCaught") e: Exception,
+        ) {
             Log.e(TAG, "Migration failed — deleting database for fresh start", e)
             deleteWithCompanions(dbFile)
         }
@@ -69,7 +74,9 @@ object DatabaseEncryptionMigrator {
             val header = ByteArray(SQLITE_HEADER_SIZE)
             dbFile.inputStream().use { it.read(header) }
             String(header, 0, SQLITE_MAGIC.length, Charsets.US_ASCII) == SQLITE_MAGIC
-        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+        } catch (
+            @Suppress("TooGenericExceptionCaught") e: Exception,
+        ) {
             Log.w(TAG, "Could not read database header", e)
             false
         }
@@ -81,17 +88,21 @@ object DatabaseEncryptionMigrator {
      * a new encrypted database with the given [passphrase], exports all
      * schema and data, then replaces the original file.
      */
-    private fun encrypt(dbFile: File, passphrase: String) {
+    private fun encrypt(
+        dbFile: File,
+        passphrase: String,
+    ) {
         val tempFile = File(dbFile.parentFile, "zeroclaw_encrypting.db")
         tempFile.delete()
 
-        val db = net.zetetic.database.sqlcipher.SQLiteDatabase.openDatabase(
-            dbFile.absolutePath,
-            "",
-            null,
-            net.zetetic.database.sqlcipher.SQLiteDatabase.OPEN_READWRITE,
-            null,
-        )
+        val db =
+            net.zetetic.database.sqlcipher.SQLiteDatabase.openDatabase(
+                dbFile.absolutePath,
+                "",
+                null,
+                net.zetetic.database.sqlcipher.SQLiteDatabase.OPEN_READWRITE,
+                null,
+            )
         try {
             val escaped = passphrase.replace("'", "''")
             db.execSQL(
