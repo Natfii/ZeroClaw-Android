@@ -10,7 +10,6 @@ import com.zeroclaw.android.data.local.dao.LogEntryDao
 import com.zeroclaw.android.data.local.entity.LogEntryEntity
 import com.zeroclaw.android.data.repository.RoomLogRepository
 import com.zeroclaw.android.model.LogSeverity
-import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
@@ -36,7 +35,6 @@ class RoomLogRepositoryTest {
     @Test
     fun `append inserts entity via dao`() =
         runTest {
-            coEvery { dao.count() } returns 1
             val repo = RoomLogRepository(dao = dao, ioScope = this, maxEntries = 100)
 
             repo.append(LogSeverity.INFO, "Test", "Hello")
@@ -50,25 +48,27 @@ class RoomLogRepositoryTest {
         }
 
     @Test
-    fun `append prunes when count exceeds max`() =
+    fun `append prunes at interval boundary`() =
         runTest {
             val maxEntries = 10
-            coEvery { dao.count() } returns maxEntries + 1
             val repo = RoomLogRepository(dao = dao, ioScope = this, maxEntries = maxEntries)
 
-            repo.append(LogSeverity.ERROR, "Test", "Overflow")
+            repeat(PRUNE_CHECK_INTERVAL) {
+                repo.append(LogSeverity.ERROR, "Test", "Overflow")
+            }
             advanceUntilIdle()
 
-            coVerify { dao.pruneOldest(maxEntries) }
+            coVerify(exactly = 1) { dao.pruneOldest(maxEntries) }
         }
 
     @Test
-    fun `append does not prune when count is within limit`() =
+    fun `append does not prune before interval boundary`() =
         runTest {
-            coEvery { dao.count() } returns 5
             val repo = RoomLogRepository(dao = dao, ioScope = this, maxEntries = 100)
 
-            repo.append(LogSeverity.DEBUG, "Test", "Normal")
+            repeat(PRUNE_CHECK_INTERVAL - 1) {
+                repo.append(LogSeverity.DEBUG, "Test", "Normal")
+            }
             advanceUntilIdle()
 
             coVerify(exactly = 0) { dao.pruneOldest(any()) }
@@ -84,4 +84,9 @@ class RoomLogRepositoryTest {
 
             coVerify { dao.deleteAll() }
         }
+
+    companion object {
+        /** Must match [RoomLogRepository]'s internal prune check interval. */
+        private const val PRUNE_CHECK_INTERVAL = 50
+    }
 }

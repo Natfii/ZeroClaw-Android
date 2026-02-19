@@ -10,7 +10,6 @@ import com.zeroclaw.android.data.local.dao.ActivityEventDao
 import com.zeroclaw.android.data.local.entity.ActivityEventEntity
 import com.zeroclaw.android.data.repository.RoomActivityRepository
 import com.zeroclaw.android.model.ActivityType
-import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
@@ -36,7 +35,6 @@ class RoomActivityRepositoryTest {
     @Test
     fun `record inserts entity via dao`() =
         runTest {
-            coEvery { dao.count() } returns 1
             val repo = RoomActivityRepository(dao = dao, ioScope = this, maxEvents = 100)
 
             repo.record(ActivityType.DAEMON_STARTED, "Daemon started")
@@ -49,27 +47,34 @@ class RoomActivityRepositoryTest {
         }
 
     @Test
-    fun `record prunes when count exceeds max`() =
+    fun `record prunes at interval boundary`() =
         runTest {
             val maxEvents = 10
-            coEvery { dao.count() } returns maxEvents + 1
             val repo = RoomActivityRepository(dao = dao, ioScope = this, maxEvents = maxEvents)
 
-            repo.record(ActivityType.FFI_CALL, "Test")
+            repeat(PRUNE_CHECK_INTERVAL) {
+                repo.record(ActivityType.FFI_CALL, "Test")
+            }
             advanceUntilIdle()
 
-            coVerify { dao.pruneOldest(maxEvents) }
+            coVerify(exactly = 1) { dao.pruneOldest(maxEvents) }
         }
 
     @Test
-    fun `record does not prune when count is within limit`() =
+    fun `record does not prune before interval boundary`() =
         runTest {
-            coEvery { dao.count() } returns 5
             val repo = RoomActivityRepository(dao = dao, ioScope = this, maxEvents = 100)
 
-            repo.record(ActivityType.NETWORK_CHANGE, "WiFi connected")
+            repeat(PRUNE_CHECK_INTERVAL - 1) {
+                repo.record(ActivityType.NETWORK_CHANGE, "WiFi connected")
+            }
             advanceUntilIdle()
 
             coVerify(exactly = 0) { dao.pruneOldest(any()) }
         }
+
+    companion object {
+        /** Must match [RoomActivityRepository]'s internal prune check interval. */
+        private const val PRUNE_CHECK_INTERVAL = 50
+    }
 }
