@@ -25,7 +25,7 @@ Got an old phone? Give it a new job.
 
 The onboarding wizard walks you through all of this on first launch.
 
-***Disclaimer: This app is a personal project. It might break.***
+***Disclaimer: This app is a personal project not associated with the ZeroClaw Labs. It might break.***
 
 ## Features
 
