@@ -6,6 +6,7 @@
 
 package com.zeroclaw.android.data.remote
 
+import com.zeroclaw.android.data.ProviderKeyValidator
 import com.zeroclaw.android.model.ModelListFormat
 import com.zeroclaw.android.model.ProviderInfo
 import java.net.HttpURLConnection
@@ -136,7 +137,13 @@ object ModelFetcher {
                 throw java.io.IOException("HTTP $responseCode from $url")
             }
 
-            return connection.inputStream.bufferedReader().use { it.readText() }
+            val body = connection.inputStream.bufferedReader().use { it.readText() }
+
+            if (ProviderKeyValidator.isJsonBodyAuthError(body)) {
+                throw java.io.IOException("HTTP 401 from $url (auth error in response body)")
+            }
+
+            return body
         } finally {
             connection.disconnect()
         }
