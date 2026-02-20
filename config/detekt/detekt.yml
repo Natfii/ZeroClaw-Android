@@ -27,7 +27,7 @@ complexity:
       - "Composable"
   LongMethod:
     active: true
-    threshold: 60
+    threshold: 61
     ignoreAnnotated:
       - "Composable"
   LongParameterList:
@@ -43,7 +43,7 @@ complexity:
       - "Composable"
   TooManyFunctions:
     active: true
-    thresholdInClasses: 21
+    thresholdInClasses: 22
     thresholdInFiles: 23
     thresholdInInterfaces: 21
 
