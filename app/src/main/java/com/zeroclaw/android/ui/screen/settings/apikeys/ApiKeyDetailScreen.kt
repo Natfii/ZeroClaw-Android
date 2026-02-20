@@ -20,6 +20,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.WifiFind
 import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material3.FilledTonalButton
@@ -37,7 +38,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -104,6 +107,7 @@ fun ApiKeyDetailScreen(
 ) {
     val keys by apiKeysViewModel.keys.collectAsStateWithLifecycle()
     val saveState by apiKeysViewModel.saveState.collectAsStateWithLifecycle()
+    val connectionTestState by apiKeysViewModel.connectionTestState.collectAsStateWithLifecycle()
     val existingKey = remember(keyId, keys) { keys.find { it.id == keyId } }
 
     var providerId by remember(existingKey) {
@@ -131,6 +135,10 @@ fun ApiKeyDetailScreen(
         }
     }
 
+    LaunchedEffect(providerId, key, baseUrl) {
+        apiKeysViewModel.resetConnectionTestState()
+    }
+
     val providerInfo = ProviderRegistry.findById(providerId)
     val authType = providerInfo?.authType
     val needsKey = authType == ProviderAuthType.API_KEY_ONLY
@@ -138,6 +146,7 @@ fun ApiKeyDetailScreen(
     val needsUrl =
         authType == ProviderAuthType.URL_ONLY || authType == ProviderAuthType.URL_AND_OPTIONAL_KEY
     val isSaving = saveState is SaveState.Saving
+    val isTesting = connectionTestState is ConnectionTestState.Testing
     val saveEnabled = providerId.isNotBlank() && (key.isNotBlank() || !needsKey) && !isSaving
 
     LaunchedEffect(providerId) {
@@ -274,6 +283,62 @@ fun ApiKeyDetailScreen(
                 Spacer(modifier = Modifier.width(BUTTON_INDICATOR_SPACING_DP.dp))
                 LoadingIndicator()
             }
+            Spacer(modifier = Modifier.width(BUTTON_INDICATOR_SPACING_DP.dp))
+            TextButton(
+                onClick = {
+                    apiKeysViewModel.testConnection(
+                        providerId = providerId,
+                        key = key,
+                        baseUrl = baseUrl,
+                    )
+                },
+                enabled = saveEnabled && !isTesting,
+                modifier =
+                    Modifier.semantics {
+                        contentDescription = "Test connection to provider"
+                    },
+            ) {
+                if (isTesting) {
+                    LoadingIndicator()
+                } else {
+                    Text("Test")
+                }
+            }
+        }
+
+        when (val testState = connectionTestState) {
+            is ConnectionTestState.Success ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier =
+                        Modifier.semantics {
+                            liveRegion = LiveRegionMode.Polite
+                        },
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.CheckCircle,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Text(
+                        text = "Connection verified",
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+            is ConnectionTestState.Failure ->
+                Text(
+                    text = testState.message,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier =
+                        Modifier.semantics {
+                            liveRegion = LiveRegionMode.Polite
+                        },
+                )
+            else -> Unit
         }
 
         if (saveState is SaveState.Error) {

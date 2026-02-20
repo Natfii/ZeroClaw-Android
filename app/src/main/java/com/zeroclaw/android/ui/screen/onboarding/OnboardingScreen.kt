@@ -18,9 +18,14 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -62,63 +67,79 @@ fun OnboardingScreen(
     modifier: Modifier = Modifier,
 ) {
     val currentStep by onboardingViewModel.currentStep.collectAsStateWithLifecycle()
+    val completeError by onboardingViewModel.completeError.collectAsStateWithLifecycle()
+    val isCompleting by onboardingViewModel.isCompleting.collectAsStateWithLifecycle()
     val totalSteps = onboardingViewModel.totalSteps
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    Column(
-        modifier =
-            modifier
-                .fillMaxSize()
-                .padding(24.dp),
-    ) {
-        LinearProgressIndicator(
-            progress = { (currentStep + 1).toFloat() / totalSteps },
+    LaunchedEffect(completeError) {
+        val error = completeError ?: return@LaunchedEffect
+        onboardingViewModel.dismissCompleteError()
+        snackbarHostState.showSnackbar(error)
+    }
+
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        modifier = modifier,
+    ) { innerPadding ->
+        Column(
             modifier =
                 Modifier
-                    .fillMaxWidth()
-                    .semantics {
-                        contentDescription = "Step ${currentStep + 1} of $totalSteps"
-                    },
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = "Step ${currentStep + 1} of $totalSteps",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            when (currentStep) {
-                STEP_PERMISSIONS -> PermissionsStep()
-                STEP_PROVIDER -> ProviderStepCollector(onboardingViewModel)
-                STEP_AGENT_CONFIG -> AgentConfigStepCollector(onboardingViewModel)
-                STEP_CHANNELS -> ChannelSetupStepCollector(onboardingViewModel)
-                STEP_ACTIVATION ->
-                    ActivationStep(
-                        onActivate = {
-                            onboardingViewModel.complete(onDone = onComplete)
-                        },
-                    )
-            }
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(24.dp),
         ) {
-            if (currentStep > 0) {
-                OutlinedButton(onClick = { onboardingViewModel.previousStep() }) {
-                    Text("Back")
+            LinearProgressIndicator(
+                progress = { (currentStep + 1).toFloat() / totalSteps },
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .semantics {
+                            contentDescription = "Step ${currentStep + 1} of $totalSteps"
+                        },
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "Step ${currentStep + 1} of $totalSteps",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                when (currentStep) {
+                    STEP_PERMISSIONS -> PermissionsStep()
+                    STEP_PROVIDER -> ProviderStepCollector(onboardingViewModel)
+                    STEP_AGENT_CONFIG -> AgentConfigStepCollector(onboardingViewModel)
+                    STEP_CHANNELS -> ChannelSetupStepCollector(onboardingViewModel)
+                    STEP_ACTIVATION ->
+                        ActivationStep(
+                            onActivate = {
+                                onboardingViewModel.complete(onDone = onComplete)
+                            },
+                            isActivating = isCompleting,
+                        )
                 }
-            } else {
-                Spacer(modifier = Modifier)
             }
-            if (currentStep < totalSteps - 1) {
-                FilledTonalButton(onClick = { onboardingViewModel.nextStep() }) {
-                    Text("Next")
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                if (currentStep > 0) {
+                    OutlinedButton(onClick = { onboardingViewModel.previousStep() }) {
+                        Text("Back")
+                    }
+                } else {
+                    Spacer(modifier = Modifier)
+                }
+                if (currentStep < totalSteps - 1) {
+                    FilledTonalButton(onClick = { onboardingViewModel.nextStep() }) {
+                        Text("Next")
+                    }
                 }
             }
         }

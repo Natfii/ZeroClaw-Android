@@ -8,6 +8,7 @@ package com.zeroclaw.android.ui.component
 
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -118,6 +119,7 @@ fun ModelSuggestionField(
                 } else {
                     null
                 },
+            keyboardOptions = KeyboardOptions(autoCorrect = false),
             singleLine = true,
             modifier =
                 Modifier

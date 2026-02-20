@@ -125,12 +125,13 @@ fun AddAgentScreen(
         isLoadingLive = true
         val result = ModelFetcher.fetchModels(info, apiKeyValue, baseUrlValue)
         isLoadingLive = false
-        result.onSuccess { models ->
-            liveModels = models
-            isLiveData = true
-        }.onFailure { e ->
-            modelFetchError = e.message ?: "Failed to fetch models"
-        }
+        result
+            .onSuccess { models ->
+                liveModels = models
+                isLiveData = true
+            }.onFailure { e ->
+                modelFetchError = e.message ?: "Failed to fetch models"
+            }
     }
 
     Column(

@@ -17,8 +17,10 @@ import com.zeroclaw.android.ZeroClawApplication
 import com.zeroclaw.android.data.CredentialsJsonParser
 import com.zeroclaw.android.data.ProviderRegistry
 import com.zeroclaw.android.data.StorageHealth
+import com.zeroclaw.android.data.remote.ModelFetcher
 import com.zeroclaw.android.model.ApiKey
 import com.zeroclaw.android.model.KeyStatus
+import com.zeroclaw.android.model.ModelListFormat
 import java.io.IOException
 import java.security.GeneralSecurityException
 import java.util.UUID
@@ -54,6 +56,29 @@ sealed interface SaveState {
     data class Error(
         val message: String,
     ) : SaveState
+}
+
+/**
+ * Result of a pre-save connection probe for an API key.
+ */
+sealed interface ConnectionTestState {
+    /** No test has been requested. */
+    data object Idle : ConnectionTestState
+
+    /** A connection test is in progress. */
+    data object Testing : ConnectionTestState
+
+    /** The connection probe succeeded — credentials are accepted by the provider. */
+    data object Success : ConnectionTestState
+
+    /**
+     * The connection probe failed.
+     *
+     * @property message Human-readable failure reason.
+     */
+    data class Failure(
+        val message: String,
+    ) : ConnectionTestState
 }
 
 /**
@@ -124,6 +149,12 @@ class ApiKeysViewModel(
 
     /** One-shot message to display in a snackbar, or null if none pending. */
     val snackbarMessage: StateFlow<String?> = _snackbarMessage.asStateFlow()
+
+    private val _connectionTestState =
+        MutableStateFlow<ConnectionTestState>(ConnectionTestState.Idle)
+
+    /** Result of the most recent connection probe, or [ConnectionTestState.Idle] if none. */
+    val connectionTestState: StateFlow<ConnectionTestState> = _connectionTestState.asStateFlow()
 
     /**
      * Coroutine job for the auto-hide timer that clears the revealed key
@@ -377,6 +408,51 @@ class ApiKeysViewModel(
     }
 
     /**
+     * Probes the provider endpoint to verify that credentials are accepted.
+     *
+     * For providers with no model-list endpoint ([ModelListFormat.NONE]), the
+     * test state is set to [ConnectionTestState.Failure] immediately with an
+     * explanatory message rather than attempting a network call. Otherwise,
+     * [ModelFetcher.fetchModels] is called and the result is mapped to
+     * [ConnectionTestState.Success] or [ConnectionTestState.Failure].
+     *
+     * @param providerId Canonical provider identifier from the registry.
+     * @param key API key value (may be empty for URL-only providers).
+     * @param baseUrl Provider endpoint URL override (may be empty for cloud providers).
+     */
+    @Suppress("TooGenericExceptionCaught")
+    fun testConnection(
+        providerId: String,
+        key: String,
+        baseUrl: String,
+    ) {
+        val providerInfo = ProviderRegistry.findById(providerId)
+        if (providerInfo == null) {
+            _connectionTestState.value = ConnectionTestState.Failure("Unknown provider")
+            return
+        }
+        if (providerInfo.modelListFormat == ModelListFormat.NONE) {
+            _connectionTestState.value =
+                ConnectionTestState.Failure("No test endpoint available for this provider")
+            return
+        }
+        _connectionTestState.value = ConnectionTestState.Testing
+        viewModelScope.launch {
+            val result = ModelFetcher.fetchModels(providerInfo, key, baseUrl)
+            _connectionTestState.value =
+                result.fold(
+                    onSuccess = { ConnectionTestState.Success },
+                    onFailure = { e -> ConnectionTestState.Failure(mapConnectionError(e)) },
+                )
+        }
+    }
+
+    /** Resets [connectionTestState] back to [ConnectionTestState.Idle]. */
+    fun resetConnectionTestState() {
+        _connectionTestState.value = ConnectionTestState.Idle
+    }
+
+    /**
      * Imports an API key from a Claude Code `.credentials.json` file.
      *
      * Reads the file via [android.content.ContentResolver], parses the
@@ -483,4 +559,32 @@ internal suspend fun clearDefaultProviderIfNeeded(
     val fallback = remaining.firstOrNull()
     settingsRepo.setDefaultProvider(fallback?.provider ?: "")
     settingsRepo.setDefaultModel("")
+}
+
+/**
+ * Maps a connection probe exception to a user-facing error message.
+ *
+ * Matches against the `"HTTP {code}"` format produced by
+ * [ModelFetcher][com.zeroclaw.android.data.remote.ModelFetcher]'s
+ * `executeRequest()` to produce specific guidance for common failure
+ * modes. Falls back to a generic message for unexpected errors.
+ *
+ * This is a package-private function so it can be tested independently
+ * without requiring an Android context.
+ *
+ * @param e Exception thrown during the connection probe.
+ * @return Human-readable failure reason.
+ */
+internal fun mapConnectionError(e: Throwable): String {
+    val msg = e.message ?: ""
+    return when {
+        "HTTP 401" in msg -> "Authentication failed — check your API key"
+        "HTTP 403" in msg -> "Access denied — check your API key permissions"
+        "HTTP 404" in msg -> "Endpoint not found — check the base URL"
+        "HTTP 429" in msg -> "Rate limited — try again shortly"
+        "HTTP" in msg -> "Provider returned an error — try again later"
+        "timeout" in msg.lowercase() || "timed out" in msg.lowercase() ->
+            "Connection timed out — check your network"
+        else -> "Connection failed — check credentials and URL"
+    }
 }

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -21,15 +22,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.zeroclaw.android.util.LocalPowerSaveMode
 
 /**
  * Final onboarding step for activating the daemon.
  *
  * @param onActivate Callback invoked when the user starts the daemon
  *   and finishes onboarding.
+ * @param isActivating Whether the activation is in progress (probing
+ *   credentials and persisting configuration). When true, the button is
+ *   disabled and a progress indicator is shown.
  */
 @Composable
-fun ActivationStep(onActivate: () -> Unit) {
+fun ActivationStep(
+    onActivate: () -> Unit,
+    isActivating: Boolean = false,
+) {
     Column(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -46,6 +54,7 @@ fun ActivationStep(onActivate: () -> Unit) {
         Spacer(modifier = Modifier.height(32.dp))
         FilledTonalButton(
             onClick = onActivate,
+            enabled = !isActivating,
             modifier =
                 Modifier
                     .fillMaxWidth()
@@ -54,7 +63,18 @@ fun ActivationStep(onActivate: () -> Unit) {
                         contentDescription = "Start daemon and finish setup"
                     },
         ) {
-            Text("Start Daemon")
+            if (isActivating) {
+                if (LocalPowerSaveMode.current) {
+                    Text("Verifying\u2026")
+                } else {
+                    CircularProgressIndicator(
+                        modifier = Modifier.height(24.dp),
+                        strokeWidth = 2.dp,
+                    )
+                }
+            } else {
+                Text("Start Daemon")
+            }
         }
     }
 }
