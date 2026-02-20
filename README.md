@@ -77,7 +77,7 @@ API keys are stored in `EncryptedSharedPreferences` backed by Android Keystore w
 
 - Keys are masked by default (last 4 characters visible)
 - Biometric authentication required to reveal full keys
-- Encrypted export/import with Argon2 key derivation
+- Encrypted export/import with Argon2 key derivation                           <img align="right" width="116" height="187" alt="guard" src="https://github.com/user-attachments/assets/0775c2ec-ab88-4550-9810-a52c116e2951" />
 - Rust core uses memory-safe FFI -- no buffer overflows, no use-after-free
 - The app is not distributed through third-party marketplaces. Builds are reproducible from source.
 
