@@ -6,13 +6,17 @@
 
 package com.zeroclaw.android.ui.screen.onboarding.steps
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.WifiFind
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -21,12 +25,17 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.zeroclaw.android.data.ProviderKeyValidator
 import com.zeroclaw.android.data.ProviderRegistry
 import com.zeroclaw.android.data.remote.ModelFetcher
 import com.zeroclaw.android.model.ModelListFormat
@@ -127,6 +136,22 @@ fun ProviderStep(
         )
     }
 
+    val context = LocalContext.current
+    val prefixWarning by remember(selectedProvider, apiKey) {
+        derivedStateOf {
+            if (providerInfo != null) {
+                ProviderKeyValidator.validateKeyFormat(providerInfo, apiKey)
+            } else {
+                null
+            }
+        }
+    }
+    var prefixOverridden by remember { mutableStateOf(false) }
+
+    LaunchedEffect(selectedProvider, apiKey) {
+        prefixOverridden = false
+    }
+
     Column {
         Text(
             text = "API Provider",
@@ -146,20 +171,35 @@ fun ProviderStep(
             onProviderSelected = { onProviderChanged(it.id) },
             modifier = Modifier.fillMaxWidth(),
         )
-        Spacer(modifier = Modifier.height(FIELD_SPACING_DP.dp))
 
-        if (authType == ProviderAuthType.API_KEY_ONLY ||
-            authType == ProviderAuthType.URL_AND_OPTIONAL_KEY
-        ) {
-            OutlinedTextField(
-                value = apiKey,
-                onValueChange = onApiKeyChanged,
-                label = { Text("API Key") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
+        if (providerInfo?.helpText?.isNotEmpty() == true) {
+            Spacer(modifier = Modifier.height(HINT_SPACING_DP.dp))
+            Text(
+                text = providerInfo.helpText,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Spacer(modifier = Modifier.height(FIELD_SPACING_DP.dp))
         }
+
+        if (providerInfo?.keyCreationUrl?.isNotEmpty() == true) {
+            TextButton(
+                onClick = {
+                    context.startActivity(
+                        Intent(Intent.ACTION_VIEW, Uri.parse(providerInfo.keyCreationUrl)),
+                    )
+                },
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                    contentDescription = null,
+                    modifier = Modifier.size(SCAN_ICON_SIZE_DP.dp),
+                )
+                Spacer(modifier = Modifier.width(SCAN_ICON_SPACING_DP.dp))
+                Text("Get API Key")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(FIELD_SPACING_DP.dp))
 
         if (authType == ProviderAuthType.URL_ONLY ||
             authType == ProviderAuthType.URL_AND_OPTIONAL_KEY
@@ -184,6 +224,34 @@ fun ProviderStep(
                 Text("Scan Network for Servers")
             }
             Spacer(modifier = Modifier.height(HINT_SPACING_DP.dp))
+        }
+
+        if (authType == ProviderAuthType.API_KEY_ONLY ||
+            authType == ProviderAuthType.URL_AND_OPTIONAL_KEY
+        ) {
+            OutlinedTextField(
+                value = apiKey,
+                onValueChange = onApiKeyChanged,
+                label = { Text("API Key") },
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions =
+                    KeyboardOptions(keyboardType = KeyboardType.Password),
+                isError = prefixWarning != null && !prefixOverridden,
+                supportingText =
+                    if (prefixWarning != null && !prefixOverridden) {
+                        { Text(prefixWarning!!) }
+                    } else {
+                        null
+                    },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            if (prefixWarning != null && !prefixOverridden) {
+                TextButton(onClick = { prefixOverridden = true }) {
+                    Text("Use this key anyway")
+                }
+            }
+            Spacer(modifier = Modifier.height(FIELD_SPACING_DP.dp))
         }
 
         if (selectedProvider.isNotBlank()) {
