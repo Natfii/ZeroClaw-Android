@@ -138,4 +138,14 @@ class ConnectionErrorMessageTest {
             mapConnectionError(e),
         )
     }
+
+    @Test
+    @DisplayName("maps JSON-body auth error (HTTP 401 from response body) to authentication failure")
+    fun `maps JSON-body auth error to authentication failure`() {
+        val e = IOException("HTTP 401 from https://api.anthropic.com/v1/models (auth error in response body)")
+        assertEquals(
+            "Authentication failed — check your API key",
+            mapConnectionError(e),
+        )
+    }
 }
