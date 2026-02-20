@@ -480,10 +480,7 @@ pub(crate) fn send_message_inner(message: String) -> Result<String, FfiError> {
 
         let status = response.status();
         if !status.is_success() {
-            let body_text = response
-                .text()
-                .await
-                .unwrap_or_default();
+            let body_text = response.text().await.unwrap_or_default();
             let detail_hint = extract_gateway_error(&body_text);
             let hint = if status.as_u16() == 408 {
                 " (model may need more time to respond — try a smaller prompt or faster model)"
