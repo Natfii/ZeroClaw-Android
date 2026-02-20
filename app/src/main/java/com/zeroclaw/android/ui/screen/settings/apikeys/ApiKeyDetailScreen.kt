@@ -6,6 +6,8 @@
 
 package com.zeroclaw.android.ui.screen.settings.apikeys
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -21,6 +23,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.WifiFind
 import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material3.FilledTonalButton
@@ -32,12 +35,14 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
@@ -49,6 +54,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.zeroclaw.android.data.ProviderKeyValidator
 import com.zeroclaw.android.data.ProviderRegistry
 import com.zeroclaw.android.model.ProviderAuthType
 import com.zeroclaw.android.ui.component.LoadingIndicator
@@ -147,7 +153,26 @@ fun ApiKeyDetailScreen(
         authType == ProviderAuthType.URL_ONLY || authType == ProviderAuthType.URL_AND_OPTIONAL_KEY
     val isSaving = saveState is SaveState.Saving
     val isTesting = connectionTestState is ConnectionTestState.Testing
-    val saveEnabled = providerId.isNotBlank() && (key.isNotBlank() || !needsKey) && !isSaving
+
+    val context = LocalContext.current
+    val prefixWarning by remember(providerId, key) {
+        derivedStateOf {
+            if (providerInfo != null) {
+                ProviderKeyValidator.validateKeyFormat(providerInfo, key)
+            } else {
+                null
+            }
+        }
+    }
+    var prefixOverridden by remember { mutableStateOf(false) }
+
+    LaunchedEffect(providerId, key) {
+        prefixOverridden = false
+    }
+
+    val prefixValid = prefixWarning == null || prefixOverridden ||
+        providerInfo?.keyPrefix.isNullOrEmpty()
+    val saveEnabled = providerId.isNotBlank() && (key.isNotBlank() || !needsKey) && !isSaving && prefixValid
 
     LaunchedEffect(providerId) {
         if (existingKey == null && providerInfo?.defaultBaseUrl?.isNotEmpty() == true) {
@@ -185,6 +210,33 @@ fun ApiKeyDetailScreen(
             enabled = keyId == null && !isSaving,
             modifier = Modifier.fillMaxWidth(),
         )
+
+        if (providerInfo?.helpText?.isNotEmpty() == true) {
+            Text(
+                text = providerInfo.helpText,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        if (providerInfo?.keyCreationUrl?.isNotEmpty() == true) {
+            TextButton(
+                onClick = {
+                    context.startActivity(
+                        Intent(Intent.ACTION_VIEW, Uri.parse(providerInfo.keyCreationUrl)),
+                    )
+                },
+                enabled = !isSaving,
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                    contentDescription = null,
+                    modifier = Modifier.size(SCAN_ICON_SIZE_DP.dp),
+                )
+                Spacer(modifier = Modifier.width(SCAN_ICON_SPACING_DP.dp))
+                Text("Get API Key")
+            }
+        }
 
         if (needsUrl) {
             OutlinedTextField(
@@ -243,14 +295,20 @@ fun ApiKeyDetailScreen(
                         keyboardType = KeyboardType.Password,
                         imeAction = ImeAction.Done,
                     ),
+                isError = prefixWarning != null && !prefixOverridden,
                 supportingText =
-                    if (providerId == "anthropic") {
-                        { Text("Accepts API keys (sk-ant-...) or OAuth tokens (sk-ant-oat01-...)") }
+                    if (prefixWarning != null && !prefixOverridden) {
+                        { Text(prefixWarning!!) }
                     } else {
                         null
                     },
                 modifier = Modifier.fillMaxWidth(),
             )
+            if (prefixWarning != null && !prefixOverridden) {
+                TextButton(onClick = { prefixOverridden = true }) {
+                    Text("Use this key anyway")
+                }
+            }
         }
 
         Row(
