@@ -111,7 +111,7 @@ fun OnboardingScreen(
 
             Column(modifier = Modifier.weight(1f)) {
                 when (currentStep) {
-                    STEP_PERMISSIONS -> PermissionsStep()
+                    STEP_PERMISSIONS -> PermissionsStepCollector(onboardingViewModel)
                     STEP_PROVIDER -> ProviderStepCollector(onboardingViewModel)
                     STEP_AGENT_CONFIG -> AgentConfigStepCollector(onboardingViewModel)
                     STEP_CHANNELS -> ChannelSetupStepCollector(onboardingViewModel)
@@ -144,6 +144,27 @@ fun OnboardingScreen(
             }
         }
     }
+}
+
+/**
+ * Collects biometric-related flows and delegates to [PermissionsStep].
+ *
+ * Isolating the flow collections here prevents biometric toggle changes from
+ * recomposing the parent [OnboardingScreen] layout.
+ *
+ * @param viewModel The [OnboardingViewModel] owning the biometric state flows.
+ */
+@Composable
+private fun PermissionsStepCollector(viewModel: OnboardingViewModel) {
+    val biometricForService by viewModel.biometricForService.collectAsStateWithLifecycle()
+    val biometricForSettings by viewModel.biometricForSettings.collectAsStateWithLifecycle()
+
+    PermissionsStep(
+        biometricForService = biometricForService,
+        biometricForSettings = biometricForSettings,
+        onBiometricForServiceChanged = viewModel::setBiometricForService,
+        onBiometricForSettingsChanged = viewModel::setBiometricForSettings,
+    )
 }
 
 /**

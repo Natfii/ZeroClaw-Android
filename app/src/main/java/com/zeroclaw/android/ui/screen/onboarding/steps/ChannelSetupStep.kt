@@ -107,40 +107,41 @@ fun ChannelSetupStep(
                     modifier = Modifier.padding(CARD_PADDING_DP.dp),
                 )
             }
-            Spacer(modifier = Modifier.height(CARD_SPACING_DP.dp))
-        }
 
-        if (selectedType != null) {
-            Spacer(modifier = Modifier.height(DESCRIPTION_SPACING_DP.dp))
-            Text(
-                text = "Required fields for ${selectedType.displayName}:",
-                style = MaterialTheme.typography.labelLarge,
-            )
-            Spacer(modifier = Modifier.height(FIELD_SPACING_DP.dp))
-
-            selectedType.fields.filter { it.isRequired }.forEach { spec ->
-                val keyboardType =
-                    when (spec.inputType) {
-                        FieldInputType.NUMBER -> KeyboardType.Number
-                        FieldInputType.URL -> KeyboardType.Uri
-                        else -> KeyboardType.Text
-                    }
-                OutlinedTextField(
-                    value = channelFieldValues[spec.key].orEmpty(),
-                    onValueChange = { onFieldChanged(spec.key, it) },
-                    label = { Text("${spec.label} *") },
-                    singleLine = true,
-                    visualTransformation =
-                        if (spec.isSecret) {
-                            PasswordVisualTransformation()
-                        } else {
-                            androidx.compose.ui.text.input.VisualTransformation.None
-                        },
-                    keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-                    modifier = Modifier.fillMaxWidth(),
+            if (isSelected) {
+                Spacer(modifier = Modifier.height(FIELD_SPACING_DP.dp))
+                Text(
+                    text = "Required fields for ${type.displayName}:",
+                    style = MaterialTheme.typography.labelLarge,
                 )
                 Spacer(modifier = Modifier.height(FIELD_SPACING_DP.dp))
+
+                type.fields.filter { it.isRequired }.forEach { spec ->
+                    val keyboardType =
+                        when (spec.inputType) {
+                            FieldInputType.NUMBER -> KeyboardType.Number
+                            FieldInputType.URL -> KeyboardType.Uri
+                            else -> KeyboardType.Text
+                        }
+                    OutlinedTextField(
+                        value = channelFieldValues[spec.key].orEmpty(),
+                        onValueChange = { onFieldChanged(spec.key, it) },
+                        label = { Text("${spec.label} *") },
+                        singleLine = true,
+                        visualTransformation =
+                            if (spec.isSecret) {
+                                PasswordVisualTransformation()
+                            } else {
+                                androidx.compose.ui.text.input.VisualTransformation.None
+                            },
+                        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(modifier = Modifier.height(FIELD_SPACING_DP.dp))
+                }
             }
+
+            Spacer(modifier = Modifier.height(CARD_SPACING_DP.dp))
         }
 
         Text(

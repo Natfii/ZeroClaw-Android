@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -36,17 +37,30 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.zeroclaw.android.util.BatteryOptimization
+import com.zeroclaw.android.util.BiometricGatekeeper
 
 /**
  * Onboarding step for requesting necessary permissions.
  *
- * Guides the user through notification permission (Android 13+)
- * and battery optimization exemption.
+ * Guides the user through notification permission (Android 13+),
+ * battery optimization exemption, and optional biometric protection
+ * for service control and sensitive settings.
+ *
+ * @param biometricForService Whether biometric is required for service start/stop.
+ * @param biometricForSettings Whether biometric is required for sensitive settings.
+ * @param onBiometricForServiceChanged Callback when the service toggle changes.
+ * @param onBiometricForSettingsChanged Callback when the settings toggle changes.
  */
 @Suppress("MagicNumber")
 @Composable
-fun PermissionsStep() {
+fun PermissionsStep(
+    biometricForService: Boolean,
+    biometricForSettings: Boolean,
+    onBiometricForServiceChanged: (Boolean) -> Unit,
+    onBiometricForSettingsChanged: (Boolean) -> Unit,
+) {
     val context = LocalContext.current
+    val biometricAvailable = BiometricGatekeeper.isAvailable(context)
     var isExempt by rememberSaveable {
         mutableStateOf(BatteryOptimization.isExempt(context))
     }
@@ -169,6 +183,52 @@ fun PermissionsStep() {
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text("Request Exemption")
+            }
+        }
+
+        if (biometricAvailable) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "Biometric Protection",
+                style = MaterialTheme.typography.titleSmall,
+            )
+            Text(
+                text =
+                    "Require fingerprint or face unlock to control " +
+                        "the daemon or modify sensitive settings.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "Protect service start/stop",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Switch(
+                    checked = biometricForService,
+                    onCheckedChange = onBiometricForServiceChanged,
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "Protect sensitive settings",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Switch(
+                    checked = biometricForSettings,
+                    onCheckedChange = onBiometricForSettingsChanged,
+                )
             }
         }
     }

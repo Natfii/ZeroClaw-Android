@@ -55,6 +55,7 @@ class OnboardingViewModel(
 
     init {
         prefillFromExistingIdentity()
+        prefillBiometricFromSettings()
     }
 
     private val _currentStep = MutableStateFlow(0)
@@ -99,6 +100,16 @@ class OnboardingViewModel(
 
     /** Field values entered for the selected channel type. */
     val channelFieldValues: StateFlow<Map<String, String>> = _channelFieldValues.asStateFlow()
+
+    private val _biometricForService = MutableStateFlow(false)
+
+    /** Whether biometric authentication is required for service start/stop. */
+    val biometricForService: StateFlow<Boolean> = _biometricForService.asStateFlow()
+
+    private val _biometricForSettings = MutableStateFlow(false)
+
+    /** Whether biometric authentication is required for sensitive settings. */
+    val biometricForSettings: StateFlow<Boolean> = _biometricForSettings.asStateFlow()
 
     private val _completeError = MutableStateFlow<String?>(null)
 
@@ -205,6 +216,24 @@ class OnboardingViewModel(
     }
 
     /**
+     * Sets whether biometric authentication is required for service control.
+     *
+     * @param enabled True to require biometric for start/stop.
+     */
+    fun setBiometricForService(enabled: Boolean) {
+        _biometricForService.value = enabled
+    }
+
+    /**
+     * Sets whether biometric authentication is required for sensitive settings.
+     *
+     * @param enabled True to require biometric for settings access.
+     */
+    fun setBiometricForSettings(enabled: Boolean) {
+        _biometricForSettings.value = enabled
+    }
+
+    /**
      * Launches the onboarding completion flow.
      *
      * Guards against double-tap by checking [isCompleting]. Sets [isCompleting]
@@ -303,8 +332,25 @@ class OnboardingViewModel(
             settingsRepository.setDefaultModel(model)
         }
 
+        settingsRepository.setBiometricForService(_biometricForService.value)
+        settingsRepository.setBiometricForSettings(_biometricForSettings.value)
+
         onboardingRepository.markComplete()
         onDone()
+    }
+
+    /**
+     * Pre-fills biometric toggles from existing settings on re-runs.
+     *
+     * Reads the current [biometricForService] and [biometricForSettings]
+     * values so that re-running the wizard preserves the user's choices.
+     */
+    private fun prefillBiometricFromSettings() {
+        viewModelScope.launch {
+            val current = settingsRepository.settings.first()
+            _biometricForService.value = current.biometricForService
+            _biometricForSettings.value = current.biometricForSettings
+        }
     }
 
     /**
