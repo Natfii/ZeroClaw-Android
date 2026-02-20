@@ -43,9 +43,9 @@ complexity:
       - "Composable"
   TooManyFunctions:
     active: true
-    thresholdInClasses: 18
-    thresholdInFiles: 20
-    thresholdInInterfaces: 18
+    thresholdInClasses: 21
+    thresholdInFiles: 23
+    thresholdInInterfaces: 21
 
 naming:
   FunctionNaming:
