@@ -87,6 +87,10 @@ object ProviderRegistry {
                 iconUrl = "https://cdn.openai.com/API/logo-assets/openai-logomark.png",
                 modelListUrl = "https://api.openai.com/v1/models",
                 modelListFormat = ModelListFormat.OPENAI_COMPATIBLE,
+                keyCreationUrl = "https://platform.openai.com/api-keys",
+                keyPrefix = "sk-",
+                keyPrefixHint = "Keys start with sk-",
+                helpText = "Requires billing. Free \$5 credit for new accounts",
             ),
             ProviderInfo(
                 id = "anthropic",
@@ -103,6 +107,10 @@ object ProviderRegistry {
                 iconUrl = faviconUrl("anthropic.com"),
                 modelListUrl = "https://api.anthropic.com/v1/models",
                 modelListFormat = ModelListFormat.ANTHROPIC,
+                keyCreationUrl = "https://console.anthropic.com/settings/keys",
+                keyPrefix = "sk-ant-",
+                keyPrefixHint = "Keys start with sk-ant-",
+                helpText = "Accepts API keys or OAuth tokens (sk-ant-oat01-...)",
             ),
             ProviderInfo(
                 id = "openrouter",
@@ -118,6 +126,10 @@ object ProviderRegistry {
                 iconUrl = faviconUrl("openrouter.ai"),
                 modelListUrl = "https://openrouter.ai/api/v1/models",
                 modelListFormat = ModelListFormat.OPENROUTER,
+                keyCreationUrl = "https://openrouter.ai/keys",
+                keyPrefix = "sk-or-",
+                keyPrefixHint = "Keys start with sk-or-",
+                helpText = "Aggregator: access 100+ models with one key. Free tier available",
             ),
             ProviderInfo(
                 id = "google-gemini",
@@ -135,6 +147,10 @@ object ProviderRegistry {
                 iconUrl = faviconUrl("ai.google.dev"),
                 modelListUrl = "https://generativelanguage.googleapis.com/v1beta/models",
                 modelListFormat = ModelListFormat.GOOGLE_GEMINI,
+                keyCreationUrl = "https://aistudio.google.com/apikey",
+                keyPrefix = "AIza",
+                keyPrefixHint = "Keys start with AIza",
+                helpText = "Free tier: 15 req/min for Flash models",
             ),
             ProviderInfo(
                 id = "ollama",
@@ -154,6 +170,7 @@ object ProviderRegistry {
                 iconUrl = faviconUrl("ollama.com"),
                 modelListUrl = "http://localhost:11434/api/tags",
                 modelListFormat = ModelListFormat.OLLAMA,
+                helpText = "URL is optional \u2014 defaults to localhost:11434",
             ),
             ProviderInfo(
                 id = "lmstudio",
@@ -163,6 +180,7 @@ object ProviderRegistry {
                 category = ProviderCategory.PRIMARY,
                 iconUrl = faviconUrl("lmstudio.ai"),
                 modelListFormat = ModelListFormat.OPENAI_COMPATIBLE,
+                helpText = "Start LM Studio's local server first, or scan your network",
             ),
             ProviderInfo(
                 id = "vllm",
@@ -172,6 +190,7 @@ object ProviderRegistry {
                 category = ProviderCategory.PRIMARY,
                 iconUrl = faviconUrl("docs.vllm.ai"),
                 modelListFormat = ModelListFormat.OPENAI_COMPATIBLE,
+                helpText = "Start your vLLM server first, or scan your network",
             ),
             ProviderInfo(
                 id = "localai",
@@ -181,6 +200,7 @@ object ProviderRegistry {
                 category = ProviderCategory.PRIMARY,
                 iconUrl = faviconUrl("localai.io"),
                 modelListFormat = ModelListFormat.OPENAI_COMPATIBLE,
+                helpText = "Start your LocalAI server first, or scan your network",
             ),
         )
 
@@ -202,6 +222,10 @@ object ProviderRegistry {
                 iconUrl = faviconUrl("groq.com"),
                 modelListUrl = "https://api.groq.com/openai/v1/models",
                 modelListFormat = ModelListFormat.OPENAI_COMPATIBLE,
+                keyCreationUrl = "https://console.groq.com/keys",
+                keyPrefix = "gsk_",
+                keyPrefixHint = "Keys start with gsk_",
+                helpText = "Free tier: 30 req/min. Ultra-fast inference",
             ),
             ProviderInfo(
                 id = "mistral",
@@ -218,6 +242,8 @@ object ProviderRegistry {
                 iconUrl = faviconUrl("mistral.ai"),
                 modelListUrl = "https://api.mistral.ai/v1/models",
                 modelListFormat = ModelListFormat.OPENAI_COMPATIBLE,
+                keyCreationUrl = "https://console.mistral.ai/api-keys",
+                helpText = "Free tier available for small models",
             ),
             ProviderInfo(
                 id = "xai",
@@ -227,6 +253,10 @@ object ProviderRegistry {
                 aliases = listOf("grok"),
                 category = ProviderCategory.ECOSYSTEM,
                 iconUrl = faviconUrl("x.ai"),
+                keyCreationUrl = "https://console.x.ai/",
+                keyPrefix = "xai-",
+                keyPrefixHint = "Keys start with xai-",
+                helpText = "Grok models. Free tier with monthly credits",
             ),
             ProviderInfo(
                 id = "deepseek",
@@ -237,6 +267,10 @@ object ProviderRegistry {
                 iconUrl = faviconUrl("deepseek.com"),
                 modelListUrl = "https://api.deepseek.com/models",
                 modelListFormat = ModelListFormat.OPENAI_COMPATIBLE,
+                keyCreationUrl = "https://platform.deepseek.com/api_keys",
+                keyPrefix = "sk-",
+                keyPrefixHint = "Keys start with sk-",
+                helpText = "Budget-friendly reasoning models",
             ),
             ProviderInfo(
                 id = "together",
@@ -251,6 +285,8 @@ object ProviderRegistry {
                 iconUrl = faviconUrl("together.ai"),
                 modelListUrl = "https://api.together.xyz/v1/models",
                 modelListFormat = ModelListFormat.TOGETHER,
+                keyCreationUrl = "https://api.together.ai/settings/api-keys",
+                helpText = "Inference platform with 100+ open models",
             ),
             ProviderInfo(
                 id = "fireworks",
