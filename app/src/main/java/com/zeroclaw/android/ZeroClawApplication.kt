@@ -52,6 +52,7 @@ import com.zeroclaw.android.service.PluginSyncWorker
 import com.zeroclaw.android.service.SkillsBridge
 import com.zeroclaw.android.service.ToolsBridge
 import com.zeroclaw.android.service.VisionBridge
+import com.zeroclaw.ffi.getVersion
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -159,6 +160,7 @@ class ZeroClawApplication :
         super.onCreate()
         System.loadLibrary("sqlcipher")
         System.loadLibrary("zeroclaw")
+        verifyCrateVersion()
 
         @Suppress("InjectDispatcher")
         val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
@@ -185,6 +187,29 @@ class ZeroClawApplication :
         daemonBridge.eventBridge = eventBridge
 
         schedulePluginSyncIfEnabled(ioScope)
+    }
+
+    /**
+     * Checks that the loaded native library version matches the app version.
+     *
+     * A mismatch indicates a partial update left a stale `.so` file. This
+     * is logged as a warning rather than a crash so the app remains usable,
+     * but the mismatch may cause unexpected FFI behaviour.
+     */
+    @Suppress("TooGenericExceptionCaught")
+    private fun verifyCrateVersion() {
+        try {
+            val crateVersion = getVersion()
+            val appVersion = BuildConfig.VERSION_NAME
+            if (crateVersion != appVersion) {
+                Log.w(
+                    TAG,
+                    "Crate/app version mismatch: native=$crateVersion, app=$appVersion",
+                )
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to verify crate version: ${e.message}")
+        }
     }
 
     /**

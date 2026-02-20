@@ -48,6 +48,7 @@ object DatabaseEncryptionMigrator {
         passphrase: String,
     ) {
         val dbFile = context.getDatabasePath(DATABASE_NAME)
+        cleanUpInterruptedMigration(dbFile)
         if (!dbFile.exists()) return
         if (!isUnencrypted(dbFile)) return
 
@@ -60,6 +61,25 @@ object DatabaseEncryptionMigrator {
         ) {
             Log.e(TAG, "Migration failed — deleting database for fresh start", e)
             deleteWithCompanions(dbFile)
+        }
+    }
+
+    /**
+     * Cleans up artifacts from a previously interrupted migration.
+     *
+     * If a `.bak` file exists but the primary database does not, the
+     * migration was interrupted after the rename but before the
+     * encrypted file was moved into place. The backup is restored so
+     * the next call to [migrateIfNeeded] can retry the migration.
+     */
+    private fun cleanUpInterruptedMigration(dbFile: File) {
+        val backupFile = File(dbFile.absolutePath + ".bak")
+        if (backupFile.exists() && !dbFile.exists()) {
+            Log.w(TAG, "Found orphaned backup from interrupted migration, restoring")
+            backupFile.renameTo(dbFile)
+        } else if (backupFile.exists() && dbFile.exists()) {
+            Log.i(TAG, "Removing stale backup from completed migration")
+            backupFile.delete()
         }
     }
 
@@ -87,13 +107,22 @@ object DatabaseEncryptionMigrator {
      * Opens the plaintext database with an empty password, attaches
      * a new encrypted database with the given [passphrase], exports all
      * schema and data, then replaces the original file.
+     *
+     * The replacement is performed atomically: the original file is
+     * renamed to a `.bak` suffix before the encrypted file is moved
+     * into place. If the rename fails, the backup is restored. The
+     * backup is only deleted after the encrypted file is successfully
+     * in position, so a process death at any point leaves at least
+     * one valid copy of the data on disk.
      */
     private fun encrypt(
         dbFile: File,
         passphrase: String,
     ) {
         val tempFile = File(dbFile.parentFile, "zeroclaw_encrypting.db")
+        val backupFile = File(dbFile.absolutePath + ".bak")
         tempFile.delete()
+        backupFile.delete()
 
         val db =
             net.zetetic.database.sqlcipher.SQLiteDatabase.openDatabase(
@@ -114,11 +143,19 @@ object DatabaseEncryptionMigrator {
             db.close()
         }
 
-        deleteWithCompanions(dbFile)
+        if (!dbFile.renameTo(backupFile)) {
+            tempFile.delete()
+            error("Failed to back up plaintext database before encryption swap")
+        }
+        deleteWithCompanions(File(dbFile.absolutePath))
+
         if (!tempFile.renameTo(dbFile)) {
+            backupFile.renameTo(dbFile)
             tempFile.delete()
             error("Failed to rename encrypted database into place")
         }
+
+        backupFile.delete()
     }
 
     /**

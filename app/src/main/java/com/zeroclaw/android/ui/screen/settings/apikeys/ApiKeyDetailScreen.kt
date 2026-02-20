@@ -171,7 +171,8 @@ fun ApiKeyDetailScreen(
     }
 
     val prefixValid =
-        prefixWarning == null || prefixOverridden ||
+        prefixWarning == null ||
+            prefixOverridden ||
             providerInfo?.keyPrefix.isNullOrEmpty()
     val saveEnabled = providerId.isNotBlank() && (key.isNotBlank() || !needsKey) && !isSaving && prefixValid
 
