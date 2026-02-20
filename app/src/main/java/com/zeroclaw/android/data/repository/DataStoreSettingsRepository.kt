@@ -164,6 +164,7 @@ class DataStoreSettingsRepository(
                 prefs[KEY_LOCK_TIMEOUT]
                     ?: AppSettings.DEFAULT_LOCK_TIMEOUT,
             pinHash = prefs[KEY_PIN_HASH] ?: "",
+            biometricUnlockEnabled = prefs[KEY_BIOMETRIC_UNLOCK] ?: false,
             pluginRegistryUrl =
                 prefs[KEY_PLUGIN_REGISTRY_URL]
                     ?: AppSettings.DEFAULT_PLUGIN_REGISTRY_URL,
@@ -309,6 +310,8 @@ class DataStoreSettingsRepository(
 
     override suspend fun setPinHash(hash: String) = edit { it[KEY_PIN_HASH] = hash }
 
+    override suspend fun setBiometricUnlockEnabled(enabled: Boolean) = edit { it[KEY_BIOMETRIC_UNLOCK] = enabled }
+
     override suspend fun setPluginRegistryUrl(url: String) = edit { it[KEY_PLUGIN_REGISTRY_URL] = url }
 
     override suspend fun setPluginSyncEnabled(enabled: Boolean) = edit { it[KEY_PLUGIN_SYNC_ENABLED] = enabled }
@@ -396,6 +399,7 @@ class DataStoreSettingsRepository(
         val KEY_LOCK_ENABLED = booleanPreferencesKey("lock_enabled")
         val KEY_LOCK_TIMEOUT = intPreferencesKey("lock_timeout_minutes")
         val KEY_PIN_HASH = stringPreferencesKey("pin_hash")
+        val KEY_BIOMETRIC_UNLOCK = booleanPreferencesKey("biometric_unlock_enabled")
         val KEY_PLUGIN_REGISTRY_URL = stringPreferencesKey("plugin_registry_url")
         val KEY_PLUGIN_SYNC_ENABLED = booleanPreferencesKey("plugin_sync_enabled")
         val KEY_PLUGIN_SYNC_INTERVAL = intPreferencesKey("plugin_sync_interval_hours")

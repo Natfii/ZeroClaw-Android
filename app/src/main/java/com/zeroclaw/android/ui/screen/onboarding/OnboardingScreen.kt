@@ -157,10 +157,13 @@ fun OnboardingScreen(
 @Composable
 private fun PermissionsStepCollector(viewModel: OnboardingViewModel) {
     val pinHash by viewModel.pinHash.collectAsStateWithLifecycle()
+    val biometricUnlockEnabled by viewModel.biometricUnlockEnabled.collectAsStateWithLifecycle()
 
     PermissionsStep(
         pinHash = pinHash,
+        biometricUnlockEnabled = biometricUnlockEnabled,
         onPinSet = viewModel::setPinHash,
+        onBiometricUnlockEnabledChange = viewModel::setBiometricUnlockEnabled,
     )
 }
 

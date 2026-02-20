@@ -38,22 +38,29 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.zeroclaw.android.ui.component.PinEntryMode
 import com.zeroclaw.android.ui.component.PinEntrySheet
+import com.zeroclaw.android.ui.component.SettingsToggleRow
 import com.zeroclaw.android.util.BatteryOptimization
+import com.zeroclaw.android.util.BiometricGatekeeper
 
 /**
  * Onboarding step for requesting necessary permissions.
  *
  * Guides the user through notification permission (Android 13+),
- * battery optimization exemption, and optional PIN-based app lock.
+ * battery optimization exemption, optional PIN-based app lock, and
+ * optional biometric unlock.
  *
  * @param pinHash The current PIN hash (empty if no PIN is set).
+ * @param biometricUnlockEnabled Whether biometric unlock is toggled on.
  * @param onPinSet Callback with the new PIN hash after setup.
+ * @param onBiometricUnlockEnabledChange Callback when the biometric toggle changes.
  */
 @Suppress("MagicNumber")
 @Composable
 fun PermissionsStep(
     pinHash: String,
+    biometricUnlockEnabled: Boolean,
     onPinSet: (String) -> Unit,
+    onBiometricUnlockEnabledChange: (Boolean) -> Unit,
 ) {
     val context = LocalContext.current
     var isExempt by rememberSaveable {
@@ -237,6 +244,17 @@ fun PermissionsStep(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+
+        if (pinHash.isNotEmpty() && BiometricGatekeeper.isAvailable(context)) {
+            Spacer(modifier = Modifier.height(16.dp))
+            SettingsToggleRow(
+                title = "Use fingerprint to unlock",
+                subtitle = "Unlock with biometrics instead of PIN",
+                checked = biometricUnlockEnabled,
+                onCheckedChange = onBiometricUnlockEnabledChange,
+                contentDescription = "Use fingerprint to unlock",
+            )
+        }
 
         if (showPinSheet) {
             PinEntrySheet(

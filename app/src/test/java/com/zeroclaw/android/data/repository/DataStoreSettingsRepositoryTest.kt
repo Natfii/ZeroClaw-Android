@@ -347,6 +347,8 @@ private class InMemorySettingsRepository : SettingsRepository {
 
     override suspend fun setPinHash(hash: String) { /* no-op */ }
 
+    override suspend fun setBiometricUnlockEnabled(enabled: Boolean) { /* no-op */ }
+
     override suspend fun setPluginRegistryUrl(url: String) { /* no-op */ }
 
     override suspend fun setPluginSyncEnabled(enabled: Boolean) { /* no-op */ }

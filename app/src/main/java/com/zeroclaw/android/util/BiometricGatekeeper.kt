@@ -72,6 +72,29 @@ object BiometricGatekeeper {
     }
 
     /**
+     * Checks biometric availability at the same authenticator level used by [authenticate].
+     *
+     * When [allowDeviceCredential] is true, checks [BIOMETRIC_STRONG] or
+     * [DEVICE_CREDENTIAL][BiometricManager.Authenticators.DEVICE_CREDENTIAL]
+     * -- the same combo that [authenticate] uses. This prevents the mismatch
+     * where [isAvailable] returns true but [authenticate] fails silently.
+     *
+     * @param context Application or activity context.
+     * @param allowDeviceCredential Whether PIN/pattern/password fallback is expected.
+     * @return True if authentication at the requested level can proceed.
+     */
+    fun isAvailable(
+        context: Context,
+        allowDeviceCredential: Boolean,
+    ): Boolean {
+        val authenticators =
+            if (allowDeviceCredential) BIOMETRIC_OR_CREDENTIAL else BIOMETRIC_ONLY
+        val manager = BiometricManager.from(context)
+        return manager.canAuthenticate(authenticators) ==
+            BiometricManager.BIOMETRIC_SUCCESS
+    }
+
+    /**
      * Launches a biometric authentication prompt.
      *
      * If the device does not support biometrics, [onResult] is

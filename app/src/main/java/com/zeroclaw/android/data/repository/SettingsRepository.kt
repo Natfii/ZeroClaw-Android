@@ -477,6 +477,13 @@ interface SettingsRepository {
     suspend fun setPinHash(hash: String)
 
     /**
+     * Toggles biometric unlock on the lock screen.
+     *
+     * @param enabled Whether biometric unlock is active.
+     */
+    suspend fun setBiometricUnlockEnabled(enabled: Boolean)
+
+    /**
      * Updates the remote plugin registry URL.
      *
      * @param url Registry URL string.

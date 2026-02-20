@@ -76,6 +76,7 @@ package com.zeroclaw.android.model
  * @property lockEnabled Android-only. Whether the session lock gate is active.
  * @property lockTimeoutMinutes Android-only. Minutes of background time before re-locking.
  * @property pinHash Android-only. PBKDF2 hash of the user's PIN (Base64-encoded salt+hash).
+ * @property biometricUnlockEnabled Android-only. Whether biometric unlock is enabled on the lock screen.
  * @property pluginRegistryUrl Android-only. Plugin registry preference, not passed to daemon TOML.
  * @property pluginSyncEnabled Android-only. Plugin registry preference, not passed to daemon TOML.
  * @property pluginSyncIntervalHours Android-only. Plugin registry preference, not passed to daemon TOML.
@@ -152,6 +153,7 @@ data class AppSettings(
     val lockEnabled: Boolean = false,
     val lockTimeoutMinutes: Int = DEFAULT_LOCK_TIMEOUT,
     val pinHash: String = "",
+    val biometricUnlockEnabled: Boolean = false,
     val pluginRegistryUrl: String = DEFAULT_PLUGIN_REGISTRY_URL,
     val pluginSyncEnabled: Boolean = false,
     val pluginSyncIntervalHours: Int = DEFAULT_PLUGIN_SYNC_INTERVAL,

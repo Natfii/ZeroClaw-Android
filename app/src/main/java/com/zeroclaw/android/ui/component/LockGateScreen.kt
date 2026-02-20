@@ -59,10 +59,11 @@ import kotlinx.coroutines.launch
  * Full-screen lock gate overlay.
  *
  * Displays the app lock screen with a PIN keypad and optional biometric
- * button. Auto-triggers biometric prompt on appear. Shakes on wrong PIN
- * (unless power save mode is active).
+ * button. Auto-triggers biometric prompt on appear when biometric unlock
+ * is enabled. Shakes on wrong PIN (unless power save mode is active).
  *
  * @param pinHash The stored PBKDF2 PIN hash to verify against.
+ * @param biometricUnlockEnabled Whether the user has enabled biometric unlock.
  * @param onUnlock Callback invoked when authentication succeeds.
  * @param modifier Modifier applied to the root layout.
  */
@@ -70,12 +71,15 @@ import kotlinx.coroutines.launch
 @Composable
 fun LockGateScreen(
     pinHash: String,
+    biometricUnlockEnabled: Boolean,
     onUnlock: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val activity = context as? FragmentActivity
-    val biometricAvailable = BiometricGatekeeper.isAvailable(context)
+    val biometricAvailable =
+        biometricUnlockEnabled &&
+            BiometricGatekeeper.isAvailable(context, allowDeviceCredential = true)
     val isPowerSave = LocalPowerSaveMode.current
     val scope = rememberCoroutineScope()
 

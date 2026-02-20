@@ -150,6 +150,8 @@ internal class TestSettingsRepository : SettingsRepository {
 
     override suspend fun setPinHash(hash: String) = _settings.update { it.copy(pinHash = hash) }
 
+    override suspend fun setBiometricUnlockEnabled(enabled: Boolean) = _settings.update { it.copy(biometricUnlockEnabled = enabled) }
+
     override suspend fun setPluginRegistryUrl(url: String) = _settings.update { it.copy(pluginRegistryUrl = url) }
 
     override suspend fun setPluginSyncEnabled(enabled: Boolean) = _settings.update { it.copy(pluginSyncEnabled = enabled) }

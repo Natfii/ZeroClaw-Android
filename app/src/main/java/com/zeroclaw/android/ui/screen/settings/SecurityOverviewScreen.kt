@@ -55,6 +55,7 @@ import com.zeroclaw.android.ui.component.PinEntryMode
 import com.zeroclaw.android.ui.component.PinEntrySheet
 import com.zeroclaw.android.ui.component.SectionHeader
 import com.zeroclaw.android.ui.component.SettingsToggleRow
+import com.zeroclaw.android.util.BiometricGatekeeper
 
 /**
  * Security overview screen displaying the current security posture.
@@ -140,11 +141,15 @@ fun SecurityOverviewScreen(
             lockEnabled = settings.lockEnabled,
             pinHash = settings.pinHash,
             lockTimeoutMinutes = settings.lockTimeoutMinutes,
+            biometricUnlockEnabled = settings.biometricUnlockEnabled,
             onLockEnabledChange = { settingsViewModel.updateLockEnabled(it) },
             onLockTimeoutChange = { settingsViewModel.updateLockTimeoutMinutes(it) },
             onPinSet = { hash ->
                 settingsViewModel.updatePinHash(hash)
                 settingsViewModel.updateLockEnabled(true)
+            },
+            onBiometricUnlockEnabledChange = {
+                settingsViewModel.updateBiometricUnlockEnabled(it)
             },
         )
 
@@ -443,14 +448,17 @@ private fun AllowedForbiddenSection(
 /**
  * Section for configuring the app-wide session lock (PIN + biometric).
  *
- * Provides PIN setup/change, lock enable/disable toggle, and a timeout picker.
+ * Provides PIN setup/change, lock enable/disable toggle, biometric unlock
+ * toggle (when hardware is available), and a timeout picker.
  *
  * @param lockEnabled Whether the session lock is currently active.
  * @param pinHash The stored PIN hash, empty if no PIN is set.
  * @param lockTimeoutMinutes Current lock timeout in minutes.
+ * @param biometricUnlockEnabled Whether biometric unlock is enabled.
  * @param onLockEnabledChange Callback for the lock toggle.
  * @param onLockTimeoutChange Callback for timeout changes.
  * @param onPinSet Callback with the new PIN hash after setup/change.
+ * @param onBiometricUnlockEnabledChange Callback for the biometric toggle.
  */
 @Suppress("LongParameterList")
 @Composable
@@ -458,9 +466,11 @@ private fun AppLockSection(
     lockEnabled: Boolean,
     pinHash: String,
     lockTimeoutMinutes: Int,
+    biometricUnlockEnabled: Boolean,
     onLockEnabledChange: (Boolean) -> Unit,
     onLockTimeoutChange: (Int) -> Unit,
     onPinSet: (String) -> Unit,
+    onBiometricUnlockEnabledChange: (Boolean) -> Unit,
 ) {
     val pinHashSet = pinHash.isNotEmpty()
     var showPinSheet by remember { mutableStateOf(false) }
@@ -486,6 +496,16 @@ private fun AppLockSection(
             onCheckedChange = onLockEnabledChange,
             contentDescription = "Enable app lock",
         )
+
+        if (BiometricGatekeeper.isAvailable(LocalContext.current)) {
+            SettingsToggleRow(
+                title = "Biometric unlock",
+                subtitle = "Use fingerprint to unlock instead of PIN",
+                checked = biometricUnlockEnabled,
+                onCheckedChange = onBiometricUnlockEnabledChange,
+                contentDescription = "Biometric unlock",
+            )
+        }
 
         Row(
             modifier =

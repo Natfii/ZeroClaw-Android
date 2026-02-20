@@ -196,6 +196,7 @@ fun ZeroClawAppShell(
         if (shouldShowLock) {
             LockGateScreen(
                 pinHash = settings.pinHash,
+                biometricUnlockEnabled = settings.biometricUnlockEnabled,
                 onUnlock = { app.sessionLockManager.unlock() },
             )
         }

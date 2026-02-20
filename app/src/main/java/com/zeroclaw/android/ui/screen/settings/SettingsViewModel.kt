@@ -381,6 +381,11 @@ class SettingsViewModel(
         viewModelScope.launch { repository.setPinHash(hash) }
     }
 
+    /** @see com.zeroclaw.android.data.repository.SettingsRepository.setBiometricUnlockEnabled */
+    fun updateBiometricUnlockEnabled(enabled: Boolean) {
+        viewModelScope.launch { repository.setBiometricUnlockEnabled(enabled) }
+    }
+
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setPluginRegistryUrl */
     fun updatePluginRegistryUrl(url: String) {
         viewModelScope.launch { repository.setPluginRegistryUrl(url) }

@@ -111,6 +111,11 @@ class OnboardingViewModel(
     /** Whether the session lock is enabled. */
     val lockEnabled: StateFlow<Boolean> = _lockEnabled.asStateFlow()
 
+    private val _biometricUnlockEnabled = MutableStateFlow(false)
+
+    /** Whether biometric unlock is enabled on the lock screen. */
+    val biometricUnlockEnabled: StateFlow<Boolean> = _biometricUnlockEnabled.asStateFlow()
+
     private val _completeError = MutableStateFlow<String?>(null)
 
     /**
@@ -235,6 +240,15 @@ class OnboardingViewModel(
     }
 
     /**
+     * Toggles biometric unlock during onboarding.
+     *
+     * @param enabled Whether biometric unlock should be active.
+     */
+    fun setBiometricUnlockEnabled(enabled: Boolean) {
+        _biometricUnlockEnabled.value = enabled
+    }
+
+    /**
      * Launches the onboarding completion flow.
      *
      * Guards against double-tap by checking [isCompleting]. Sets [isCompleting]
@@ -337,6 +351,7 @@ class OnboardingViewModel(
         if (hash.isNotEmpty()) {
             settingsRepository.setPinHash(hash)
             settingsRepository.setLockEnabled(_lockEnabled.value)
+            settingsRepository.setBiometricUnlockEnabled(_biometricUnlockEnabled.value)
         }
 
         onboardingRepository.markComplete()
@@ -354,6 +369,7 @@ class OnboardingViewModel(
             val current = settingsRepository.settings.first()
             _pinHash.value = current.pinHash
             _lockEnabled.value = current.lockEnabled
+            _biometricUnlockEnabled.value = current.biometricUnlockEnabled
         }
     }
 

@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -90,7 +91,12 @@ fun PinEntrySheet(
             Spacer(modifier = Modifier.height(SPACING_SMALL))
 
             Text(
-                text = "4-6 digits",
+                text =
+                    if (phase == Phase.ENTER) {
+                        "Enter 4-6 digits, then tap Next"
+                    } else {
+                        "4-6 digits"
+                    },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -118,7 +124,7 @@ fun PinEntrySheet(
                     if (enteredPin.length < MAX_PIN_LENGTH) {
                         enteredPin += digit
                         errorMessage = null
-                        if (enteredPin.length >= MIN_PIN_LENGTH) {
+                        if (phase != Phase.ENTER && enteredPin.length >= MIN_PIN_LENGTH) {
                             handlePinEntry(
                                 phase = phase,
                                 enteredPin = enteredPin,
@@ -145,6 +151,33 @@ fun PinEntrySheet(
                     }
                 },
             )
+
+            if (phase == Phase.ENTER && enteredPin.length >= MIN_PIN_LENGTH) {
+                Spacer(modifier = Modifier.height(SPACING_SMALL))
+                FilledTonalButton(
+                    onClick = {
+                        handlePinEntry(
+                            phase = phase,
+                            enteredPin = enteredPin,
+                            firstPin = firstPin,
+                            currentPinHash = currentPinHash,
+                            onAdvance = { nextPhase, savedFirst ->
+                                phase = nextPhase
+                                firstPin = savedFirst
+                                enteredPin = ""
+                            },
+                            onError = { msg ->
+                                errorMessage = msg
+                                enteredPin = ""
+                            },
+                            onComplete = onPinSet,
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Next")
+                }
+            }
 
             Spacer(modifier = Modifier.height(SPACING_LARGE))
         }
