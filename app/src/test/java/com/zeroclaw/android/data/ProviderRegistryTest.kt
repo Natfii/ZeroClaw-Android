@@ -207,4 +207,71 @@ class ProviderRegistryTest {
             )
         }
     }
+
+    @Test
+    @DisplayName("priority providers have keyCreationUrl populated")
+    fun `priority providers have keyCreationUrl populated`() {
+        val expectedWithUrl =
+            listOf(
+                "openai", "anthropic", "openrouter", "google-gemini",
+                "groq", "xai", "deepseek", "together",
+            )
+        expectedWithUrl.forEach { id ->
+            val provider = ProviderRegistry.findById(id)
+            assertNotNull(provider, "$id should exist")
+            assertTrue(
+                provider!!.keyCreationUrl.isNotBlank(),
+                "$id should have a non-blank keyCreationUrl",
+            )
+            assertTrue(
+                provider.keyCreationUrl.startsWith("https://"),
+                "$id keyCreationUrl should start with https://",
+            )
+        }
+    }
+
+    @Test
+    @DisplayName("providers with keyPrefix also have keyPrefixHint")
+    fun `providers with keyPrefix also have keyPrefixHint`() {
+        ProviderRegistry.allProviders
+            .filter { it.keyPrefix.isNotEmpty() }
+            .forEach { provider ->
+                assertTrue(
+                    provider.keyPrefixHint.isNotBlank(),
+                    "${provider.id} has keyPrefix but missing keyPrefixHint",
+                )
+            }
+    }
+
+    @Test
+    @DisplayName("all 13 priority providers have helpText populated")
+    fun `all 13 priority providers have helpText populated`() {
+        val priorityIds =
+            listOf(
+                "openai", "anthropic", "openrouter", "google-gemini",
+                "ollama", "lmstudio", "vllm", "localai",
+                "groq", "mistral", "xai", "deepseek", "together",
+            )
+        priorityIds.forEach { id ->
+            val provider = ProviderRegistry.findById(id)
+            assertNotNull(provider, "$id should exist")
+            assertTrue(
+                provider!!.helpText.isNotBlank(),
+                "$id should have non-blank helpText",
+            )
+        }
+    }
+
+    @Test
+    @DisplayName("local providers have no keyPrefix")
+    fun `local providers have no keyPrefix`() {
+        listOf("ollama", "lmstudio", "vllm", "localai").forEach { id ->
+            val provider = ProviderRegistry.findById(id)
+            assertNotNull(provider, "$id should exist")
+            assertTrue(
+                provider!!.keyPrefix.isEmpty(),
+                "$id local provider should have empty keyPrefix",
+            )
+        }
+    }
 }
