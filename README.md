@@ -1,6 +1,6 @@
 # ZeroClaw-Android: Run AI Agents 24/7 on Your Phone
 
-<img width="1024" height="335" alt="image hero banner" src="https://github.com/user-attachments/assets/03b919d9-428b-4372-a2f7-d2b9876b2fec" />
+<img width="3616" height="1184" alt="Social" src="https://github.com/user-attachments/assets/90328733-6faf-4bc6-bdd6-8993d59d4680" />
 
 > Your old phone in a drawer is a better AI server than you think.
 
@@ -251,6 +251,8 @@ Yes. ZeroClaw's router supports multiple agents with independent configurations,
 ## License
 
 This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+
+<img width="3616" height="1184" alt="cozy" src="https://github.com/user-attachments/assets/03178c6f-d9e4-4d37-afcd-901294793b66" />
 
 <!-- GitHub repo settings (not rendered):
   About/Description: Run AI agents 24/7 on your Android phone. Native Rust core, 29+ providers (OpenAI, Claude, Gemini, Groq, DeepSeek, Ollama, LM Studio, vLLM), encrypted key storage, plugin browser, Material You UI. Self-hosted alternative to Mac Mini setups. MIT licensed.
