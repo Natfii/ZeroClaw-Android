@@ -22,8 +22,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.WifiFind
 import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material3.FilledTonalButton
@@ -170,8 +170,9 @@ fun ApiKeyDetailScreen(
         prefixOverridden = false
     }
 
-    val prefixValid = prefixWarning == null || prefixOverridden ||
-        providerInfo?.keyPrefix.isNullOrEmpty()
+    val prefixValid =
+        prefixWarning == null || prefixOverridden ||
+            providerInfo?.keyPrefix.isNullOrEmpty()
     val saveEnabled = providerId.isNotBlank() && (key.isNotBlank() || !needsKey) && !isSaving && prefixValid
 
     LaunchedEffect(providerId) {

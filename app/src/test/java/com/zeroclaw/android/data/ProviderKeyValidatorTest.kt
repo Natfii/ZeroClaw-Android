@@ -18,7 +18,6 @@ import org.junit.jupiter.api.Test
 
 @DisplayName("ProviderKeyValidator")
 class ProviderKeyValidatorTest {
-
     private fun provider(
         keyPrefix: String = "",
         keyPrefixHint: String = "",

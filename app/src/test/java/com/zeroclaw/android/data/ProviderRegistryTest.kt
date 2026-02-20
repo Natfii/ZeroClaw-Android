@@ -213,8 +213,14 @@ class ProviderRegistryTest {
     fun `priority providers have keyCreationUrl populated`() {
         val expectedWithUrl =
             listOf(
-                "openai", "anthropic", "openrouter", "google-gemini",
-                "groq", "xai", "deepseek", "together",
+                "openai",
+                "anthropic",
+                "openrouter",
+                "google-gemini",
+                "groq",
+                "xai",
+                "deepseek",
+                "together",
             )
         expectedWithUrl.forEach { id ->
             val provider = ProviderRegistry.findById(id)
@@ -248,9 +254,19 @@ class ProviderRegistryTest {
     fun `all 13 priority providers have helpText populated`() {
         val priorityIds =
             listOf(
-                "openai", "anthropic", "openrouter", "google-gemini",
-                "ollama", "lmstudio", "vllm", "localai",
-                "groq", "mistral", "xai", "deepseek", "together",
+                "openai",
+                "anthropic",
+                "openrouter",
+                "google-gemini",
+                "ollama",
+                "lmstudio",
+                "vllm",
+                "localai",
+                "groq",
+                "mistral",
+                "xai",
+                "deepseek",
+                "together",
             )
         priorityIds.forEach { id ->
             val provider = ProviderRegistry.findById(id)
