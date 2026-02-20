@@ -23,7 +23,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import com.zeroclaw.android.service.ZeroClawDaemonService
-import com.zeroclaw.android.ui.component.BiometricSettingsGate
 import com.zeroclaw.android.ui.screen.agents.AddAgentScreen
 import com.zeroclaw.android.ui.screen.agents.AgentDetailScreen
 import com.zeroclaw.android.ui.screen.agents.AgentsScreen
@@ -64,8 +63,6 @@ import com.zeroclaw.android.ui.screen.settings.memory.MemoryBrowserScreen
 import com.zeroclaw.android.ui.screen.settings.tools.ToolsBrowserScreen
 import com.zeroclaw.android.util.AuthResult
 import com.zeroclaw.android.util.BiometricGatekeeper
-import com.zeroclaw.android.viewmodel.BiometricAction
-import com.zeroclaw.android.viewmodel.DaemonViewModel
 
 /**
  * Single [NavHost] mapping all route objects to their screen composables.
@@ -82,37 +79,7 @@ fun ZeroClawNavHost(
     edgeMargin: Dp,
     modifier: Modifier = Modifier,
 ) {
-    val daemonViewModel: DaemonViewModel = viewModel()
     val pluginsViewModel: PluginsViewModel = viewModel()
-    val pendingBiometricAction by daemonViewModel.pendingBiometricAction
-        .collectAsStateWithLifecycle()
-    val biometricActivity = LocalContext.current as? FragmentActivity
-
-    LaunchedEffect(pendingBiometricAction) {
-        val action = pendingBiometricAction ?: return@LaunchedEffect
-        val activity =
-            biometricActivity ?: run {
-                daemonViewModel.cancelBiometricAction()
-                return@LaunchedEffect
-            }
-        BiometricGatekeeper.authenticate(
-            activity = activity,
-            title =
-                when (action) {
-                    BiometricAction.StartDaemon -> "Start Daemon"
-                    BiometricAction.StopDaemon -> "Stop Daemon"
-                },
-            subtitle = "Authenticate to control the daemon service",
-            allowDeviceCredential = true,
-        ) { result ->
-            when (result) {
-                is AuthResult.Success -> daemonViewModel.confirmBiometricAction()
-                is AuthResult.NotAvailable -> daemonViewModel.confirmBiometricAction()
-                is AuthResult.Cancelled -> daemonViewModel.cancelBiometricAction()
-                is AuthResult.Failed -> daemonViewModel.cancelBiometricAction()
-            }
-        }
-    }
 
     NavHost(
         navController = navController,
@@ -494,11 +461,7 @@ fun ZeroClawNavHost(
         }
 
         composable<MemoryBrowserRoute> {
-            val settingsVmMemory: SettingsViewModel = viewModel()
-            val settingsMemory by settingsVmMemory.settings.collectAsStateWithLifecycle()
-            BiometricSettingsGate(requireBiometric = settingsMemory.biometricForSettings) {
-                MemoryBrowserScreen(edgeMargin = edgeMargin)
-            }
+            MemoryBrowserScreen(edgeMargin = edgeMargin)
         }
 
         composable<OnboardingRoute> {

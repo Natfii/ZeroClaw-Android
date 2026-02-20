@@ -456,18 +456,25 @@ interface SettingsRepository {
     suspend fun setHttpRequestAllowedDomains(domains: String)
 
     /**
-     * Toggles biometric requirement for service start/stop.
+     * Toggles the session lock gate.
      *
-     * @param enabled Whether biometric auth is required.
+     * @param enabled Whether the app-wide lock is active.
      */
-    suspend fun setBiometricForService(enabled: Boolean)
+    suspend fun setLockEnabled(enabled: Boolean)
 
     /**
-     * Toggles biometric requirement for sensitive settings.
+     * Updates the lock timeout duration.
      *
-     * @param enabled Whether biometric auth is required.
+     * @param minutes Minutes of background time before re-locking.
      */
-    suspend fun setBiometricForSettings(enabled: Boolean)
+    suspend fun setLockTimeoutMinutes(minutes: Int)
+
+    /**
+     * Stores the PBKDF2 hash of the user's PIN.
+     *
+     * @param hash Base64-encoded salt+hash string from [PinHasher][com.zeroclaw.android.util.PinHasher].
+     */
+    suspend fun setPinHash(hash: String)
 
     /**
      * Updates the remote plugin registry URL.

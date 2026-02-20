@@ -43,4 +43,62 @@ class SettingsViewModelTest {
             repo.setAutoStartOnBoot(false)
             assertEquals(false, repo.settings.first().autoStartOnBoot)
         }
+
+    @Test
+    @DisplayName("lock enabled defaults to false")
+    fun `lock enabled defaults to false`() =
+        runTest {
+            val repo = TestSettingsRepository()
+            assertEquals(false, repo.settings.first().lockEnabled)
+        }
+
+    @Test
+    @DisplayName("setLockEnabled updates repository")
+    fun `setLockEnabled updates repository`() =
+        runTest {
+            val repo = TestSettingsRepository()
+            repo.setLockEnabled(true)
+            assertEquals(true, repo.settings.first().lockEnabled)
+            repo.setLockEnabled(false)
+            assertEquals(false, repo.settings.first().lockEnabled)
+        }
+
+    @Test
+    @DisplayName("setLockTimeoutMinutes updates repository")
+    fun `setLockTimeoutMinutes updates repository`() =
+        runTest {
+            val repo = TestSettingsRepository()
+            val timeout = 30
+            repo.setLockTimeoutMinutes(timeout)
+            assertEquals(timeout, repo.settings.first().lockTimeoutMinutes)
+        }
+
+    @Test
+    @DisplayName("setPinHash updates repository")
+    fun `setPinHash updates repository`() =
+        runTest {
+            val repo = TestSettingsRepository()
+            val hash = "test-pin-hash-value"
+            repo.setPinHash(hash)
+            assertEquals(hash, repo.settings.first().pinHash)
+        }
+
+    @Test
+    @DisplayName("pinHash defaults to empty string")
+    fun `pinHash defaults to empty string`() =
+        runTest {
+            val repo = TestSettingsRepository()
+            assertEquals("", repo.settings.first().pinHash)
+        }
+
+    @Test
+    @DisplayName("lockTimeoutMinutes defaults to DEFAULT_LOCK_TIMEOUT")
+    fun `lockTimeoutMinutes defaults to DEFAULT_LOCK_TIMEOUT`() =
+        runTest {
+            val repo = TestSettingsRepository()
+            assertEquals(
+                AppSettings.DEFAULT_LOCK_TIMEOUT,
+                repo.settings.first().lockTimeoutMinutes,
+            )
+        }
 }

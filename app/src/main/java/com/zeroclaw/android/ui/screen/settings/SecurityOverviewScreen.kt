@@ -25,12 +25,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,16 +46,15 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zeroclaw.android.ZeroClawApplication
 import com.zeroclaw.android.data.StorageHealth
 import com.zeroclaw.android.ui.component.CollapsibleSection
+import com.zeroclaw.android.ui.component.PinEntryMode
+import com.zeroclaw.android.ui.component.PinEntrySheet
 import com.zeroclaw.android.ui.component.SectionHeader
 import com.zeroclaw.android.ui.component.SettingsToggleRow
-import com.zeroclaw.android.util.AuthResult
-import com.zeroclaw.android.util.BiometricGatekeeper
 
 /**
  * Security overview screen displaying the current security posture.
@@ -133,11 +136,16 @@ fun SecurityOverviewScreen(
 
         Spacer(modifier = Modifier.height(SPACING_LARGE))
 
-        BiometricProtectionSection(
-            biometricForService = settings.biometricForService,
-            biometricForSettings = settings.biometricForSettings,
-            onBiometricForServiceChange = { settingsViewModel.updateBiometricForService(it) },
-            onBiometricForSettingsChange = { settingsViewModel.updateBiometricForSettings(it) },
+        AppLockSection(
+            lockEnabled = settings.lockEnabled,
+            pinHash = settings.pinHash,
+            lockTimeoutMinutes = settings.lockTimeoutMinutes,
+            onLockEnabledChange = { settingsViewModel.updateLockEnabled(it) },
+            onLockTimeoutChange = { settingsViewModel.updateLockTimeoutMinutes(it) },
+            onPinSet = { hash ->
+                settingsViewModel.updatePinHash(hash)
+                settingsViewModel.updateLockEnabled(true)
+            },
         )
 
         Spacer(modifier = Modifier.height(SPACING_LARGE))
@@ -433,94 +441,96 @@ private fun AllowedForbiddenSection(
 }
 
 /**
- * Section displaying biometric protection toggles for service and settings.
+ * Section for configuring the app-wide session lock (PIN + biometric).
  *
- * Toggles are disabled with helper text when biometric hardware is
- * not available or not enrolled on the device.
+ * Provides PIN setup/change, lock enable/disable toggle, and a timeout picker.
  *
- * @param biometricForService Whether biometric is required for service control.
- * @param biometricForSettings Whether biometric is required for sensitive settings.
- * @param onBiometricForServiceChange Callback for service toggle changes.
- * @param onBiometricForSettingsChange Callback for settings toggle changes.
+ * @param lockEnabled Whether the session lock is currently active.
+ * @param pinHash The stored PIN hash, empty if no PIN is set.
+ * @param lockTimeoutMinutes Current lock timeout in minutes.
+ * @param onLockEnabledChange Callback for the lock toggle.
+ * @param onLockTimeoutChange Callback for timeout changes.
+ * @param onPinSet Callback with the new PIN hash after setup/change.
  */
+@Suppress("LongParameterList")
 @Composable
-private fun BiometricProtectionSection(
-    biometricForService: Boolean,
-    biometricForSettings: Boolean,
-    onBiometricForServiceChange: (Boolean) -> Unit,
-    onBiometricForSettingsChange: (Boolean) -> Unit,
+private fun AppLockSection(
+    lockEnabled: Boolean,
+    pinHash: String,
+    lockTimeoutMinutes: Int,
+    onLockEnabledChange: (Boolean) -> Unit,
+    onLockTimeoutChange: (Int) -> Unit,
+    onPinSet: (String) -> Unit,
 ) {
-    val context = LocalContext.current
-    val activity = context as? FragmentActivity
-    val isBiometricAvailable = BiometricGatekeeper.isAvailable(context)
+    val pinHashSet = pinHash.isNotEmpty()
+    var showPinSheet by remember { mutableStateOf(false) }
+    var showTimeoutMenu by remember { mutableStateOf(false) }
 
-    SectionHeader(title = "Biometric Protection")
+    SectionHeader(title = "App Lock")
 
-    SettingsToggleRow(
-        title = "Require biometric for service control",
-        subtitle = "Authenticate before starting or stopping the daemon",
-        checked = biometricForService,
-        onCheckedChange = { newValue ->
-            authenticateBeforeToggle(activity, "service biometric requirement") { result ->
-                if (result is AuthResult.Success) {
-                    onBiometricForServiceChange(newValue)
-                }
-            }
-        },
-        contentDescription = "Require biometric for service control",
-        enabled = isBiometricAvailable,
-    )
-
-    SettingsToggleRow(
-        title = "Require biometric for sensitive settings",
-        subtitle = "Authenticate before modifying security-related settings",
-        checked = biometricForSettings,
-        onCheckedChange = { newValue ->
-            authenticateBeforeToggle(activity, "settings biometric requirement") { result ->
-                if (result is AuthResult.Success) {
-                    onBiometricForSettingsChange(newValue)
-                }
-            }
-        },
-        contentDescription = "Require biometric for sensitive settings",
-        enabled = isBiometricAvailable,
-    )
-
-    if (!isBiometricAvailable) {
-        Text(
-            text = "Biometric hardware not available or not enrolled",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(vertical = SPACING_SMALL),
-        )
+    FilledTonalButton(
+        onClick = { showPinSheet = true },
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = SPACING_SMALL),
+    ) {
+        Text(if (pinHashSet) "Change PIN" else "Set up a PIN")
     }
-}
 
-/**
- * Launches a biometric prompt before allowing a toggle change.
- *
- * If the hosting activity is not a [FragmentActivity], the callback
- * receives [AuthResult.Success] immediately as a fallback.
- *
- * @param activity The hosting activity, or null if unavailable.
- * @param settingName Human-readable name of the setting being changed.
- * @param onResult Callback receiving the authentication result.
- */
-private fun authenticateBeforeToggle(
-    activity: FragmentActivity?,
-    settingName: String,
-    onResult: (AuthResult) -> Unit,
-) {
-    if (activity != null) {
-        BiometricGatekeeper.authenticate(
-            activity = activity,
-            title = "Confirm Change",
-            subtitle = "Authenticate to change $settingName",
-            allowDeviceCredential = true,
-            onResult = onResult,
+    if (pinHashSet) {
+        SettingsToggleRow(
+            title = "Enable app lock",
+            subtitle = "Require PIN or biometric on launch and after timeout",
+            checked = lockEnabled,
+            onCheckedChange = onLockEnabledChange,
+            contentDescription = "Enable app lock",
         )
-    } else {
-        onResult(AuthResult.Success)
+
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = SPACING_SMALL),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "Lock after",
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            Box {
+                TextButton(onClick = { showTimeoutMenu = true }) {
+                    Text(formatTimeout(lockTimeoutMinutes))
+                }
+                androidx.compose.material3.DropdownMenu(
+                    expanded = showTimeoutMenu,
+                    onDismissRequest = { showTimeoutMenu = false },
+                ) {
+                    TIMEOUT_OPTIONS.forEach { minutes ->
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text(formatTimeout(minutes)) },
+                            onClick = {
+                                onLockTimeoutChange(minutes)
+                                showTimeoutMenu = false
+                            },
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    if (showPinSheet) {
+        PinEntrySheet(
+            mode = if (pinHashSet) PinEntryMode.CHANGE else PinEntryMode.SETUP,
+            currentPinHash = pinHash,
+            onPinSet = { hash ->
+                onPinSet(hash)
+                showPinSheet = false
+            },
+            onDismiss = { showPinSheet = false },
+        )
     }
 }
 
@@ -635,6 +645,16 @@ private enum class DisabledSeverity {
     /** Significant security gap (error/red). */
     CRITICAL,
 }
+
+/**
+ * Formats a timeout value in minutes to a human-readable string.
+ *
+ * @return e.g. "1 min", "5 min", "30 min".
+ */
+private fun formatTimeout(minutes: Int): String = "$minutes min"
+
+/** Available lock timeout options in minutes. */
+private val TIMEOUT_OPTIONS = listOf(1, 5, 15, 30)
 
 /** Autonomy level constant for read-only mode. */
 private const val AUTONOMY_READONLY = "readonly"

@@ -55,7 +55,7 @@ class OnboardingViewModel(
 
     init {
         prefillFromExistingIdentity()
-        prefillBiometricFromSettings()
+        prefillLockFromSettings()
     }
 
     private val _currentStep = MutableStateFlow(0)
@@ -101,15 +101,15 @@ class OnboardingViewModel(
     /** Field values entered for the selected channel type. */
     val channelFieldValues: StateFlow<Map<String, String>> = _channelFieldValues.asStateFlow()
 
-    private val _biometricForService = MutableStateFlow(false)
+    private val _pinHash = MutableStateFlow("")
 
-    /** Whether biometric authentication is required for service start/stop. */
-    val biometricForService: StateFlow<Boolean> = _biometricForService.asStateFlow()
+    /** PBKDF2 hash of the PIN set during onboarding. */
+    val pinHash: StateFlow<String> = _pinHash.asStateFlow()
 
-    private val _biometricForSettings = MutableStateFlow(false)
+    private val _lockEnabled = MutableStateFlow(false)
 
-    /** Whether biometric authentication is required for sensitive settings. */
-    val biometricForSettings: StateFlow<Boolean> = _biometricForSettings.asStateFlow()
+    /** Whether the session lock is enabled. */
+    val lockEnabled: StateFlow<Boolean> = _lockEnabled.asStateFlow()
 
     private val _completeError = MutableStateFlow<String?>(null)
 
@@ -216,21 +216,22 @@ class OnboardingViewModel(
     }
 
     /**
-     * Sets whether biometric authentication is required for service control.
+     * Stores the PBKDF2 hash of the PIN configured during onboarding.
      *
-     * @param enabled True to require biometric for start/stop.
+     * @param hash Base64-encoded salt+hash string.
      */
-    fun setBiometricForService(enabled: Boolean) {
-        _biometricForService.value = enabled
+    fun setPinHash(hash: String) {
+        _pinHash.value = hash
+        _lockEnabled.value = hash.isNotEmpty()
     }
 
     /**
-     * Sets whether biometric authentication is required for sensitive settings.
+     * Toggles the session lock enabled state.
      *
-     * @param enabled True to require biometric for settings access.
+     * @param enabled Whether the lock is active.
      */
-    fun setBiometricForSettings(enabled: Boolean) {
-        _biometricForSettings.value = enabled
+    fun setLockEnabled(enabled: Boolean) {
+        _lockEnabled.value = enabled
     }
 
     /**
@@ -332,24 +333,27 @@ class OnboardingViewModel(
             settingsRepository.setDefaultModel(model)
         }
 
-        settingsRepository.setBiometricForService(_biometricForService.value)
-        settingsRepository.setBiometricForSettings(_biometricForSettings.value)
+        val hash = _pinHash.value
+        if (hash.isNotEmpty()) {
+            settingsRepository.setPinHash(hash)
+            settingsRepository.setLockEnabled(_lockEnabled.value)
+        }
 
         onboardingRepository.markComplete()
         onDone()
     }
 
     /**
-     * Pre-fills biometric toggles from existing settings on re-runs.
+     * Pre-fills lock settings from existing settings on re-runs.
      *
-     * Reads the current [biometricForService] and [biometricForSettings]
-     * values so that re-running the wizard preserves the user's choices.
+     * Reads the current [pinHash] and [lockEnabled] values so that
+     * re-running the wizard preserves the user's choices.
      */
-    private fun prefillBiometricFromSettings() {
+    private fun prefillLockFromSettings() {
         viewModelScope.launch {
             val current = settingsRepository.settings.first()
-            _biometricForService.value = current.biometricForService
-            _biometricForSettings.value = current.biometricForSettings
+            _pinHash.value = current.pinHash
+            _lockEnabled.value = current.lockEnabled
         }
     }
 

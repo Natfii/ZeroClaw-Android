@@ -6,8 +6,10 @@
 
 package com.zeroclaw.android.navigation
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
@@ -35,6 +37,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.zeroclaw.android.ZeroClawApplication
 import com.zeroclaw.android.model.ServiceState
+import com.zeroclaw.android.ui.component.LockGateScreen
 import com.zeroclaw.android.ui.component.StatusDot
 import com.zeroclaw.android.viewmodel.DaemonViewModel
 
@@ -62,7 +65,8 @@ fun ZeroClawAppShell(
     viewModel: DaemonViewModel = viewModel(),
 ) {
     val context = LocalContext.current
-    val onboardingRepo = (context.applicationContext as ZeroClawApplication).onboardingRepository
+    val app = context.applicationContext as ZeroClawApplication
+    val onboardingRepo = app.onboardingRepository
     val onboardingCompleted by onboardingRepo.isCompleted.collectAsStateWithLifecycle(
         initialValue = true,
     )
@@ -75,7 +79,18 @@ fun ZeroClawAppShell(
     val currentDestination = navBackStackEntry?.destination
     val serviceState by viewModel.serviceState.collectAsStateWithLifecycle()
 
+    val isLocked by app.sessionLockManager.isLocked.collectAsStateWithLifecycle()
+    val settings by app.settingsRepository.settings.collectAsStateWithLifecycle(
+        initialValue =
+            com.zeroclaw.android.model
+                .AppSettings(),
+    )
     val isOnboarding = currentDestination?.hasRoute(OnboardingRoute::class) == true
+    val shouldShowLock =
+        isLocked &&
+            settings.lockEnabled &&
+            settings.pinHash.isNotEmpty() &&
+            !isOnboarding
 
     val isTopLevel =
         !isOnboarding &&
@@ -86,55 +101,85 @@ fun ZeroClawAppShell(
     val edgeMargin =
         if (windowWidthSizeClass == WindowWidthSizeClass.Compact) 16.dp else 24.dp
 
-    if (isOnboarding) {
-        Scaffold { innerPadding ->
-            ZeroClawNavHost(
-                navController = navController,
-                startDestination = startDestination,
-                edgeMargin = edgeMargin,
-                modifier = Modifier.padding(innerPadding),
-            )
-        }
-    } else if (isTopLevel) {
-        NavigationSuiteScaffold(
-            navigationSuiteItems = {
-                TopLevelDestination.entries.forEach { destination ->
-                    val selected =
-                        currentDestination?.hierarchy?.any { dest ->
-                            dest.hasRoute(destination.route::class)
-                        } == true
-                    item(
-                        selected = selected,
-                        onClick = {
-                            navController.navigate(destination.route) {
-                                popUpTo(navController.graph.startDestinationId) {
-                                    saveState = true
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (isOnboarding) {
+            Scaffold { innerPadding ->
+                ZeroClawNavHost(
+                    navController = navController,
+                    startDestination = startDestination,
+                    edgeMargin = edgeMargin,
+                    modifier = Modifier.padding(innerPadding),
+                )
+            }
+        } else if (isTopLevel) {
+            NavigationSuiteScaffold(
+                navigationSuiteItems = {
+                    TopLevelDestination.entries.forEach { destination ->
+                        val selected =
+                            currentDestination?.hierarchy?.any { dest ->
+                                dest.hasRoute(destination.route::class)
+                            } == true
+                        item(
+                            selected = selected,
+                            onClick = {
+                                navController.navigate(destination.route) {
+                                    popUpTo(navController.graph.startDestinationId) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
                                 }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        icon = {
-                            Icon(
-                                imageVector =
-                                    if (selected) {
-                                        destination.selectedIcon
-                                    } else {
-                                        destination.unselectedIcon
-                                    },
-                                contentDescription = destination.label,
-                            )
-                        },
-                        label = { Text(destination.label) },
+                            },
+                            icon = {
+                                Icon(
+                                    imageVector =
+                                        if (selected) {
+                                            destination.selectedIcon
+                                        } else {
+                                            destination.unselectedIcon
+                                        },
+                                    contentDescription = destination.label,
+                                )
+                            },
+                            label = { Text(destination.label) },
+                        )
+                    }
+                },
+            ) {
+                Scaffold(
+                    topBar = {
+                        TopAppBar(
+                            title = {
+                                TopBarTitle(serviceState = serviceState)
+                            },
+                        )
+                    },
+                ) { innerPadding ->
+                    ZeroClawNavHost(
+                        navController = navController,
+                        startDestination = startDestination,
+                        edgeMargin = edgeMargin,
+                        modifier = Modifier.padding(innerPadding),
                     )
                 }
-            },
-        ) {
+            }
+        } else {
             Scaffold(
                 topBar = {
                     TopAppBar(
                         title = {
-                            TopBarTitle(serviceState = serviceState)
+                            TopBarTitle(
+                                serviceState = serviceState,
+                                title = screenTitleFor(currentDestination) ?: "ZeroClaw",
+                            )
+                        },
+                        navigationIcon = {
+                            IconButton(onClick = { navController.popBackStack() }) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "Navigate back",
+                                )
+                            }
                         },
                     )
                 },
@@ -147,32 +192,11 @@ fun ZeroClawAppShell(
                 )
             }
         }
-    } else {
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = {
-                        TopBarTitle(
-                            serviceState = serviceState,
-                            title = screenTitleFor(currentDestination) ?: "ZeroClaw",
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = { navController.popBackStack() }) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Navigate back",
-                            )
-                        }
-                    },
-                )
-            },
-        ) { innerPadding ->
-            ZeroClawNavHost(
-                navController = navController,
-                startDestination = startDestination,
-                edgeMargin = edgeMargin,
-                modifier = Modifier.padding(innerPadding),
+
+        if (shouldShowLock) {
+            LockGateScreen(
+                pinHash = settings.pinHash,
+                onUnlock = { app.sessionLockManager.unlock() },
             )
         }
     }

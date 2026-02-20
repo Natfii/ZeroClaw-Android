@@ -147,23 +147,20 @@ fun OnboardingScreen(
 }
 
 /**
- * Collects biometric-related flows and delegates to [PermissionsStep].
+ * Collects lock-related flows and delegates to [PermissionsStep].
  *
- * Isolating the flow collections here prevents biometric toggle changes from
+ * Isolating the flow collections here prevents lock state changes from
  * recomposing the parent [OnboardingScreen] layout.
  *
- * @param viewModel The [OnboardingViewModel] owning the biometric state flows.
+ * @param viewModel The [OnboardingViewModel] owning the lock state flows.
  */
 @Composable
 private fun PermissionsStepCollector(viewModel: OnboardingViewModel) {
-    val biometricForService by viewModel.biometricForService.collectAsStateWithLifecycle()
-    val biometricForSettings by viewModel.biometricForSettings.collectAsStateWithLifecycle()
+    val pinHash by viewModel.pinHash.collectAsStateWithLifecycle()
 
     PermissionsStep(
-        biometricForService = biometricForService,
-        biometricForSettings = biometricForSettings,
-        onBiometricForServiceChanged = viewModel::setBiometricForService,
-        onBiometricForSettingsChanged = viewModel::setBiometricForSettings,
+        pinHash = pinHash,
+        onPinSet = viewModel::setPinHash,
     )
 }
 

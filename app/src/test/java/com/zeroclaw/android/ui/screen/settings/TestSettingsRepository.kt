@@ -144,9 +144,11 @@ internal class TestSettingsRepository : SettingsRepository {
 
     override suspend fun setHttpRequestAllowedDomains(domains: String) = _settings.update { it.copy(httpRequestAllowedDomains = domains) }
 
-    override suspend fun setBiometricForService(enabled: Boolean) = _settings.update { it.copy(biometricForService = enabled) }
+    override suspend fun setLockEnabled(enabled: Boolean) = _settings.update { it.copy(lockEnabled = enabled) }
 
-    override suspend fun setBiometricForSettings(enabled: Boolean) = _settings.update { it.copy(biometricForSettings = enabled) }
+    override suspend fun setLockTimeoutMinutes(minutes: Int) = _settings.update { it.copy(lockTimeoutMinutes = minutes) }
+
+    override suspend fun setPinHash(hash: String) = _settings.update { it.copy(pinHash = hash) }
 
     override suspend fun setPluginRegistryUrl(url: String) = _settings.update { it.copy(pluginRegistryUrl = url) }
 

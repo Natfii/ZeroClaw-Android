@@ -159,6 +159,11 @@ class DataStoreSettingsRepository(
             httpRequestAllowedDomains = prefs[KEY_HTTP_REQ_DOMAINS] ?: "",
             biometricForService = prefs[KEY_BIOMETRIC_SERVICE] ?: false,
             biometricForSettings = prefs[KEY_BIOMETRIC_SETTINGS] ?: false,
+            lockEnabled = prefs[KEY_LOCK_ENABLED] ?: false,
+            lockTimeoutMinutes =
+                prefs[KEY_LOCK_TIMEOUT]
+                    ?: AppSettings.DEFAULT_LOCK_TIMEOUT,
+            pinHash = prefs[KEY_PIN_HASH] ?: "",
             pluginRegistryUrl =
                 prefs[KEY_PLUGIN_REGISTRY_URL]
                     ?: AppSettings.DEFAULT_PLUGIN_REGISTRY_URL,
@@ -298,9 +303,11 @@ class DataStoreSettingsRepository(
 
     override suspend fun setHttpRequestAllowedDomains(domains: String) = edit { it[KEY_HTTP_REQ_DOMAINS] = domains }
 
-    override suspend fun setBiometricForService(enabled: Boolean) = edit { it[KEY_BIOMETRIC_SERVICE] = enabled }
+    override suspend fun setLockEnabled(enabled: Boolean) = edit { it[KEY_LOCK_ENABLED] = enabled }
 
-    override suspend fun setBiometricForSettings(enabled: Boolean) = edit { it[KEY_BIOMETRIC_SETTINGS] = enabled }
+    override suspend fun setLockTimeoutMinutes(minutes: Int) = edit { it[KEY_LOCK_TIMEOUT] = minutes }
+
+    override suspend fun setPinHash(hash: String) = edit { it[KEY_PIN_HASH] = hash }
 
     override suspend fun setPluginRegistryUrl(url: String) = edit { it[KEY_PLUGIN_REGISTRY_URL] = url }
 
@@ -386,6 +393,9 @@ class DataStoreSettingsRepository(
         val KEY_HTTP_REQ_DOMAINS = stringPreferencesKey("http_req_domains")
         val KEY_BIOMETRIC_SERVICE = booleanPreferencesKey("biometric_for_service")
         val KEY_BIOMETRIC_SETTINGS = booleanPreferencesKey("biometric_for_settings")
+        val KEY_LOCK_ENABLED = booleanPreferencesKey("lock_enabled")
+        val KEY_LOCK_TIMEOUT = intPreferencesKey("lock_timeout_minutes")
+        val KEY_PIN_HASH = stringPreferencesKey("pin_hash")
         val KEY_PLUGIN_REGISTRY_URL = stringPreferencesKey("plugin_registry_url")
         val KEY_PLUGIN_SYNC_ENABLED = booleanPreferencesKey("plugin_sync_enabled")
         val KEY_PLUGIN_SYNC_INTERVAL = intPreferencesKey("plugin_sync_interval_hours")

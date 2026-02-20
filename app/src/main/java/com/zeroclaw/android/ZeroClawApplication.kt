@@ -9,6 +9,7 @@ package com.zeroclaw.android
 import android.app.Application
 import android.content.Context
 import android.util.Log
+import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
@@ -52,6 +53,7 @@ import com.zeroclaw.android.service.PluginSyncWorker
 import com.zeroclaw.android.service.SkillsBridge
 import com.zeroclaw.android.service.ToolsBridge
 import com.zeroclaw.android.service.VisionBridge
+import com.zeroclaw.android.util.SessionLockManager
 import com.zeroclaw.ffi.getVersion
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineDispatcher
@@ -156,6 +158,10 @@ class ZeroClawApplication :
     /** Bridge for direct-to-provider multimodal vision API calls. */
     val visionBridge: VisionBridge by lazy { VisionBridge() }
 
+    /** App-wide session lock manager observing the process lifecycle. */
+    lateinit var sessionLockManager: SessionLockManager
+        private set
+
     override fun onCreate() {
         super.onCreate()
         System.loadLibrary("sqlcipher")
@@ -185,6 +191,9 @@ class ZeroClawApplication :
         memoryBridge = MemoryBridge()
         eventBridge = EventBridge(activityRepository, ioScope)
         daemonBridge.eventBridge = eventBridge
+
+        sessionLockManager = SessionLockManager(settingsRepository.settings, ioScope)
+        ProcessLifecycleOwner.get().lifecycle.addObserver(sessionLockManager)
 
         schedulePluginSyncIfEnabled(ioScope)
     }

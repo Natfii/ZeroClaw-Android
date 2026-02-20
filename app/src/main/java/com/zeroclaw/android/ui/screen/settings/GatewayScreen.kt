@@ -37,7 +37,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zeroclaw.android.model.AppSettings
-import com.zeroclaw.android.ui.component.BiometricSettingsGate
 import com.zeroclaw.android.ui.component.SectionHeader
 
 /**
@@ -45,9 +44,6 @@ import com.zeroclaw.android.ui.component.SectionHeader
  *
  * Maps to the upstream `[gateway]` TOML section: pairing requirement,
  * public bind, paired tokens, and rate limiting settings.
- *
- * When biometric settings gating is enabled, the screen content is
- * protected behind a [BiometricSettingsGate] overlay.
  *
  * @param edgeMargin Horizontal padding based on window width size class.
  * @param onNavigateToQrScanner Callback to navigate to the QR code scanner.
@@ -63,15 +59,13 @@ fun GatewayScreen(
 ) {
     val settings by settingsViewModel.settings.collectAsStateWithLifecycle()
 
-    BiometricSettingsGate(requireBiometric = settings.biometricForSettings) {
-        GatewayScreenContent(
-            settings = settings,
-            onNavigateToQrScanner = onNavigateToQrScanner,
-            settingsViewModel = settingsViewModel,
-            edgeMargin = edgeMargin,
-            modifier = modifier,
-        )
-    }
+    GatewayScreenContent(
+        settings = settings,
+        onNavigateToQrScanner = onNavigateToQrScanner,
+        settingsViewModel = settingsViewModel,
+        edgeMargin = edgeMargin,
+        modifier = modifier,
+    )
 }
 
 /**

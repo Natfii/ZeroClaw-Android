@@ -366,14 +366,19 @@ class SettingsViewModel(
         updateDaemonSetting { setHttpRequestAllowedDomains(domains) }
     }
 
-    /** @see com.zeroclaw.android.data.repository.SettingsRepository.setBiometricForService */
-    fun updateBiometricForService(enabled: Boolean) {
-        viewModelScope.launch { repository.setBiometricForService(enabled) }
+    /** @see com.zeroclaw.android.data.repository.SettingsRepository.setLockEnabled */
+    fun updateLockEnabled(enabled: Boolean) {
+        viewModelScope.launch { repository.setLockEnabled(enabled) }
     }
 
-    /** @see com.zeroclaw.android.data.repository.SettingsRepository.setBiometricForSettings */
-    fun updateBiometricForSettings(enabled: Boolean) {
-        viewModelScope.launch { repository.setBiometricForSettings(enabled) }
+    /** @see com.zeroclaw.android.data.repository.SettingsRepository.setLockTimeoutMinutes */
+    fun updateLockTimeoutMinutes(minutes: Int) {
+        viewModelScope.launch { repository.setLockTimeoutMinutes(minutes) }
+    }
+
+    /** @see com.zeroclaw.android.data.repository.SettingsRepository.setPinHash */
+    fun updatePinHash(hash: String) {
+        viewModelScope.launch { repository.setPinHash(hash) }
     }
 
     /** @see com.zeroclaw.android.data.repository.SettingsRepository.setPluginRegistryUrl */

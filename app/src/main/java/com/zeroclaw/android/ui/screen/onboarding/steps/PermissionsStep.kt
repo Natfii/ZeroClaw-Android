@@ -23,11 +23,11 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -36,31 +36,26 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import com.zeroclaw.android.ui.component.PinEntryMode
+import com.zeroclaw.android.ui.component.PinEntrySheet
 import com.zeroclaw.android.util.BatteryOptimization
-import com.zeroclaw.android.util.BiometricGatekeeper
 
 /**
  * Onboarding step for requesting necessary permissions.
  *
  * Guides the user through notification permission (Android 13+),
- * battery optimization exemption, and optional biometric protection
- * for service control and sensitive settings.
+ * battery optimization exemption, and optional PIN-based app lock.
  *
- * @param biometricForService Whether biometric is required for service start/stop.
- * @param biometricForSettings Whether biometric is required for sensitive settings.
- * @param onBiometricForServiceChanged Callback when the service toggle changes.
- * @param onBiometricForSettingsChanged Callback when the settings toggle changes.
+ * @param pinHash The current PIN hash (empty if no PIN is set).
+ * @param onPinSet Callback with the new PIN hash after setup.
  */
 @Suppress("MagicNumber")
 @Composable
 fun PermissionsStep(
-    biometricForService: Boolean,
-    biometricForSettings: Boolean,
-    onBiometricForServiceChanged: (Boolean) -> Unit,
-    onBiometricForSettingsChanged: (Boolean) -> Unit,
+    pinHash: String,
+    onPinSet: (String) -> Unit,
 ) {
     val context = LocalContext.current
-    val biometricAvailable = BiometricGatekeeper.isAvailable(context)
     var isExempt by rememberSaveable {
         mutableStateOf(BatteryOptimization.isExempt(context))
     }
@@ -186,50 +181,73 @@ fun PermissionsStep(
             }
         }
 
-        if (biometricAvailable) {
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "Biometric Protection",
-                style = MaterialTheme.typography.titleSmall,
-            )
-            Text(
-                text =
-                    "Require fingerprint or face unlock to control " +
-                        "the daemon or modify sensitive settings.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
+        var showPinSheet by remember { mutableStateOf(false) }
+
+        Text(
+            text = "App Lock",
+            style = MaterialTheme.typography.titleSmall,
+        )
+        Text(
+            text =
+                "Set up a PIN to lock the app on launch and " +
+                    "after a period of inactivity.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        if (pinHash.isNotEmpty()) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text = "Protect service start/stop",
-                    style = MaterialTheme.typography.bodyMedium,
+                Icon(
+                    imageVector = Icons.Filled.CheckCircle,
+                    contentDescription = "PIN set",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp),
                 )
-                Switch(
-                    checked = biometricForService,
-                    onCheckedChange = onBiometricForServiceChanged,
+                Text(
+                    text = "PIN is set",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
                 )
             }
-
-            Row(
+            Spacer(modifier = Modifier.height(4.dp))
+            FilledTonalButton(
+                onClick = { showPinSheet = true },
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text = "Protect sensitive settings",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Switch(
-                    checked = biometricForSettings,
-                    onCheckedChange = onBiometricForSettingsChanged,
-                )
+                Text("Change PIN")
             }
+        } else {
+            FilledTonalButton(
+                onClick = { showPinSheet = true },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Set up a PIN")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = "You can set up app lock later in Settings",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        if (showPinSheet) {
+            PinEntrySheet(
+                mode = if (pinHash.isNotEmpty()) PinEntryMode.CHANGE else PinEntryMode.SETUP,
+                currentPinHash = pinHash,
+                onPinSet = { hash ->
+                    onPinSet(hash)
+                    showPinSheet = false
+                },
+                onDismiss = { showPinSheet = false },
+            )
         }
     }
 }

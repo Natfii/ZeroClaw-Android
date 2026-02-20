@@ -29,21 +29,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-
-/**
- * Actions that may require biometric authentication before execution.
- */
-sealed interface BiometricAction {
-    /** Starting the daemon requires authentication. */
-    data object StartDaemon : BiometricAction
-
-    /** Stopping the daemon requires authentication. */
-    data object StopDaemon : BiometricAction
-}
 
 /**
  * Represents the possible states of an asynchronous daemon UI operation.
@@ -99,7 +87,6 @@ class DaemonViewModel(
 ) : AndroidViewModel(application) {
     private val app = application as ZeroClawApplication
     private val bridge: DaemonServiceBridge = app.daemonBridge
-    private val settingsRepository = app.settingsRepository
     private val healthBridge: HealthBridge = app.healthBridge
     private val costBridge: CostBridge = app.costBridge
     private val cronBridge: CronBridge = app.cronBridge
@@ -129,17 +116,6 @@ class DaemonViewModel(
     val activityEvents: StateFlow<List<ActivityEvent>> =
         app.activityRepository.events
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), emptyList())
-
-    private val _pendingBiometricAction = MutableStateFlow<BiometricAction?>(null)
-
-    /**
-     * Pending action that requires biometric authentication before execution.
-     *
-     * When non-null, the UI layer should present a biometric prompt and call
-     * [confirmBiometricAction] on success or [cancelBiometricAction] on failure.
-     */
-    val pendingBiometricAction: StateFlow<BiometricAction?> =
-        _pendingBiometricAction.asStateFlow()
 
     /** Current lifecycle state of the daemon service. */
     val serviceState: StateFlow<ServiceState> = bridge.serviceState
@@ -249,71 +225,16 @@ class DaemonViewModel(
 
     /**
      * Requests the daemon to start.
-     *
-     * Reads the biometric-for-service setting from the repository
-     * before deciding whether to gate on authentication. This avoids
-     * a race condition where an eagerly initialised [StateFlow] could
-     * still hold its `false` default before the data store emits.
-     *
-     * If biometric auth is required, emits [BiometricAction.StartDaemon]
-     * via [pendingBiometricAction] so the UI layer can present a
-     * biometric prompt and call [confirmBiometricAction] on success.
      */
     fun requestStart() {
-        viewModelScope.launch {
-            val requireBiometric =
-                settingsRepository.settings.first().biometricForService
-            if (requireBiometric) {
-                _pendingBiometricAction.value = BiometricAction.StartDaemon
-            } else {
-                performStart()
-            }
-        }
+        performStart()
     }
 
     /**
      * Requests the daemon to stop.
-     *
-     * Reads the biometric-for-service setting from the repository
-     * before deciding whether to gate on authentication. This avoids
-     * a race condition where an eagerly initialised [StateFlow] could
-     * still hold its `false` default before the data store emits.
-     *
-     * If biometric auth is required, emits [BiometricAction.StopDaemon]
-     * via [pendingBiometricAction] so the UI layer can present a
-     * biometric prompt and call [confirmBiometricAction] on success.
      */
     fun requestStop() {
-        viewModelScope.launch {
-            val requireBiometric =
-                settingsRepository.settings.first().biometricForService
-            if (requireBiometric) {
-                _pendingBiometricAction.value = BiometricAction.StopDaemon
-            } else {
-                performStop()
-            }
-        }
-    }
-
-    /**
-     * Confirms the pending biometric action after successful authentication.
-     *
-     * Executes the action stored in [pendingBiometricAction] and clears it.
-     */
-    fun confirmBiometricAction() {
-        when (_pendingBiometricAction.value) {
-            BiometricAction.StartDaemon -> performStart()
-            BiometricAction.StopDaemon -> performStop()
-            null -> { /* nothing pending */ }
-        }
-        _pendingBiometricAction.value = null
-    }
-
-    /**
-     * Cancels the pending biometric action after failed or cancelled authentication.
-     */
-    fun cancelBiometricAction() {
-        _pendingBiometricAction.value = null
+        performStop()
     }
 
     private fun performStart() {

@@ -71,8 +71,11 @@ package com.zeroclaw.android.model
  * @property browserAllowedDomains Comma-separated list of allowed browser domains.
  * @property httpRequestEnabled Whether the HTTP request tool is enabled.
  * @property httpRequestAllowedDomains Comma-separated list of allowed HTTP domains.
- * @property biometricForService Android-only. Gates service start/stop with biometric, not passed to daemon TOML.
- * @property biometricForSettings Android-only. Gates settings access with biometric, not passed to daemon TOML.
+ * @property biometricForService Android-only. Legacy field, silently ignored. Kept for DataStore compatibility.
+ * @property biometricForSettings Android-only. Legacy field, silently ignored. Kept for DataStore compatibility.
+ * @property lockEnabled Android-only. Whether the session lock gate is active.
+ * @property lockTimeoutMinutes Android-only. Minutes of background time before re-locking.
+ * @property pinHash Android-only. PBKDF2 hash of the user's PIN (Base64-encoded salt+hash).
  * @property pluginRegistryUrl Android-only. Plugin registry preference, not passed to daemon TOML.
  * @property pluginSyncEnabled Android-only. Plugin registry preference, not passed to daemon TOML.
  * @property pluginSyncIntervalHours Android-only. Plugin registry preference, not passed to daemon TOML.
@@ -146,6 +149,9 @@ data class AppSettings(
     val httpRequestAllowedDomains: String = "",
     val biometricForService: Boolean = false,
     val biometricForSettings: Boolean = false,
+    val lockEnabled: Boolean = false,
+    val lockTimeoutMinutes: Int = DEFAULT_LOCK_TIMEOUT,
+    val pinHash: String = "",
     val pluginRegistryUrl: String = DEFAULT_PLUGIN_REGISTRY_URL,
     val pluginSyncEnabled: Boolean = false,
     val pluginSyncIntervalHours: Int = DEFAULT_PLUGIN_SYNC_INTERVAL,
@@ -240,6 +246,9 @@ data class AppSettings(
 
         /** Default plugin sync interval in hours. */
         const val DEFAULT_PLUGIN_SYNC_INTERVAL = 24
+
+        /** Default lock timeout in minutes. */
+        const val DEFAULT_LOCK_TIMEOUT = 15
     }
 }
 
