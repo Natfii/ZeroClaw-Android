@@ -79,6 +79,10 @@ enum class ModelListFormat {
  * @property iconUrl URL to the provider's logo image for display in the UI.
  * @property modelListUrl URL for fetching available models from this provider's API.
  * @property modelListFormat Response format of the model listing endpoint.
+ * @property keyCreationUrl URL to the provider's API key creation page, opened in the system browser.
+ * @property keyPrefix Expected prefix for client-side key format validation (e.g. "sk-").
+ * @property keyPrefixHint Human-readable hint shown when the key does not match [keyPrefix].
+ * @property helpText Provider-specific onboarding note displayed below the provider dropdown.
  */
 data class ProviderInfo(
     val id: String,
@@ -91,4 +95,8 @@ data class ProviderInfo(
     val iconUrl: String = "",
     val modelListUrl: String = "",
     val modelListFormat: ModelListFormat = ModelListFormat.NONE,
+    val keyCreationUrl: String = "",
+    val keyPrefix: String = "",
+    val keyPrefixHint: String = "",
+    val helpText: String = "",
 )
