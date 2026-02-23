@@ -1,0 +1,29 @@
+appId: com.zeroclaw.android
+tags:
+  - journey
+  - onboarding
+---
+- clearState
+- launchApp
+
+# Step 1: Permissions
+- assertVisible: "Permissions"
+- assertVisible: "Step 1 of 5"
+- tapOn: "Next"
+
+# Step 2: API Provider
+- assertVisible: "API Provider"
+- assertVisible: "Step 2 of 5"
+- tapOn: "Next"
+
+# Step 3: Agent Configuration
+- assertVisible: "Step 3 of 5"
+- tapOn: "Next"
+
+# Step 4: Channel Setup
+- assertVisible: "Step 4 of 5"
+- tapOn: "Next"
+
+# Step 5: Activation
+- assertVisible: "Ready to Go"
+- assertVisible: "Start Daemon"
