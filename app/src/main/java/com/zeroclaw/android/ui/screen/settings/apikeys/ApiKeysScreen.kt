@@ -71,13 +71,27 @@ import com.zeroclaw.android.ui.component.MaskedText
 private const val MIN_PASSPHRASE_LENGTH = 8
 
 /**
+ * Aggregated state for the API keys content composable.
+ *
+ * @property keys List of stored API keys.
+ * @property revealedKeyId ID of the currently revealed key, or null.
+ * @property corruptCount Number of corrupted keys detected.
+ * @property unusedKeyIds Set of key IDs not used by any agent.
+ * @property storageHealth Current encrypted storage health status.
+ */
+data class ApiKeysState(
+    val keys: List<ApiKey>,
+    val revealedKeyId: String?,
+    val corruptCount: Int,
+    val unusedKeyIds: Set<String>,
+    val storageHealth: StorageHealth,
+)
+
+/**
  * API key list screen with masked display and action buttons.
  *
- * Shows all stored API keys with their provider name and masked key
- * value. Provides reveal, edit, and delete actions per key, plus a
- * FAB for adding new keys. Includes storage health banners, corrupt
- * key warnings, export/import with passphrase-protected encryption,
- * credentials file import, and a confirmation dialog for deletion.
+ * Thin stateful wrapper that collects ViewModel flows and delegates
+ * rendering to [ApiKeysContent].
  *
  * @param onNavigateToDetail Navigate to the key detail/add screen.
  * @param onRequestBiometric Callback to request biometric authentication
@@ -90,7 +104,7 @@ private const val MIN_PASSPHRASE_LENGTH = 8
  * @param apiKeysViewModel The [ApiKeysViewModel] for key management.
  * @param modifier Modifier applied to the root layout.
  */
-@Suppress("CognitiveComplexMethod", "LongMethod", "LongParameterList")
+@Suppress("LongParameterList")
 @Composable
 fun ApiKeysScreen(
     onNavigateToDetail: (String?) -> Unit,
@@ -106,11 +120,6 @@ fun ApiKeysScreen(
     val snackbarMessage by apiKeysViewModel.snackbarMessage.collectAsStateWithLifecycle()
     val corruptCount by apiKeysViewModel.corruptKeyCount.collectAsStateWithLifecycle()
     val unusedKeyIds by apiKeysViewModel.unusedKeyIds.collectAsStateWithLifecycle()
-
-    var deleteTarget by remember { mutableStateOf<ApiKey?>(null) }
-    var rotatingKeyId by remember { mutableStateOf<String?>(null) }
-    var showExportDialog by remember { mutableStateOf(false) }
-    var showImportDialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(snackbarMessage) {
@@ -120,6 +129,71 @@ fun ApiKeysScreen(
         }
     }
 
+    ApiKeysContent(
+        state = ApiKeysState(
+            keys = keys,
+            revealedKeyId = revealedKeyId,
+            corruptCount = corruptCount,
+            unusedKeyIds = unusedKeyIds,
+            storageHealth = apiKeysViewModel.storageHealth,
+        ),
+        snackbarHostState = snackbarHostState,
+        edgeMargin = edgeMargin,
+        onNavigateToDetail = onNavigateToDetail,
+        onRequestBiometric = onRequestBiometric,
+        onHideRevealedKey = apiKeysViewModel::hideRevealedKey,
+        onDeleteKey = apiKeysViewModel::deleteKey,
+        onRotateKey = apiKeysViewModel::rotateKey,
+        onExportKeys = apiKeysViewModel::exportKeys,
+        onImportKeys = apiKeysViewModel::importKeys,
+        onShowSnackbar = apiKeysViewModel::showSnackbar,
+        onExportResult = onExportResult,
+        onImportCredentials = onImportCredentials,
+        modifier = modifier,
+    )
+}
+
+/**
+ * Stateless API keys content composable for testing.
+ *
+ * @param state Aggregated API keys state snapshot.
+ * @param snackbarHostState Snackbar host state for messages.
+ * @param edgeMargin Horizontal padding based on window width size class.
+ * @param onNavigateToDetail Navigate to key detail screen.
+ * @param onRequestBiometric Request biometric auth for a key.
+ * @param onHideRevealedKey Callback to hide the currently revealed key.
+ * @param onDeleteKey Callback to delete a key by ID.
+ * @param onRotateKey Callback to rotate a key with a new value.
+ * @param onExportKeys Callback to export keys with a passphrase.
+ * @param onImportKeys Callback to import keys from encrypted payload.
+ * @param onShowSnackbar Callback to show a snackbar message.
+ * @param onExportResult Callback with the encrypted export payload.
+ * @param onImportCredentials Callback to open the credentials file picker.
+ * @param modifier Modifier applied to the root layout.
+ */
+@Suppress("CognitiveComplexMethod", "LongMethod", "LongParameterList")
+@Composable
+internal fun ApiKeysContent(
+    state: ApiKeysState,
+    snackbarHostState: SnackbarHostState,
+    edgeMargin: Dp,
+    onNavigateToDetail: (String?) -> Unit,
+    onRequestBiometric: (keyId: String) -> Unit,
+    onHideRevealedKey: () -> Unit,
+    onDeleteKey: (String) -> Unit,
+    onRotateKey: (String, String) -> Unit,
+    onExportKeys: (String, (String) -> Unit) -> Unit,
+    onImportKeys: (String, String, (Int) -> Unit) -> Unit,
+    onShowSnackbar: (String) -> Unit,
+    onExportResult: (String) -> Unit,
+    onImportCredentials: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var deleteTarget by remember { mutableStateOf<ApiKey?>(null) }
+    var rotatingKeyId by remember { mutableStateOf<String?>(null) }
+    var showExportDialog by remember { mutableStateOf(false) }
+    var showImportDialog by remember { mutableStateOf(false) }
+
     if (deleteTarget != null) {
         ConfirmDeleteDialog(
             title = "Delete API Key",
@@ -127,7 +201,7 @@ fun ApiKeysScreen(
                 "Delete the ${deleteTarget?.provider} key? " +
                     "This action cannot be undone.",
             onConfirm = {
-                deleteTarget?.let { apiKeysViewModel.deleteKey(it.id) }
+                deleteTarget?.let { onDeleteKey(it.id) }
                 deleteTarget = null
             },
             onDismiss = { deleteTarget = null },
@@ -135,12 +209,12 @@ fun ApiKeysScreen(
     }
 
     if (rotatingKeyId != null) {
-        val rotatingKey = keys.find { it.id == rotatingKeyId }
+        val rotatingKey = state.keys.find { it.id == rotatingKeyId }
         if (rotatingKey != null) {
             KeyRotateDialog(
                 providerName = rotatingKey.provider,
                 onConfirm = { newKey ->
-                    apiKeysViewModel.rotateKey(rotatingKey.id, newKey)
+                    onRotateKey(rotatingKey.id, newKey)
                     rotatingKeyId = null
                 },
                 onDismiss = { rotatingKeyId = null },
@@ -152,7 +226,7 @@ fun ApiKeysScreen(
         ExportPassphraseDialog(
             onConfirm = { passphrase ->
                 showExportDialog = false
-                apiKeysViewModel.exportKeys(passphrase) { result ->
+                onExportKeys(passphrase) { result ->
                     onExportResult(result)
                 }
             },
@@ -164,8 +238,8 @@ fun ApiKeysScreen(
         ImportPassphraseDialog(
             onConfirm = { payload, passphrase ->
                 showImportDialog = false
-                apiKeysViewModel.importKeys(payload, passphrase) { count ->
-                    apiKeysViewModel.showSnackbar(
+                onImportKeys(payload, passphrase) { count ->
+                    onShowSnackbar(
                         if (count > 0) {
                             "$count key(s) imported"
                         } else {
@@ -196,9 +270,9 @@ fun ApiKeysScreen(
         },
         modifier = modifier,
     ) { innerPadding ->
-        if (keys.isEmpty() &&
-            corruptCount == 0 &&
-            apiKeysViewModel.storageHealth is StorageHealth.Healthy
+        if (state.keys.isEmpty() &&
+            state.corruptCount == 0 &&
+            state.storageHealth is StorageHealth.Healthy
         ) {
             EmptyState(
                 icon = Icons.Outlined.Key,
@@ -216,7 +290,7 @@ fun ApiKeysScreen(
             ) {
                 item { Spacer(modifier = Modifier.height(8.dp)) }
 
-                if (apiKeysViewModel.storageHealth is StorageHealth.Degraded) {
+                if (state.storageHealth is StorageHealth.Degraded) {
                     item {
                         ErrorCard(
                             message =
@@ -228,7 +302,7 @@ fun ApiKeysScreen(
                     }
                 }
 
-                if (apiKeysViewModel.storageHealth is StorageHealth.Recovered) {
+                if (state.storageHealth is StorageHealth.Recovered) {
                     item {
                         ErrorCard(
                             message =
@@ -239,11 +313,11 @@ fun ApiKeysScreen(
                     }
                 }
 
-                if (corruptCount > 0) {
+                if (state.corruptCount > 0) {
                     item {
                         ErrorCard(
                             message =
-                                "$corruptCount stored key(s) could not " +
+                                "${state.corruptCount} stored key(s) could not " +
                                     "be read and may be corrupted.",
                             onRetry = null,
                         )
@@ -252,7 +326,7 @@ fun ApiKeysScreen(
 
                 item {
                     ExportImportRow(
-                        hasKeys = keys.isNotEmpty(),
+                        hasKeys = state.keys.isNotEmpty(),
                         onExport = { showExportDialog = true },
                         onImport = { showImportDialog = true },
                         onImportCredentials = onImportCredentials,
@@ -260,17 +334,17 @@ fun ApiKeysScreen(
                 }
 
                 items(
-                    items = keys,
+                    items = state.keys,
                     key = { it.id },
                     contentType = { "api_key" },
                 ) { apiKey ->
                     ApiKeyItem(
                         apiKey = apiKey,
-                        isRevealed = revealedKeyId == apiKey.id,
-                        isUnused = apiKey.id in unusedKeyIds,
+                        isRevealed = state.revealedKeyId == apiKey.id,
+                        isUnused = apiKey.id in state.unusedKeyIds,
                         onRevealToggle = {
-                            if (revealedKeyId == apiKey.id) {
-                                apiKeysViewModel.hideRevealedKey()
+                            if (state.revealedKeyId == apiKey.id) {
+                                onHideRevealedKey()
                             } else {
                                 onRequestBiometric(apiKey.id)
                             }

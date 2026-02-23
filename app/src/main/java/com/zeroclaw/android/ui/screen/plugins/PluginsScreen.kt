@@ -53,12 +53,25 @@ import com.zeroclaw.android.ui.component.CategoryBadge
 import com.zeroclaw.android.ui.component.EmptyState
 
 /**
+ * Aggregated state for the plugins content composable.
+ *
+ * @property plugins Filtered list of plugins for the current tab.
+ * @property selectedTab Currently selected tab index.
+ * @property searchQuery Current search query text.
+ * @property syncState Current sync operation state.
+ */
+data class PluginsState(
+    val plugins: List<Plugin>,
+    val selectedTab: Int,
+    val searchQuery: String,
+    val syncState: SyncUiState,
+)
+
+/**
  * Plugin and skills management screen with Installed/Available/Skills tabs.
  *
- * Includes a sync button in the header area that triggers a manual
- * registry sync. Shows a progress indicator during sync and "update
- * available" badges on plugins with newer remote versions. The Skills
- * tab lists all workspace skills loaded from the daemon.
+ * Thin stateful wrapper that collects ViewModel flows and delegates
+ * rendering to [PluginsContent].
  *
  * @param onNavigateToDetail Callback to navigate to plugin detail.
  * @param edgeMargin Horizontal padding based on window width size class.
@@ -86,6 +99,55 @@ fun PluginsScreen(
         }
     }
 
+    PluginsContent(
+        state = PluginsState(
+            plugins = plugins,
+            selectedTab = selectedTab,
+            searchQuery = searchQuery,
+            syncState = syncState,
+        ),
+        edgeMargin = edgeMargin,
+        snackbarHostState = snackbarHostState,
+        onNavigateToDetail = onNavigateToDetail,
+        onSelectTab = pluginsViewModel::selectTab,
+        onSyncNow = pluginsViewModel::syncNow,
+        onSearchChange = pluginsViewModel::updateSearch,
+        onToggle = pluginsViewModel::togglePlugin,
+        onInstall = pluginsViewModel::installPlugin,
+        skillsTabContent = { SkillsTab(skillsViewModel = skillsViewModel) },
+        modifier = modifier,
+    )
+}
+
+/**
+ * Stateless plugins content composable for testing.
+ *
+ * @param state Aggregated plugins state snapshot.
+ * @param edgeMargin Horizontal padding based on window width size class.
+ * @param snackbarHostState Snackbar host state for messages.
+ * @param onNavigateToDetail Callback to navigate to plugin detail.
+ * @param onSelectTab Callback when a tab is selected.
+ * @param onSyncNow Callback to trigger a manual registry sync.
+ * @param onSearchChange Callback when search text changes.
+ * @param onToggle Callback when a plugin's enable switch is toggled.
+ * @param onInstall Callback when a plugin's Install button is tapped.
+ * @param skillsTabContent Slot for the skills tab content.
+ * @param modifier Modifier applied to the root layout.
+ */
+@Composable
+internal fun PluginsContent(
+    state: PluginsState,
+    edgeMargin: Dp,
+    snackbarHostState: SnackbarHostState,
+    onNavigateToDetail: (String) -> Unit,
+    onSelectTab: (Int) -> Unit,
+    onSyncNow: () -> Unit,
+    onSearchChange: (String) -> Unit,
+    onToggle: (String) -> Unit,
+    onInstall: (String) -> Unit,
+    skillsTabContent: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Box(modifier = modifier.fillMaxSize()) {
         Column(
             modifier =
@@ -98,29 +160,29 @@ fun PluginsScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 TabRow(
-                    selectedTabIndex = selectedTab,
+                    selectedTabIndex = state.selectedTab,
                     modifier = Modifier.weight(1f),
                 ) {
                     Tab(
-                        selected = selectedTab == TAB_INSTALLED,
-                        onClick = { pluginsViewModel.selectTab(TAB_INSTALLED) },
+                        selected = state.selectedTab == TAB_INSTALLED,
+                        onClick = { onSelectTab(TAB_INSTALLED) },
                         text = { Text("Installed") },
                     )
                     Tab(
-                        selected = selectedTab == TAB_AVAILABLE,
-                        onClick = { pluginsViewModel.selectTab(TAB_AVAILABLE) },
+                        selected = state.selectedTab == TAB_AVAILABLE,
+                        onClick = { onSelectTab(TAB_AVAILABLE) },
                         text = { Text("Available") },
                     )
                     Tab(
-                        selected = selectedTab == TAB_SKILLS,
-                        onClick = { pluginsViewModel.selectTab(TAB_SKILLS) },
+                        selected = state.selectedTab == TAB_SKILLS,
+                        onClick = { onSelectTab(TAB_SKILLS) },
                         text = { Text("Skills") },
                     )
                 }
-                if (selectedTab != TAB_SKILLS) {
+                if (state.selectedTab != TAB_SKILLS) {
                     IconButton(
-                        onClick = { pluginsViewModel.syncNow() },
-                        enabled = syncState !is SyncUiState.Syncing,
+                        onClick = onSyncNow,
+                        enabled = state.syncState !is SyncUiState.Syncing,
                         modifier =
                             Modifier.semantics {
                                 contentDescription = "Sync plugin registry"
@@ -134,21 +196,21 @@ fun PluginsScreen(
                 }
             }
 
-            if (syncState is SyncUiState.Syncing && selectedTab != TAB_SKILLS) {
+            if (state.syncState is SyncUiState.Syncing && state.selectedTab != TAB_SKILLS) {
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             }
             Spacer(modifier = Modifier.height(12.dp))
 
-            if (selectedTab == TAB_SKILLS) {
-                SkillsTab(skillsViewModel = skillsViewModel)
+            if (state.selectedTab == TAB_SKILLS) {
+                skillsTabContent()
             } else {
                 PluginTabContent(
-                    plugins = plugins,
-                    searchQuery = searchQuery,
-                    selectedTab = selectedTab,
-                    onSearchChange = { pluginsViewModel.updateSearch(it) },
-                    onToggle = { pluginsViewModel.togglePlugin(it) },
-                    onInstall = { pluginsViewModel.installPlugin(it) },
+                    plugins = state.plugins,
+                    searchQuery = state.searchQuery,
+                    selectedTab = state.selectedTab,
+                    onSearchChange = onSearchChange,
+                    onToggle = onToggle,
+                    onInstall = onInstall,
                     onNavigateToDetail = onNavigateToDetail,
                 )
             }

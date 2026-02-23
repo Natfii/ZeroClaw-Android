@@ -48,12 +48,23 @@ import com.zeroclaw.android.model.DoctorSummary
 import com.zeroclaw.android.ui.component.CollapsibleSection
 
 /**
+ * Aggregated state for the doctor content composable.
+ *
+ * @property checks All diagnostic check results.
+ * @property isRunning Whether checks are currently executing.
+ * @property summary Aggregated check summary, null before first run.
+ */
+data class DoctorState(
+    val checks: List<DiagnosticCheck>,
+    val isRunning: Boolean,
+    val summary: DoctorSummary?,
+)
+
+/**
  * ZeroClaw Doctor diagnostics screen.
  *
- * Displays a summary banner with pass/warn/fail counts and a button
- * to run diagnostics. Results are organized by category in collapsible
- * sections, each showing individual check results with colored status
- * dots and optional action buttons.
+ * Thin stateful wrapper that collects ViewModel flows and delegates
+ * rendering to [DoctorContent].
  *
  * @param edgeMargin Horizontal padding based on window width size class.
  * @param onNavigateToRoute Callback invoked when a diagnostic action button is tapped,
@@ -72,6 +83,36 @@ fun DoctorScreen(
     val isRunning by doctorViewModel.isRunning.collectAsStateWithLifecycle()
     val summary by doctorViewModel.summary.collectAsStateWithLifecycle()
 
+    DoctorContent(
+        state = DoctorState(
+            checks = checks,
+            isRunning = isRunning,
+            summary = summary,
+        ),
+        edgeMargin = edgeMargin,
+        onNavigateToRoute = onNavigateToRoute,
+        onRunDiagnostics = doctorViewModel::runAllChecks,
+        modifier = modifier,
+    )
+}
+
+/**
+ * Stateless doctor content composable for testing.
+ *
+ * @param state Aggregated doctor state snapshot.
+ * @param edgeMargin Horizontal padding based on window width size class.
+ * @param onNavigateToRoute Callback for diagnostic action navigation.
+ * @param onRunDiagnostics Callback to start diagnostic checks.
+ * @param modifier Modifier applied to the root layout.
+ */
+@Composable
+internal fun DoctorContent(
+    state: DoctorState,
+    edgeMargin: Dp,
+    onNavigateToRoute: (String) -> Unit,
+    onRunDiagnostics: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Column(
         modifier =
             modifier
@@ -81,14 +122,14 @@ fun DoctorScreen(
         Spacer(modifier = Modifier.height(8.dp))
 
         SummaryBanner(
-            summary = summary,
-            isRunning = isRunning,
-            onRunDiagnostics = { doctorViewModel.runAllChecks() },
+            summary = state.summary,
+            isRunning = state.isRunning,
+            onRunDiagnostics = onRunDiagnostics,
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        if (checks.isEmpty() && !isRunning) {
+        if (state.checks.isEmpty() && !state.isRunning) {
             Text(
                 text = "Tap \"Run Diagnostics\" to check your configuration.",
                 style = MaterialTheme.typography.bodyMedium,
@@ -96,7 +137,7 @@ fun DoctorScreen(
                 modifier = Modifier.padding(vertical = 16.dp),
             )
         } else {
-            CheckResultsList(checks = checks, onAction = onNavigateToRoute)
+            CheckResultsList(checks = state.checks, onAction = onNavigateToRoute)
         }
     }
 }

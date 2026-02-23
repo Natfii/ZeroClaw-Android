@@ -54,7 +54,23 @@ private const val STEP_CHANNELS = 3
 private const val STEP_ACTIVATION = 4
 
 /**
+ * Aggregated state for the onboarding content composable.
+ *
+ * @property currentStep Current step index.
+ * @property totalSteps Total number of wizard steps.
+ * @property isCompleting Whether the completion action is in progress.
+ */
+data class OnboardingState(
+    val currentStep: Int,
+    val totalSteps: Int,
+    val isCompleting: Boolean,
+)
+
+/**
  * Onboarding wizard screen with step indicator and navigation buttons.
+ *
+ * Thin stateful wrapper that collects ViewModel flows and delegates
+ * rendering to [OnboardingContent].
  *
  * @param onComplete Callback invoked when onboarding finishes.
  * @param onboardingViewModel The [OnboardingViewModel] for step management.
@@ -78,6 +94,52 @@ fun OnboardingScreen(
         snackbarHostState.showSnackbar(error)
     }
 
+    OnboardingContent(
+        state = OnboardingState(
+            currentStep = currentStep,
+            totalSteps = totalSteps,
+            isCompleting = isCompleting,
+        ),
+        snackbarHostState = snackbarHostState,
+        onComplete = onComplete,
+        onNextStep = onboardingViewModel::nextStep,
+        onPreviousStep = onboardingViewModel::previousStep,
+        onActivate = { onboardingViewModel.complete(onDone = onComplete) },
+        stepContent = { step ->
+            when (step) {
+                STEP_PERMISSIONS -> PermissionsStepCollector(onboardingViewModel)
+                STEP_PROVIDER -> ProviderStepCollector(onboardingViewModel)
+                STEP_AGENT_CONFIG -> AgentConfigStepCollector(onboardingViewModel)
+                STEP_CHANNELS -> ChannelSetupStepCollector(onboardingViewModel)
+            }
+        },
+        modifier = modifier,
+    )
+}
+
+/**
+ * Stateless onboarding content composable for testing.
+ *
+ * @param state Aggregated onboarding state snapshot.
+ * @param snackbarHostState Snackbar host state for error messages.
+ * @param onComplete Callback when onboarding finishes.
+ * @param onNextStep Callback to advance to the next step.
+ * @param onPreviousStep Callback to go back to the previous step.
+ * @param onActivate Callback when the activation button is tapped.
+ * @param stepContent Slot for rendering the current step content.
+ * @param modifier Modifier applied to the root layout.
+ */
+@Composable
+internal fun OnboardingContent(
+    state: OnboardingState,
+    snackbarHostState: SnackbarHostState,
+    onComplete: () -> Unit,
+    onNextStep: () -> Unit,
+    onPreviousStep: () -> Unit,
+    onActivate: () -> Unit,
+    stepContent: @Composable (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         modifier = modifier,
@@ -90,19 +152,20 @@ fun OnboardingScreen(
                     .padding(24.dp),
         ) {
             LinearProgressIndicator(
-                progress = { (currentStep + 1).toFloat() / totalSteps },
+                progress = { (state.currentStep + 1).toFloat() / state.totalSteps },
                 modifier =
                     Modifier
                         .fillMaxWidth()
                         .semantics {
-                            contentDescription = "Step ${currentStep + 1} of $totalSteps"
+                            contentDescription =
+                                "Step ${state.currentStep + 1} of ${state.totalSteps}"
                         },
             )
 
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Step ${currentStep + 1} of $totalSteps",
+                text = "Step ${state.currentStep + 1} of ${state.totalSteps}",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -110,18 +173,13 @@ fun OnboardingScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                when (currentStep) {
-                    STEP_PERMISSIONS -> PermissionsStepCollector(onboardingViewModel)
-                    STEP_PROVIDER -> ProviderStepCollector(onboardingViewModel)
-                    STEP_AGENT_CONFIG -> AgentConfigStepCollector(onboardingViewModel)
-                    STEP_CHANNELS -> ChannelSetupStepCollector(onboardingViewModel)
-                    STEP_ACTIVATION ->
-                        ActivationStep(
-                            onActivate = {
-                                onboardingViewModel.complete(onDone = onComplete)
-                            },
-                            isActivating = isCompleting,
-                        )
+                if (state.currentStep == STEP_ACTIVATION) {
+                    ActivationStep(
+                        onActivate = onActivate,
+                        isActivating = state.isCompleting,
+                    )
+                } else {
+                    stepContent(state.currentStep)
                 }
             }
 
@@ -129,15 +187,15 @@ fun OnboardingScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                if (currentStep > 0) {
-                    OutlinedButton(onClick = { onboardingViewModel.previousStep() }) {
+                if (state.currentStep > 0) {
+                    OutlinedButton(onClick = onPreviousStep) {
                         Text("Back")
                     }
                 } else {
                     Spacer(modifier = Modifier)
                 }
-                if (currentStep < totalSteps - 1) {
-                    FilledTonalButton(onClick = { onboardingViewModel.nextStep() }) {
+                if (state.currentStep < state.totalSteps - 1) {
+                    FilledTonalButton(onClick = onNextStep) {
                         Text("Next")
                     }
                 }

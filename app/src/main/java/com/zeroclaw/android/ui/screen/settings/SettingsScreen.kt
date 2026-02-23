@@ -64,6 +64,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.zeroclaw.android.model.AppSettings
 import com.zeroclaw.android.model.ThemeMode
 import com.zeroclaw.android.navigation.SettingsNavAction
 import com.zeroclaw.android.ui.component.SectionHeader
@@ -72,8 +73,8 @@ import com.zeroclaw.android.ui.component.SettingsListItem
 /**
  * Root settings screen displaying a sectioned list of configuration options.
  *
- * Each item navigates to a dedicated sub-screen when tapped. Navigation is
- * dispatched through a single [onNavigate] callback using [SettingsNavAction].
+ * Thin stateful wrapper that collects ViewModel flows and delegates
+ * rendering to [SettingsContent].
  *
  * @param onNavigate Callback invoked with a [SettingsNavAction] when the user taps a setting.
  * @param onRerunWizard Callback to reset onboarding and navigate to the setup wizard.
@@ -94,6 +95,42 @@ fun SettingsScreen(
     modifier: Modifier = Modifier,
 ) {
     val settings by settingsViewModel.settings.collectAsStateWithLifecycle()
+
+    SettingsContent(
+        settings = settings,
+        restartRequired = restartRequired,
+        edgeMargin = edgeMargin,
+        onNavigate = onNavigate,
+        onRerunWizard = onRerunWizard,
+        onRestartDaemon = onRestartDaemon,
+        onThemeSelected = settingsViewModel::updateTheme,
+        modifier = modifier,
+    )
+}
+
+/**
+ * Stateless settings content composable for testing.
+ *
+ * @param settings Current app settings snapshot.
+ * @param restartRequired Whether the daemon needs a restart.
+ * @param edgeMargin Horizontal padding based on window width size class.
+ * @param onNavigate Callback for settings navigation.
+ * @param onRerunWizard Callback to reset onboarding.
+ * @param onRestartDaemon Callback to restart the daemon.
+ * @param onThemeSelected Callback when a theme is chosen.
+ * @param modifier Modifier applied to the root layout.
+ */
+@Composable
+internal fun SettingsContent(
+    settings: AppSettings,
+    restartRequired: Boolean,
+    edgeMargin: Dp,
+    onNavigate: (SettingsNavAction) -> Unit,
+    onRerunWizard: () -> Unit,
+    onRestartDaemon: () -> Unit,
+    onThemeSelected: (ThemeMode) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     var showRerunDialog by remember { mutableStateOf(false) }
     var showThemeDialog by remember { mutableStateOf(false) }
 
@@ -300,7 +337,7 @@ fun SettingsScreen(
         ThemePickerDialog(
             currentTheme = settings.theme,
             onThemeSelected = { theme ->
-                settingsViewModel.updateTheme(theme)
+                onThemeSelected(theme)
                 showThemeDialog = false
             },
             onDismiss = { showThemeDialog = false },

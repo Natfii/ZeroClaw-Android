@@ -77,10 +77,26 @@ import com.zeroclaw.android.model.ChatMessage
 import com.zeroclaw.android.model.ProcessedImage
 import com.zeroclaw.android.ui.component.LoadingIndicator
 import com.zeroclaw.android.util.LocalPowerSaveMode
+
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.launch
+
+/**
+ * Aggregated state for the console content composable.
+ *
+ * @property messages Chat message history.
+ * @property isLoading Whether a response is in progress.
+ * @property pendingImages Currently staged images for the next message.
+ * @property isProcessingImages Whether images are being processed.
+ */
+data class ConsoleState(
+    val messages: List<ChatMessage>,
+    val isLoading: Boolean,
+    val pendingImages: List<ProcessedImage>,
+    val isProcessingImages: Boolean,
+)
 
 /** Bubble corner radius in dp. */
 private const val BUBBLE_CORNER_DP = 16
@@ -152,11 +168,8 @@ private val chatTimeFormat: DateTimeFormatter =
 /**
  * Global daemon console screen for sending messages to the ZeroClaw gateway.
  *
- * Displays a chronological message list with user messages right-aligned
- * and daemon responses left-aligned. Includes a text input bar at the
- * bottom with an image attach button, a pending thumbnail strip, a clear
- * history action, and timestamps on each message. Long-press a message
- * to copy its content to the clipboard.
+ * Thin stateful wrapper that collects ViewModel flows and delegates
+ * rendering to [ConsoleContent].
  *
  * @param edgeMargin Horizontal padding based on window width size class.
  * @param consoleViewModel The [ConsoleViewModel] for message state.
@@ -172,6 +185,47 @@ fun ConsoleScreen(
     val isLoading by consoleViewModel.isLoading.collectAsStateWithLifecycle()
     val pendingImages by consoleViewModel.pendingImages.collectAsStateWithLifecycle()
     val isProcessingImages by consoleViewModel.isProcessingImages.collectAsStateWithLifecycle()
+
+    ConsoleContent(
+        state = ConsoleState(
+            messages = messages,
+            isLoading = isLoading,
+            pendingImages = pendingImages,
+            isProcessingImages = isProcessingImages,
+        ),
+        edgeMargin = edgeMargin,
+        onSendMessage = consoleViewModel::sendMessage,
+        onClearHistory = consoleViewModel::clearHistory,
+        onRemoveImage = consoleViewModel::removeImage,
+        onRetryMessage = consoleViewModel::retryMessage,
+        onAttachImages = consoleViewModel::attachImages,
+        modifier = modifier,
+    )
+}
+
+/**
+ * Stateless console content composable for testing.
+ *
+ * @param state Aggregated console state snapshot.
+ * @param edgeMargin Horizontal padding based on window width size class.
+ * @param onSendMessage Callback to send a message.
+ * @param onClearHistory Callback to clear chat history.
+ * @param onRemoveImage Callback to remove a pending image by index.
+ * @param onRetryMessage Callback to retry a failed message by error message ID.
+ * @param onAttachImages Callback to attach images from URIs.
+ * @param modifier Modifier applied to the root layout.
+ */
+@Composable
+internal fun ConsoleContent(
+    state: ConsoleState,
+    edgeMargin: Dp,
+    onSendMessage: (String) -> Unit,
+    onClearHistory: () -> Unit,
+    onRemoveImage: (Int) -> Unit,
+    onRetryMessage: (Long) -> Unit,
+    onAttachImages: (List<Uri>) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val listState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -183,27 +237,21 @@ fun ConsoleScreen(
             contract = ActivityResultContracts.PickMultipleVisualMedia(MAX_PICKER_IMAGES),
         ) { uris: List<Uri> ->
             if (uris.isNotEmpty()) {
-                consoleViewModel.attachImages(uris)
+                onAttachImages(uris)
             }
         }
 
     val isPowerSave = LocalPowerSaveMode.current
 
-    val onClearHistory: () -> Unit =
-        remember(consoleViewModel) {
-            { consoleViewModel.clearHistory() }
-        }
-    val onRemoveImage: (Int) -> Unit =
-        remember(consoleViewModel) {
-            { index -> consoleViewModel.removeImage(index) }
-        }
+    val stableOnClear: () -> Unit = remember { { onClearHistory() } }
+    val stableOnRemove: (Int) -> Unit = remember { { index -> onRemoveImage(index) } }
 
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) {
+    LaunchedEffect(state.messages.size) {
+        if (state.messages.isNotEmpty()) {
             if (isPowerSave) {
-                listState.scrollToItem(messages.size - 1)
+                listState.scrollToItem(state.messages.size - 1)
             } else {
-                listState.animateScrollToItem(messages.size - 1)
+                listState.animateScrollToItem(state.messages.size - 1)
             }
         }
     }
@@ -220,8 +268,8 @@ fun ConsoleScreen(
                     .imePadding(),
         ) {
             ClearHistoryBar(
-                onClear = onClearHistory,
-                hasMessages = messages.isNotEmpty(),
+                onClear = stableOnClear,
+                hasMessages = state.messages.isNotEmpty(),
                 modifier = Modifier.padding(horizontal = edgeMargin),
             )
 
@@ -234,7 +282,7 @@ fun ConsoleScreen(
                 verticalArrangement = Arrangement.spacedBy(MESSAGE_SPACING_DP.dp),
             ) {
                 items(
-                    items = messages,
+                    items = state.messages,
                     key = { it.id },
                     contentType = { if (it.isFromUser) "user" else "daemon" },
                 ) { message ->
@@ -252,7 +300,7 @@ fun ConsoleScreen(
                         !message.isFromUser &&
                             message.content.startsWith("Error:")
                     val precedingUserMsg =
-                        messages.lastOrNull { it.isFromUser && it.id < message.id }
+                        state.messages.lastOrNull { it.isFromUser && it.id < message.id }
                     val canRetry =
                         isError &&
                             precedingUserMsg != null &&
@@ -260,7 +308,7 @@ fun ConsoleScreen(
                     val onRetry =
                         remember(message.id, canRetry) {
                             if (canRetry) {
-                                { consoleViewModel.retryMessage(message.id) }
+                                { onRetryMessage(message.id) }
                             } else {
                                 null
                             }
@@ -272,18 +320,18 @@ fun ConsoleScreen(
                     )
                 }
 
-                if (isLoading) {
+                if (state.isLoading) {
                     item(key = "loading", contentType = "loading") {
                         TypingIndicator()
                     }
                 }
             }
 
-            if (pendingImages.isNotEmpty() || isProcessingImages) {
+            if (state.pendingImages.isNotEmpty() || state.isProcessingImages) {
                 PendingImageStrip(
-                    images = pendingImages,
-                    isProcessing = isProcessingImages,
-                    onRemove = onRemoveImage,
+                    images = state.pendingImages,
+                    isProcessing = state.isProcessingImages,
+                    onRemove = stableOnRemove,
                     modifier = Modifier.padding(horizontal = edgeMargin),
                 )
             }
@@ -292,7 +340,7 @@ fun ConsoleScreen(
                 value = inputText,
                 onValueChange = { inputText = it },
                 onSend = {
-                    consoleViewModel.sendMessage(inputText)
+                    onSendMessage(inputText)
                     inputText = ""
                 },
                 onAttach = {
@@ -300,8 +348,8 @@ fun ConsoleScreen(
                         PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
                     )
                 },
-                isLoading = isLoading,
-                hasImages = pendingImages.isNotEmpty(),
+                isLoading = state.isLoading,
+                hasImages = state.pendingImages.isNotEmpty(),
                 modifier =
                     Modifier.padding(
                         horizontal = edgeMargin,

@@ -45,9 +45,21 @@ import com.zeroclaw.android.ui.component.EmptyState
 import com.zeroclaw.android.ui.component.ProviderIcon
 
 /**
+ * Aggregated state for the agents content composable.
+ *
+ * @property agents Filtered list of agents to display.
+ * @property searchQuery Current search query text.
+ */
+data class AgentsState(
+    val agents: List<Agent>,
+    val searchQuery: String,
+)
+
+/**
  * Agent list and management screen with search and FAB for adding agents.
  *
- * Tapping an agent card navigates to the agent detail (edit) screen.
+ * Thin stateful wrapper that collects ViewModel flows and delegates
+ * rendering to [AgentsContent].
  *
  * @param onNavigateToDetail Callback to navigate to agent detail for editing.
  * @param onNavigateToAdd Callback to navigate to the add agent screen.
@@ -66,6 +78,38 @@ fun AgentsScreen(
     val agents by agentsViewModel.agents.collectAsStateWithLifecycle()
     val searchQuery by agentsViewModel.searchQuery.collectAsStateWithLifecycle()
 
+    AgentsContent(
+        state = AgentsState(agents = agents, searchQuery = searchQuery),
+        edgeMargin = edgeMargin,
+        onNavigateToDetail = onNavigateToDetail,
+        onNavigateToAdd = onNavigateToAdd,
+        onSearchChange = agentsViewModel::updateSearch,
+        onToggleAgent = agentsViewModel::toggleAgent,
+        modifier = modifier,
+    )
+}
+
+/**
+ * Stateless agents content composable for testing.
+ *
+ * @param state Aggregated agents state snapshot.
+ * @param edgeMargin Horizontal padding based on window width size class.
+ * @param onNavigateToDetail Callback to navigate to agent detail.
+ * @param onNavigateToAdd Callback to add a new agent.
+ * @param onSearchChange Callback when search text changes.
+ * @param onToggleAgent Callback to toggle an agent by ID.
+ * @param modifier Modifier applied to the root layout.
+ */
+@Composable
+internal fun AgentsContent(
+    state: AgentsState,
+    edgeMargin: Dp,
+    onNavigateToDetail: (String) -> Unit,
+    onNavigateToAdd: () -> Unit,
+    onSearchChange: (String) -> Unit,
+    onToggleAgent: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Scaffold(
         floatingActionButton = {
             FloatingActionButton(
@@ -88,19 +132,19 @@ fun AgentsScreen(
                     .padding(horizontal = edgeMargin),
         ) {
             OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { agentsViewModel.updateSearch(it) },
+                value = state.searchQuery,
+                onValueChange = onSearchChange,
                 label = { Text("Search connections") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            if (agents.isEmpty()) {
+            if (state.agents.isEmpty()) {
                 EmptyState(
                     icon = Icons.Outlined.SmartToy,
                     message =
-                        if (searchQuery.isBlank()) {
+                        if (state.searchQuery.isBlank()) {
                             "No connections configured yet"
                         } else {
                             "No connections match your search"
@@ -111,13 +155,13 @@ fun AgentsScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     items(
-                        items = agents,
+                        items = state.agents,
                         key = { it.id },
                         contentType = { "agent" },
                     ) { agent ->
                         val onToggle =
                             remember(agent.id) {
-                                { agentsViewModel.toggleAgent(agent.id) }
+                                { onToggleAgent(agent.id) }
                             }
                         val onClick =
                             remember(agent.id) {
