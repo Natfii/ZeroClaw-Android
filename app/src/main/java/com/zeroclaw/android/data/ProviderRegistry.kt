@@ -377,9 +377,42 @@ object ProviderRegistry {
                 id = "bedrock",
                 displayName = "Amazon Bedrock",
                 authType = ProviderAuthType.URL_AND_OPTIONAL_KEY,
-                aliases = listOf("amazon-bedrock"),
+                suggestedModels =
+                    listOf(
+                        "anthropic.claude-sonnet-4-6-20250514-v1:0",
+                        "amazon.nova-pro-v1:0",
+                        "meta.llama3-3-70b-instruct-v1:0",
+                    ),
+                aliases = listOf("amazon-bedrock", "aws-bedrock"),
                 category = ProviderCategory.ECOSYSTEM,
                 iconUrl = faviconUrl("aws.amazon.com"),
+                keyCreationUrl = "https://console.aws.amazon.com/iam/home#/security_credentials",
+                helpText = "Uses AWS IAM credentials. Set region in base URL",
+            ),
+            ProviderInfo(
+                id = "novita",
+                displayName = "Novita AI",
+                authType = ProviderAuthType.API_KEY_ONLY,
+                suggestedModels = listOf("minimax/minimax-m2.5"),
+                category = ProviderCategory.ECOSYSTEM,
+                iconUrl = faviconUrl("novita.ai"),
+                modelListUrl = "https://api.novita.ai/openai/v1/models",
+                modelListFormat = ModelListFormat.OPENAI_COMPATIBLE,
+                keyCreationUrl = "https://novita.ai/settings/key-management",
+                helpText = "Affordable open-source model inference",
+            ),
+            ProviderInfo(
+                id = "telnyx",
+                displayName = "Telnyx AI",
+                authType = ProviderAuthType.API_KEY_ONLY,
+                suggestedModels =
+                    listOf(
+                        "openai/gpt-4o",
+                        "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+                    ),
+                category = ProviderCategory.ECOSYSTEM,
+                iconUrl = faviconUrl("telnyx.com"),
+                helpText = "AI inference with 53+ models via OpenAI-compatible API",
             ),
             ProviderInfo(
                 id = "synthetic",
