@@ -7,6 +7,8 @@
 package com.zeroclaw.android.service
 
 import com.zeroclaw.android.model.Agent
+import com.zeroclaw.android.model.ChannelType
+import com.zeroclaw.android.model.ConnectedChannel
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -643,6 +645,145 @@ class ConfigTomlBuilderTest {
         @DisplayName("custom-openai without URL passes through")
         fun `custom-openai without URL passes through`() {
             assertEquals("custom-openai", ConfigTomlBuilder.resolveProvider("custom-openai", ""))
+        }
+    }
+
+    @Nested
+    @DisplayName("buildChannelsToml()")
+    inner class BuildChannelsToml {
+        @Test
+        @DisplayName("empty list returns empty string")
+        fun `empty list returns empty string`() {
+            assertEquals("", ConfigTomlBuilder.buildChannelsToml(emptyList()))
+        }
+
+        @Test
+        @DisplayName("Mattermost channel emits correct TOML section")
+        fun `mattermost channel emits correct TOML`() {
+            val channel = ConnectedChannel(id = "1", type = ChannelType.MATTERMOST)
+            val values = mapOf(
+                "url" to "https://mm.example.com",
+                "bot_token" to "xoxb-test",
+                "channel_id" to "abc123",
+                "thread_replies" to "true",
+            )
+            val toml = ConfigTomlBuilder.buildChannelsToml(listOf(channel to values))
+
+            assertTrue(toml.contains("[channels_config.mattermost]"))
+            assertTrue(toml.contains("""url = "https://mm.example.com""""))
+            assertTrue(toml.contains("""bot_token = "xoxb-test""""))
+            assertTrue(toml.contains("""channel_id = "abc123""""))
+            assertTrue(toml.contains("thread_replies = true"))
+        }
+
+        @Test
+        @DisplayName("Signal channel emits correct TOML section")
+        fun `signal channel emits correct TOML`() {
+            val channel = ConnectedChannel(id = "2", type = ChannelType.SIGNAL)
+            val values = mapOf(
+                "http_url" to "http://localhost:8080",
+                "account" to "+1234567890",
+                "ignore_attachments" to "true",
+            )
+            val toml = ConfigTomlBuilder.buildChannelsToml(listOf(channel to values))
+
+            assertTrue(toml.contains("[channels_config.signal]"))
+            assertTrue(toml.contains("""http_url = "http://localhost:8080""""))
+            assertTrue(toml.contains("""account = "+1234567890""""))
+            assertTrue(toml.contains("ignore_attachments = true"))
+        }
+
+        @Test
+        @DisplayName("Nostr channel emits relays as list")
+        fun `nostr channel emits relays as list`() {
+            val channel = ConnectedChannel(id = "3", type = ChannelType.NOSTR)
+            val values = mapOf(
+                "private_key" to "nsec1test",
+                "relays" to "wss://relay.damus.io, wss://nos.lol",
+            )
+            val toml = ConfigTomlBuilder.buildChannelsToml(listOf(channel to values))
+
+            assertTrue(toml.contains("[channels_config.nostr]"))
+            assertTrue(toml.contains("""private_key = "nsec1test""""))
+            assertTrue(toml.contains(""""wss://relay.damus.io""""))
+            assertTrue(toml.contains(""""wss://nos.lol""""))
+        }
+
+        @Test
+        @DisplayName("ClawdTalk channel emits correct TOML section")
+        fun `clawdtalk channel emits correct TOML`() {
+            val channel = ConnectedChannel(id = "4", type = ChannelType.CLAWDTALK)
+            val values = mapOf(
+                "api_key" to "ct-key-123",
+                "connection_id" to "conn-abc",
+                "from_number" to "+15551234567",
+            )
+            val toml = ConfigTomlBuilder.buildChannelsToml(listOf(channel to values))
+
+            assertTrue(toml.contains("[channels_config.clawdtalk]"))
+            assertTrue(toml.contains("""api_key = "ct-key-123""""))
+            assertTrue(toml.contains("""connection_id = "conn-abc""""))
+            assertTrue(toml.contains("""from_number = "+15551234567""""))
+        }
+
+        @Test
+        @DisplayName("DingTalk channel emits correct TOML section")
+        fun `dingtalk channel emits correct TOML`() {
+            val channel = ConnectedChannel(id = "5", type = ChannelType.DINGTALK)
+            val values = mapOf(
+                "client_id" to "dingabc",
+                "client_secret" to "secret123",
+                "allowed_users" to "user1, user2",
+            )
+            val toml = ConfigTomlBuilder.buildChannelsToml(listOf(channel to values))
+
+            assertTrue(toml.contains("[channels_config.dingtalk]"))
+            assertTrue(toml.contains("""client_id = "dingabc""""))
+            assertTrue(toml.contains("""client_secret = "secret123""""))
+            assertTrue(toml.contains(""""user1""""))
+            assertTrue(toml.contains(""""user2""""))
+        }
+
+        @Test
+        @DisplayName("Feishu channel emits correct TOML section")
+        fun `feishu channel emits correct TOML`() {
+            val channel = ConnectedChannel(id = "6", type = ChannelType.FEISHU)
+            val values = mapOf(
+                "app_id" to "cli_test",
+                "app_secret" to "secret",
+                "receive_mode" to "websocket",
+                "port" to "8443",
+            )
+            val toml = ConfigTomlBuilder.buildChannelsToml(listOf(channel to values))
+
+            assertTrue(toml.contains("[channels_config.feishu]"))
+            assertTrue(toml.contains("""app_id = "cli_test""""))
+            assertTrue(toml.contains("""receive_mode = "websocket""""))
+            assertTrue(toml.contains("port = 8443"))
+        }
+
+        @Test
+        @DisplayName("all new channel types have unique toml keys")
+        fun `all channel types have unique toml keys`() {
+            val keys = ChannelType.entries.map { it.tomlKey }
+            assertEquals(keys.size, keys.toSet().size)
+        }
+
+        @Test
+        @DisplayName("all new channel types have non-empty display names")
+        fun `all channel types have non-empty display names`() {
+            for (type in ChannelType.entries) {
+                assertTrue(type.displayName.isNotBlank(), "${type.name} has blank displayName")
+            }
+        }
+
+        @Test
+        @DisplayName("WhatsApp includes web mode fields")
+        fun `whatsapp includes web mode fields`() {
+            val fields = ChannelType.WHATSAPP.fields.map { it.key }
+            assertTrue("session_path" in fields)
+            assertTrue("pair_phone" in fields)
+            assertTrue("pair_code" in fields)
         }
     }
 }

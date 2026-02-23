@@ -145,7 +145,7 @@ enum class ChannelType(
             ),
     ),
 
-    /** WhatsApp Business API channel. */
+    /** WhatsApp channel (Cloud API and Web modes). */
     WHATSAPP(
         displayName = "WhatsApp",
         tomlKey = "whatsapp",
@@ -154,25 +154,36 @@ enum class ChannelType(
                 ChannelFieldSpec(
                     "access_token",
                     "Access Token",
-                    isRequired = true,
                     isSecret = true,
                     inputType = FieldInputType.SECRET,
                 ),
                 ChannelFieldSpec(
                     "phone_number_id",
                     "Phone Number ID",
-                    isRequired = true,
                 ),
                 ChannelFieldSpec(
                     "verify_token",
                     "Verify Token",
-                    isRequired = true,
                     isSecret = true,
                     inputType = FieldInputType.SECRET,
                 ),
                 ChannelFieldSpec(
                     "app_secret",
                     "App Secret",
+                    isSecret = true,
+                    inputType = FieldInputType.SECRET,
+                ),
+                ChannelFieldSpec(
+                    "session_path",
+                    "Session Path (Web mode)",
+                ),
+                ChannelFieldSpec(
+                    "pair_phone",
+                    "Pair Phone (Web mode)",
+                ),
+                ChannelFieldSpec(
+                    "pair_code",
+                    "Pair Code (Web mode)",
                     isSecret = true,
                     inputType = FieldInputType.SECRET,
                 ),
@@ -401,6 +412,343 @@ enum class ChannelType(
                 ChannelFieldSpec(
                     "secret",
                     "Secret",
+                    isSecret = true,
+                    inputType = FieldInputType.SECRET,
+                ),
+            ),
+    ),
+
+    /** Mattermost bot channel. */
+    MATTERMOST(
+        displayName = "Mattermost",
+        tomlKey = "mattermost",
+        fields =
+            listOf(
+                ChannelFieldSpec(
+                    "url",
+                    "Server URL",
+                    isRequired = true,
+                    inputType = FieldInputType.URL,
+                ),
+                ChannelFieldSpec(
+                    "bot_token",
+                    "Bot Token",
+                    isRequired = true,
+                    isSecret = true,
+                    inputType = FieldInputType.SECRET,
+                ),
+                ChannelFieldSpec("channel_id", "Channel ID"),
+                ChannelFieldSpec(
+                    "allowed_users",
+                    "Allowed Users",
+                    inputType = FieldInputType.LIST,
+                ),
+                ChannelFieldSpec(
+                    "thread_replies",
+                    "Thread Replies",
+                    defaultValue = "false",
+                    inputType = FieldInputType.BOOLEAN,
+                ),
+                ChannelFieldSpec(
+                    "mention_only",
+                    "Mention Only",
+                    defaultValue = "false",
+                    inputType = FieldInputType.BOOLEAN,
+                ),
+            ),
+    ),
+
+    /** Signal Messenger channel via signal-cli REST API. */
+    SIGNAL(
+        displayName = "Signal",
+        tomlKey = "signal",
+        fields =
+            listOf(
+                ChannelFieldSpec(
+                    "http_url",
+                    "Signal CLI HTTP URL",
+                    isRequired = true,
+                    inputType = FieldInputType.URL,
+                ),
+                ChannelFieldSpec(
+                    "account",
+                    "Account Phone Number",
+                    isRequired = true,
+                ),
+                ChannelFieldSpec("group_id", "Group ID"),
+                ChannelFieldSpec(
+                    "allowed_from",
+                    "Allowed From",
+                    inputType = FieldInputType.LIST,
+                ),
+                ChannelFieldSpec(
+                    "ignore_attachments",
+                    "Ignore Attachments",
+                    defaultValue = "false",
+                    inputType = FieldInputType.BOOLEAN,
+                ),
+                ChannelFieldSpec(
+                    "ignore_stories",
+                    "Ignore Stories",
+                    defaultValue = "false",
+                    inputType = FieldInputType.BOOLEAN,
+                ),
+            ),
+    ),
+
+    /** Linq SMS/voice channel. */
+    LINQ(
+        displayName = "Linq",
+        tomlKey = "linq",
+        fields =
+            listOf(
+                ChannelFieldSpec(
+                    "api_token",
+                    "API Token",
+                    isRequired = true,
+                    isSecret = true,
+                    inputType = FieldInputType.SECRET,
+                ),
+                ChannelFieldSpec(
+                    "from_phone",
+                    "From Phone Number",
+                    isRequired = true,
+                ),
+                ChannelFieldSpec(
+                    "signing_secret",
+                    "Signing Secret",
+                    isSecret = true,
+                    inputType = FieldInputType.SECRET,
+                ),
+                ChannelFieldSpec(
+                    "allowed_senders",
+                    "Allowed Senders",
+                    inputType = FieldInputType.LIST,
+                ),
+            ),
+    ),
+
+    /** WATI WhatsApp Business API channel. */
+    WATI(
+        displayName = "WATI",
+        tomlKey = "wati",
+        fields =
+            listOf(
+                ChannelFieldSpec(
+                    "api_token",
+                    "API Token",
+                    isRequired = true,
+                    isSecret = true,
+                    inputType = FieldInputType.SECRET,
+                ),
+                ChannelFieldSpec(
+                    "api_url",
+                    "API URL",
+                    defaultValue = "https://live-mt-server.wati.io",
+                    inputType = FieldInputType.URL,
+                ),
+                ChannelFieldSpec("tenant_id", "Tenant ID"),
+                ChannelFieldSpec(
+                    "allowed_numbers",
+                    "Allowed Numbers",
+                    inputType = FieldInputType.LIST,
+                ),
+            ),
+    ),
+
+    /** Nextcloud Talk channel. */
+    NEXTCLOUD_TALK(
+        displayName = "Nextcloud Talk",
+        tomlKey = "nextcloud_talk",
+        fields =
+            listOf(
+                ChannelFieldSpec(
+                    "base_url",
+                    "Server URL",
+                    isRequired = true,
+                    inputType = FieldInputType.URL,
+                ),
+                ChannelFieldSpec(
+                    "app_token",
+                    "App Token",
+                    isRequired = true,
+                    isSecret = true,
+                    inputType = FieldInputType.SECRET,
+                ),
+                ChannelFieldSpec(
+                    "webhook_secret",
+                    "Webhook Secret",
+                    isSecret = true,
+                    inputType = FieldInputType.SECRET,
+                ),
+                ChannelFieldSpec(
+                    "allowed_users",
+                    "Allowed Users",
+                    inputType = FieldInputType.LIST,
+                ),
+            ),
+    ),
+
+    /** Feishu (standalone) channel. */
+    FEISHU(
+        displayName = "Feishu",
+        tomlKey = "feishu",
+        fields =
+            listOf(
+                ChannelFieldSpec(
+                    "app_id",
+                    "App ID",
+                    isRequired = true,
+                ),
+                ChannelFieldSpec(
+                    "app_secret",
+                    "App Secret",
+                    isRequired = true,
+                    isSecret = true,
+                    inputType = FieldInputType.SECRET,
+                ),
+                ChannelFieldSpec(
+                    "encrypt_key",
+                    "Encrypt Key",
+                    isSecret = true,
+                    inputType = FieldInputType.SECRET,
+                ),
+                ChannelFieldSpec(
+                    "verification_token",
+                    "Verification Token",
+                    isSecret = true,
+                    inputType = FieldInputType.SECRET,
+                ),
+                ChannelFieldSpec(
+                    "allowed_users",
+                    "Allowed Users",
+                    inputType = FieldInputType.LIST,
+                ),
+                ChannelFieldSpec(
+                    "receive_mode",
+                    "Receive Mode",
+                    defaultValue = "webhook",
+                ),
+                ChannelFieldSpec(
+                    "port",
+                    "Port",
+                    inputType = FieldInputType.NUMBER,
+                ),
+            ),
+    ),
+
+    /** DingTalk bot channel. */
+    DINGTALK(
+        displayName = "DingTalk",
+        tomlKey = "dingtalk",
+        fields =
+            listOf(
+                ChannelFieldSpec(
+                    "client_id",
+                    "Client ID",
+                    isRequired = true,
+                ),
+                ChannelFieldSpec(
+                    "client_secret",
+                    "Client Secret",
+                    isRequired = true,
+                    isSecret = true,
+                    inputType = FieldInputType.SECRET,
+                ),
+                ChannelFieldSpec(
+                    "allowed_users",
+                    "Allowed Users",
+                    inputType = FieldInputType.LIST,
+                ),
+            ),
+    ),
+
+    /** QQ bot channel. */
+    QQ(
+        displayName = "QQ",
+        tomlKey = "qq",
+        fields =
+            listOf(
+                ChannelFieldSpec(
+                    "app_id",
+                    "App ID",
+                    isRequired = true,
+                ),
+                ChannelFieldSpec(
+                    "app_secret",
+                    "App Secret",
+                    isRequired = true,
+                    isSecret = true,
+                    inputType = FieldInputType.SECRET,
+                ),
+                ChannelFieldSpec(
+                    "allowed_users",
+                    "Allowed Users",
+                    inputType = FieldInputType.LIST,
+                ),
+            ),
+    ),
+
+    /** Nostr protocol channel. */
+    NOSTR(
+        displayName = "Nostr",
+        tomlKey = "nostr",
+        fields =
+            listOf(
+                ChannelFieldSpec(
+                    "private_key",
+                    "Private Key",
+                    isRequired = true,
+                    isSecret = true,
+                    inputType = FieldInputType.SECRET,
+                ),
+                ChannelFieldSpec(
+                    "relays",
+                    "Relays",
+                    defaultValue =
+                        "wss://relay.damus.io, wss://nos.lol, " +
+                            "wss://relay.primal.net, wss://relay.snort.social",
+                    inputType = FieldInputType.LIST,
+                ),
+                ChannelFieldSpec(
+                    "allowed_pubkeys",
+                    "Allowed Pubkeys",
+                    inputType = FieldInputType.LIST,
+                ),
+            ),
+    ),
+
+    /** ClawdTalk telephony channel. */
+    CLAWDTALK(
+        displayName = "ClawdTalk",
+        tomlKey = "clawdtalk",
+        fields =
+            listOf(
+                ChannelFieldSpec(
+                    "api_key",
+                    "API Key",
+                    isRequired = true,
+                    isSecret = true,
+                    inputType = FieldInputType.SECRET,
+                ),
+                ChannelFieldSpec(
+                    "connection_id",
+                    "Connection ID",
+                    isRequired = true,
+                ),
+                ChannelFieldSpec(
+                    "from_number",
+                    "From Number",
+                    isRequired = true,
+                ),
+                ChannelFieldSpec(
+                    "allowed_destinations",
+                    "Allowed Destinations",
+                    inputType = FieldInputType.LIST,
+                ),
+                ChannelFieldSpec(
+                    "webhook_secret",
+                    "Webhook Secret",
                     isSecret = true,
                     inputType = FieldInputType.SECRET,
                 ),
