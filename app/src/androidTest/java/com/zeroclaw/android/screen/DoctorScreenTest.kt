@@ -8,10 +8,8 @@ package com.zeroclaw.android.screen
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
-import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.zeroclaw.android.screen.helpers.fakeDoctorState
@@ -26,7 +24,6 @@ import org.junit.runner.RunWith
  */
 @RunWith(AndroidJUnit4::class)
 class DoctorScreenTest {
-
     @get:Rule
     val composeTestRule = createComposeRule()
 
@@ -94,11 +91,12 @@ class DoctorScreenTest {
     fun emptyState_showsPrompt() {
         composeTestRule.setContent {
             DoctorContent(
-                state = DoctorState(
-                    checks = emptyList(),
-                    isRunning = false,
-                    summary = null,
-                ),
+                state =
+                    DoctorState(
+                        checks = emptyList(),
+                        isRunning = false,
+                        summary = null,
+                    ),
                 edgeMargin = 16.dp,
                 onNavigateToRoute = {},
                 onRunDiagnostics = {},

@@ -8,11 +8,9 @@ package com.zeroclaw.android.screen
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.zeroclaw.android.model.ServiceState
 import com.zeroclaw.android.screen.helpers.fakeDashboardState
 import com.zeroclaw.android.screen.helpers.fakeRunningDashboardState
 import com.zeroclaw.android.ui.screen.dashboard.DashboardContent
@@ -25,7 +23,6 @@ import org.junit.runner.RunWith
  */
 @RunWith(AndroidJUnit4::class)
 class DashboardScreenTest {
-
     @get:Rule
     val composeTestRule = createComposeRule()
 

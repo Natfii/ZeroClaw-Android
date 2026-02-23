@@ -96,6 +96,10 @@ android {
         }
     }
 
+    sourceSets {
+        getByName("androidTest").assets.srcDirs("$projectDir/schemas")
+    }
+
     buildFeatures {
         buildConfig = true
         compose = true

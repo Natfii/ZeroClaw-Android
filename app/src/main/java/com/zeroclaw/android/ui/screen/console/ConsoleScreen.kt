@@ -49,7 +49,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -251,22 +250,18 @@ internal fun ConsoleContent(
     LaunchedEffect(state.messages.size) {
         if (state.messages.isNotEmpty()) {
             if (isPowerSave) {
-                listState.scrollToItem(state.messages.size - 1)
+                listState.scrollToItem(0)
             } else {
-                listState.animateScrollToItem(state.messages.size - 1)
+                listState.animateScrollToItem(0)
             }
         }
     }
 
-    Scaffold(
-        modifier = modifier,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-    ) { innerPadding ->
+    Box(modifier = modifier.fillMaxSize()) {
         Column(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .padding(innerPadding)
                     .imePadding(),
         ) {
             ClearHistoryBar(
@@ -277,14 +272,21 @@ internal fun ConsoleContent(
 
             LazyColumn(
                 state = listState,
+                reverseLayout = true,
                 modifier =
                     Modifier
                         .weight(1f)
                         .padding(horizontal = edgeMargin),
                 verticalArrangement = Arrangement.spacedBy(MESSAGE_SPACING_DP.dp),
             ) {
+                if (state.isLoading) {
+                    item(key = "loading", contentType = "loading") {
+                        TypingIndicator()
+                    }
+                }
+
                 items(
-                    items = state.messages,
+                    items = state.messages.asReversed(),
                     key = { it.id },
                     contentType = { if (it.isFromUser) "user" else "daemon" },
                 ) { message ->
@@ -321,12 +323,6 @@ internal fun ConsoleContent(
                         onRetry = onRetry,
                     )
                 }
-
-                if (state.isLoading) {
-                    item(key = "loading", contentType = "loading") {
-                        TypingIndicator()
-                    }
-                }
             }
 
             if (state.pendingImages.isNotEmpty() || state.isProcessingImages) {
@@ -359,6 +355,11 @@ internal fun ConsoleContent(
                     ),
             )
         }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter),
+        )
     }
 }
 

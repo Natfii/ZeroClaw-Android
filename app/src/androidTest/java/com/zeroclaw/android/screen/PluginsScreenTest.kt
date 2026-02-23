@@ -29,7 +29,6 @@ import org.junit.runner.RunWith
  */
 @RunWith(AndroidJUnit4::class)
 class PluginsScreenTest {
-
     @get:Rule
     val composeTestRule = createComposeRule()
 
@@ -100,12 +99,13 @@ class PluginsScreenTest {
     fun emptyPluginList_showsEmptyState() {
         composeTestRule.setContent {
             PluginsContent(
-                state = PluginsState(
-                    plugins = emptyList(),
-                    selectedTab = 0,
-                    searchQuery = "",
-                    syncState = SyncUiState.Idle,
-                ),
+                state =
+                    PluginsState(
+                        plugins = emptyList(),
+                        selectedTab = 0,
+                        searchQuery = "",
+                        syncState = SyncUiState.Idle,
+                    ),
                 edgeMargin = 16.dp,
                 snackbarHostState = remember { SnackbarHostState() },
                 onNavigateToDetail = {},
@@ -126,22 +126,24 @@ class PluginsScreenTest {
     fun availablePlugin_showsInstallButton() {
         composeTestRule.setContent {
             PluginsContent(
-                state = PluginsState(
-                    plugins = listOf(
-                        Plugin(
-                            id = "p-1",
-                            name = "MQTT Channel",
-                            description = "MQTT support",
-                            version = "1.0.0",
-                            author = "ZeroClaw",
-                            category = PluginCategory.CHANNEL,
-                            isInstalled = false,
-                        ),
+                state =
+                    PluginsState(
+                        plugins =
+                            listOf(
+                                Plugin(
+                                    id = "p-1",
+                                    name = "MQTT Channel",
+                                    description = "MQTT support",
+                                    version = "1.0.0",
+                                    author = "ZeroClaw",
+                                    category = PluginCategory.CHANNEL,
+                                    isInstalled = false,
+                                ),
+                            ),
+                        selectedTab = 1,
+                        searchQuery = "",
+                        syncState = SyncUiState.Idle,
                     ),
-                    selectedTab = 1,
-                    searchQuery = "",
-                    syncState = SyncUiState.Idle,
-                ),
                 edgeMargin = 16.dp,
                 snackbarHostState = remember { SnackbarHostState() },
                 onNavigateToDetail = {},

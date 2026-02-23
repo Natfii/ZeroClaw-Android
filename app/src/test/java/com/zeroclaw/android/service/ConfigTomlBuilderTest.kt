@@ -771,12 +771,13 @@ class ConfigTomlBuilderTest {
         @DisplayName("Mattermost channel emits correct TOML section")
         fun `mattermost channel emits correct TOML`() {
             val channel = ConnectedChannel(id = "1", type = ChannelType.MATTERMOST)
-            val values = mapOf(
-                "url" to "https://mm.example.com",
-                "bot_token" to "xoxb-test",
-                "channel_id" to "abc123",
-                "thread_replies" to "true",
-            )
+            val values =
+                mapOf(
+                    "url" to "https://mm.example.com",
+                    "bot_token" to "xoxb-test",
+                    "channel_id" to "abc123",
+                    "thread_replies" to "true",
+                )
             val toml = ConfigTomlBuilder.buildChannelsToml(listOf(channel to values))
 
             assertTrue(toml.contains("[channels_config.mattermost]"))
@@ -790,11 +791,12 @@ class ConfigTomlBuilderTest {
         @DisplayName("Signal channel emits correct TOML section")
         fun `signal channel emits correct TOML`() {
             val channel = ConnectedChannel(id = "2", type = ChannelType.SIGNAL)
-            val values = mapOf(
-                "http_url" to "http://localhost:8080",
-                "account" to "+1234567890",
-                "ignore_attachments" to "true",
-            )
+            val values =
+                mapOf(
+                    "http_url" to "http://localhost:8080",
+                    "account" to "+1234567890",
+                    "ignore_attachments" to "true",
+                )
             val toml = ConfigTomlBuilder.buildChannelsToml(listOf(channel to values))
 
             assertTrue(toml.contains("[channels_config.signal]"))
@@ -807,10 +809,11 @@ class ConfigTomlBuilderTest {
         @DisplayName("Nostr channel emits relays as list")
         fun `nostr channel emits relays as list`() {
             val channel = ConnectedChannel(id = "3", type = ChannelType.NOSTR)
-            val values = mapOf(
-                "private_key" to "nsec1test",
-                "relays" to "wss://relay.damus.io, wss://nos.lol",
-            )
+            val values =
+                mapOf(
+                    "private_key" to "nsec1test",
+                    "relays" to "wss://relay.damus.io, wss://nos.lol",
+                )
             val toml = ConfigTomlBuilder.buildChannelsToml(listOf(channel to values))
 
             assertTrue(toml.contains("[channels_config.nostr]"))
@@ -823,11 +826,12 @@ class ConfigTomlBuilderTest {
         @DisplayName("ClawdTalk channel emits correct TOML section")
         fun `clawdtalk channel emits correct TOML`() {
             val channel = ConnectedChannel(id = "4", type = ChannelType.CLAWDTALK)
-            val values = mapOf(
-                "api_key" to "ct-key-123",
-                "connection_id" to "conn-abc",
-                "from_number" to "+15551234567",
-            )
+            val values =
+                mapOf(
+                    "api_key" to "ct-key-123",
+                    "connection_id" to "conn-abc",
+                    "from_number" to "+15551234567",
+                )
             val toml = ConfigTomlBuilder.buildChannelsToml(listOf(channel to values))
 
             assertTrue(toml.contains("[channels_config.clawdtalk]"))
@@ -840,11 +844,12 @@ class ConfigTomlBuilderTest {
         @DisplayName("DingTalk channel emits correct TOML section")
         fun `dingtalk channel emits correct TOML`() {
             val channel = ConnectedChannel(id = "5", type = ChannelType.DINGTALK)
-            val values = mapOf(
-                "client_id" to "dingabc",
-                "client_secret" to "secret123",
-                "allowed_users" to "user1, user2",
-            )
+            val values =
+                mapOf(
+                    "client_id" to "dingabc",
+                    "client_secret" to "secret123",
+                    "allowed_users" to "user1, user2",
+                )
             val toml = ConfigTomlBuilder.buildChannelsToml(listOf(channel to values))
 
             assertTrue(toml.contains("[channels_config.dingtalk]"))
@@ -858,12 +863,13 @@ class ConfigTomlBuilderTest {
         @DisplayName("Feishu channel emits correct TOML section")
         fun `feishu channel emits correct TOML`() {
             val channel = ConnectedChannel(id = "6", type = ChannelType.FEISHU)
-            val values = mapOf(
-                "app_id" to "cli_test",
-                "app_secret" to "secret",
-                "receive_mode" to "websocket",
-                "port" to "8443",
-            )
+            val values =
+                mapOf(
+                    "app_id" to "cli_test",
+                    "app_secret" to "secret",
+                    "receive_mode" to "websocket",
+                    "port" to "8443",
+                )
             val toml = ConfigTomlBuilder.buildChannelsToml(listOf(channel to values))
 
             assertTrue(toml.contains("[channels_config.feishu]"))

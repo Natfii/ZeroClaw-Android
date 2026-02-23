@@ -62,55 +62,61 @@ internal fun fakeDashboardState(): DashboardState =
 internal fun fakeRunningDashboardState(): DashboardState =
     DashboardState(
         serviceState = ServiceState.RUNNING,
-        statusState = DaemonUiState.Content(
+        statusState =
+            DaemonUiState.Content(
+                DaemonStatus(
+                    running = true,
+                    uptimeSeconds = 3600,
+                    components = emptyMap(),
+                ),
+            ),
+        keyRejection = null,
+        healthDetail =
+            HealthDetail(
+                daemonRunning = true,
+                pid = 12345,
+                uptimeSeconds = 3600,
+                components = emptyList(),
+            ),
+        costSummary =
+            CostSummary(
+                sessionCostUsd = 0.05,
+                dailyCostUsd = 1.20,
+                monthlyCostUsd = 15.0,
+                totalTokens = 50000,
+                requestCount = 25,
+                modelBreakdownJson = "{}",
+            ),
+        cronJobs =
+            listOf(
+                CronJob(
+                    id = "cron-1",
+                    expression = "0 0/5 * * *",
+                    command = "health-check",
+                    nextRunMs = System.currentTimeMillis() + 300000,
+                    lastRunMs = System.currentTimeMillis() - 300000,
+                    lastStatus = "ok",
+                    paused = false,
+                    oneShot = false,
+                ),
+            ),
+        enabledAgentCount = 2,
+        installedPluginCount = 3,
+        daemonStatus =
             DaemonStatus(
                 running = true,
                 uptimeSeconds = 3600,
                 components = emptyMap(),
             ),
-        ),
-        keyRejection = null,
-        healthDetail = HealthDetail(
-            daemonRunning = true,
-            pid = 12345,
-            uptimeSeconds = 3600,
-            components = emptyList(),
-        ),
-        costSummary = CostSummary(
-            sessionCostUsd = 0.05,
-            dailyCostUsd = 1.20,
-            monthlyCostUsd = 15.0,
-            totalTokens = 50000,
-            requestCount = 25,
-            modelBreakdownJson = "{}",
-        ),
-        cronJobs = listOf(
-            CronJob(
-                id = "cron-1",
-                expression = "0 0/5 * * *",
-                command = "health-check",
-                nextRunMs = System.currentTimeMillis() + 300000,
-                lastRunMs = System.currentTimeMillis() - 300000,
-                lastStatus = "ok",
-                paused = false,
-                oneShot = false,
+        activityEvents =
+            listOf(
+                ActivityEvent(
+                    id = 1,
+                    timestamp = System.currentTimeMillis(),
+                    type = ActivityType.DAEMON_STARTED,
+                    message = "Daemon started",
+                ),
             ),
-        ),
-        enabledAgentCount = 2,
-        installedPluginCount = 3,
-        daemonStatus = DaemonStatus(
-            running = true,
-            uptimeSeconds = 3600,
-            components = emptyMap(),
-        ),
-        activityEvents = listOf(
-            ActivityEvent(
-                id = 1,
-                timestamp = System.currentTimeMillis(),
-                type = ActivityType.DAEMON_STARTED,
-                message = "Daemon started",
-            ),
-        ),
     )
 
 /**
@@ -120,22 +126,23 @@ internal fun fakeRunningDashboardState(): DashboardState =
  */
 internal fun fakeAgentsState(): AgentsState =
     AgentsState(
-        agents = listOf(
-            Agent(
-                id = "agent-1",
-                name = "Test Agent",
-                provider = "OpenAI",
-                modelName = "gpt-4",
-                isEnabled = true,
+        agents =
+            listOf(
+                Agent(
+                    id = "agent-1",
+                    name = "Test Agent",
+                    provider = "OpenAI",
+                    modelName = "gpt-4",
+                    isEnabled = true,
+                ),
+                Agent(
+                    id = "agent-2",
+                    name = "Backup Agent",
+                    provider = "Anthropic",
+                    modelName = "claude-3",
+                    isEnabled = false,
+                ),
             ),
-            Agent(
-                id = "agent-2",
-                name = "Backup Agent",
-                provider = "Anthropic",
-                modelName = "claude-3",
-                isEnabled = false,
-            ),
-        ),
         searchQuery = "",
     )
 
@@ -146,18 +153,19 @@ internal fun fakeAgentsState(): AgentsState =
  */
 internal fun fakeConsoleState(): ConsoleState =
     ConsoleState(
-        messages = listOf(
-            ChatMessage(
-                id = 1,
-                content = "Hello",
-                isFromUser = true,
+        messages =
+            listOf(
+                ChatMessage(
+                    id = 1,
+                    content = "Hello",
+                    isFromUser = true,
+                ),
+                ChatMessage(
+                    id = 2,
+                    content = "Hello! How can I help?",
+                    isFromUser = false,
+                ),
             ),
-            ChatMessage(
-                id = 2,
-                content = "Hello! How can I help?",
-                isFromUser = false,
-            ),
-        ),
         isLoading = false,
         pendingImages = emptyList(),
         isProcessingImages = false,
@@ -170,18 +178,19 @@ internal fun fakeConsoleState(): ConsoleState =
  */
 internal fun fakePluginsState(): PluginsState =
     PluginsState(
-        plugins = listOf(
-            Plugin(
-                id = "plugin-1",
-                name = "HTTP Channel",
-                description = "REST API channel for ZeroClaw",
-                version = "1.0.0",
-                author = "ZeroClaw Labs",
-                category = PluginCategory.CHANNEL,
-                isInstalled = true,
-                isEnabled = true,
+        plugins =
+            listOf(
+                Plugin(
+                    id = "plugin-1",
+                    name = "HTTP Channel",
+                    description = "REST API channel for ZeroClaw",
+                    version = "1.0.0",
+                    author = "ZeroClaw Labs",
+                    category = PluginCategory.CHANNEL,
+                    isInstalled = true,
+                    isEnabled = true,
+                ),
             ),
-        ),
         selectedTab = 0,
         searchQuery = "",
         syncState = SyncUiState.Idle,
@@ -206,13 +215,14 @@ internal fun fakeOnboardingState(): OnboardingState =
  */
 internal fun fakeApiKeysState(): ApiKeysState =
     ApiKeysState(
-        keys = listOf(
-            ApiKey(
-                id = "key-1",
-                provider = "OpenAI",
-                key = "sk-test-1234567890abcdef",
+        keys =
+            listOf(
+                ApiKey(
+                    id = "key-1",
+                    provider = "OpenAI",
+                    key = "sk-test-1234567890abcdef",
+                ),
             ),
-        ),
         revealedKeyId = null,
         corruptCount = 0,
         unusedKeyIds = emptySet(),
@@ -226,35 +236,37 @@ internal fun fakeApiKeysState(): ApiKeysState =
  */
 internal fun fakeDoctorState(): DoctorState =
     DoctorState(
-        checks = listOf(
-            DiagnosticCheck(
-                id = "check-1",
-                category = DiagnosticCategory.CONFIG,
-                title = "TOML Configuration",
-                status = CheckStatus.PASS,
-                detail = "Valid configuration found",
+        checks =
+            listOf(
+                DiagnosticCheck(
+                    id = "check-1",
+                    category = DiagnosticCategory.CONFIG,
+                    title = "TOML Configuration",
+                    status = CheckStatus.PASS,
+                    detail = "Valid configuration found",
+                ),
+                DiagnosticCheck(
+                    id = "check-2",
+                    category = DiagnosticCategory.API_KEYS,
+                    title = "API Key Present",
+                    status = CheckStatus.PASS,
+                    detail = "1 key configured",
+                ),
+                DiagnosticCheck(
+                    id = "check-3",
+                    category = DiagnosticCategory.CONNECTIVITY,
+                    title = "Provider Reachable",
+                    status = CheckStatus.WARN,
+                    detail = "High latency detected",
+                ),
             ),
-            DiagnosticCheck(
-                id = "check-2",
-                category = DiagnosticCategory.API_KEYS,
-                title = "API Key Present",
-                status = CheckStatus.PASS,
-                detail = "1 key configured",
-            ),
-            DiagnosticCheck(
-                id = "check-3",
-                category = DiagnosticCategory.CONNECTIVITY,
-                title = "Provider Reachable",
-                status = CheckStatus.WARN,
-                detail = "High latency detected",
-            ),
-        ),
         isRunning = false,
-        summary = DoctorSummary(
-            passCount = 2,
-            warnCount = 1,
-            failCount = 0,
-        ),
+        summary =
+            DoctorSummary(
+                passCount = 2,
+                warnCount = 1,
+                failCount = 0,
+            ),
     )
 
 /**

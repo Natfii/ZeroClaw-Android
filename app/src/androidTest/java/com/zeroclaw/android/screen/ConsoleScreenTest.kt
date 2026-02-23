@@ -26,7 +26,6 @@ import org.junit.runner.RunWith
  */
 @RunWith(AndroidJUnit4::class)
 class ConsoleScreenTest {
-
     @get:Rule
     val composeTestRule = createComposeRule()
 
@@ -73,12 +72,13 @@ class ConsoleScreenTest {
     fun emptyState_clearButtonDisabled() {
         composeTestRule.setContent {
             ConsoleContent(
-                state = ConsoleState(
-                    messages = emptyList(),
-                    isLoading = false,
-                    pendingImages = emptyList(),
-                    isProcessingImages = false,
-                ),
+                state =
+                    ConsoleState(
+                        messages = emptyList(),
+                        isLoading = false,
+                        pendingImages = emptyList(),
+                        isProcessingImages = false,
+                    ),
                 edgeMargin = 16.dp,
                 onSendMessage = {},
                 onClearHistory = {},

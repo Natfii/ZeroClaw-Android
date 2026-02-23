@@ -27,7 +27,6 @@ import org.junit.runner.RunWith
  */
 @RunWith(AndroidJUnit4::class)
 class ApiKeysScreenTest {
-
     @get:Rule
     val composeTestRule = createComposeRule()
 
@@ -83,13 +82,14 @@ class ApiKeysScreenTest {
     fun emptyState_showsNoKeysMessage() {
         composeTestRule.setContent {
             ApiKeysContent(
-                state = ApiKeysState(
-                    keys = emptyList(),
-                    revealedKeyId = null,
-                    corruptCount = 0,
-                    unusedKeyIds = emptySet(),
-                    storageHealth = StorageHealth.Healthy,
-                ),
+                state =
+                    ApiKeysState(
+                        keys = emptyList(),
+                        revealedKeyId = null,
+                        corruptCount = 0,
+                        unusedKeyIds = emptySet(),
+                        storageHealth = StorageHealth.Healthy,
+                    ),
                 snackbarHostState = remember { SnackbarHostState() },
                 edgeMargin = 16.dp,
                 onNavigateToDetail = {},
@@ -140,9 +140,10 @@ class ApiKeysScreenTest {
     fun degradedStorage_showsWarning() {
         composeTestRule.setContent {
             ApiKeysContent(
-                state = fakeApiKeysState().copy(
-                    storageHealth = StorageHealth.Degraded,
-                ),
+                state =
+                    fakeApiKeysState().copy(
+                        storageHealth = StorageHealth.Degraded,
+                    ),
                 snackbarHostState = remember { SnackbarHostState() },
                 edgeMargin = 16.dp,
                 onNavigateToDetail = {},
