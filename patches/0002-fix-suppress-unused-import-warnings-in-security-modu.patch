@@ -1,0 +1,45 @@
+From 9e067c353be41495e169349f2fba763688279de7 Mon Sep 17 00:00:00 2001
+From: Natali <Natalicaggiano@outlook.com>
+Date: Mon, 23 Feb 2026 16:26:48 -0500
+Subject: [PATCH 2/2] fix: suppress unused import warnings in security module
+
+- leak_detector.rs: remove unused serde::{Deserialize, Serialize} import
+- mod.rs: add #[allow(unused_imports)] to LeakDetector/LeakResult and
+  PromptGuard re-exports, matching the pattern used by all other
+  re-exports in the same file
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+---
+ src/security/leak_detector.rs | 1 -
+ src/security/mod.rs           | 2 ++
+ 2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/security/leak_detector.rs b/src/security/leak_detector.rs
+index f9f246a..b548452 100644
+--- a/src/security/leak_detector.rs
++++ b/src/security/leak_detector.rs
+@@ -7,7 +7,6 @@
+ //! Contributed from RustyClaw (MIT licensed).
+ 
+ use regex::Regex;
+-use serde::{Deserialize, Serialize};
+ use std::sync::OnceLock;
+ 
+ /// Result of leak detection.
+diff --git a/src/security/mod.rs b/src/security/mod.rs
+index 6620569..1f2e602 100644
+--- a/src/security/mod.rs
++++ b/src/security/mod.rs
+@@ -56,7 +56,9 @@ pub use secrets::SecretStore;
+ #[allow(unused_imports)]
+ pub use traits::{NoopSandbox, Sandbox};
+ // Prompt injection defense exports
++#[allow(unused_imports)]
+ pub use leak_detector::{LeakDetector, LeakResult};
++#[allow(unused_imports)]
+ pub use prompt_guard::{GuardAction, GuardResult, PromptGuard};
+ 
+ /// Redact sensitive values for safe logging. Shows first 4 chars + "***" suffix.
+-- 
+2.52.0.windows.1
+

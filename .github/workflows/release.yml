@@ -29,6 +29,9 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Apply submodule patches
+        run: cd zeroclaw && git am ../patches/*.patch
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin

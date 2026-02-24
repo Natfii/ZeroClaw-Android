@@ -1,0 +1,70 @@
+From 39b1d5f5eef909ac3a296a575e4bb2e58a6ff68d Mon Sep 17 00:00:00 2001
+From: Natali <Natalicaggiano@outlook.com>
+Date: Mon, 23 Feb 2026 16:17:23 -0500
+Subject: [PATCH 1/2] fix: resolve compile errors for Android FFI consumption
+
+- leak_detector.rs: use r#"..."# hash-delimited raw strings for regex
+  patterns containing double quotes (5 occurrences)
+- gateway/mod.rs: use serde::Deserialize full path for WatiVerifyQuery
+  struct derive since Deserialize is not in scope
+
+These fixes are required for compilation when consumed as a path
+dependency from the zeroclaw-android FFI workspace.
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+---
+ src/gateway/mod.rs            |  2 +-
+ src/security/leak_detector.rs | 10 +++++-----
+ 2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/gateway/mod.rs b/src/gateway/mod.rs
+index 133781f..513363c 100644
+--- a/src/gateway/mod.rs
++++ b/src/gateway/mod.rs
+@@ -1334,7 +1334,7 @@ async fn handle_wati_verify(
+     (StatusCode::BAD_REQUEST, "Missing hub.challenge".to_string())
+ }
+ 
+-#[derive(Debug, Deserialize)]
++#[derive(Debug, serde::Deserialize)]
+ pub struct WatiVerifyQuery {
+     #[serde(rename = "hub.challenge")]
+     pub challenge: Option<String>,
+diff --git a/src/security/leak_detector.rs b/src/security/leak_detector.rs
+index b493308..f9f246a 100644
+--- a/src/security/leak_detector.rs
++++ b/src/security/leak_detector.rs
+@@ -89,7 +89,7 @@ impl LeakDetector {
+                 (Regex::new(r"gh[pousr]_[a-zA-Z0-9]{36,}").unwrap(), "GitHub token"),
+                 (Regex::new(r"github_pat_[a-zA-Z0-9_]{22,}").unwrap(), "GitHub PAT"),
+                 // Generic
+-                (Regex::new(r"api[_-]?key[=:]\s*['\"]*[a-zA-Z0-9_-]{20,}").unwrap(), "Generic API key"),
++                (Regex::new(r#"api[_-]?key[=:]\s*['"]*[a-zA-Z0-9_-]{20,}"#).unwrap(), "Generic API key"),
+             ]
+         });
+ 
+@@ -107,7 +107,7 @@ impl LeakDetector {
+         let regexes = AWS_PATTERNS.get_or_init(|| {
+             vec![
+                 (Regex::new(r"AKIA[A-Z0-9]{16}").unwrap(), "AWS Access Key ID"),
+-                (Regex::new(r"aws[_-]?secret[_-]?access[_-]?key[=:]\s*['\"]*[a-zA-Z0-9/+=]{40}").unwrap(), "AWS Secret Access Key"),
++                (Regex::new(r#"aws[_-]?secret[_-]?access[_-]?key[=:]\s*['"]*[a-zA-Z0-9/+=]{40}"#).unwrap(), "AWS Secret Access Key"),
+             ]
+         });
+ 
+@@ -124,9 +124,9 @@ impl LeakDetector {
+         static SECRET_PATTERNS: OnceLock<Vec<(Regex, &'static str)>> = OnceLock::new();
+         let regexes = SECRET_PATTERNS.get_or_init(|| {
+             vec![
+-                (Regex::new(r"(?i)password[=:]\s*['\"]*[^\s'\"]{8,}").unwrap(), "Password in config"),
+-                (Regex::new(r"(?i)secret[=:]\s*['\"]*[a-zA-Z0-9_-]{16,}").unwrap(), "Secret value"),
+-                (Regex::new(r"(?i)token[=:]\s*['\"]*[a-zA-Z0-9_.-]{20,}").unwrap(), "Token value"),
++                (Regex::new(r#"(?i)password[=:]\s*['"]*[^\s'"]{8,}"#).unwrap(), "Password in config"),
++                (Regex::new(r#"(?i)secret[=:]\s*['"]*[a-zA-Z0-9_-]{16,}"#).unwrap(), "Secret value"),
++                (Regex::new(r#"(?i)token[=:]\s*['"]*[a-zA-Z0-9_.-]{20,}"#).unwrap(), "Token value"),
+             ]
+         });
+ 
+-- 
+2.52.0.windows.1
+
