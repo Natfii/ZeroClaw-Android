@@ -141,13 +141,15 @@ class ConsoleViewModel(
                     } else {
                         daemonBridge.send(text)
                     }
+                val cleaned = stripToolCallTags(rawResponse)
                 val response =
                     if (cachedSettings.value.stripThinkingTags) {
-                        stripThinkingTags(rawResponse)
+                        stripThinkingTags(cleaned)
                     } else {
-                        rawResponse
+                        cleaned
                     }
-                chatMessageRepository.append(content = response, isFromUser = false)
+                val displayResponse = response.ifBlank { EMPTY_RESPONSE_FALLBACK }
+                chatMessageRepository.append(content = displayResponse, isFromUser = false)
             } catch (e: FfiException) {
                 val sanitized = ErrorSanitizer.sanitizeForUi(e)
                 logRepository.append(LogSeverity.ERROR, TAG, "Send failed: $sanitized")
@@ -206,6 +208,24 @@ class ConsoleViewModel(
             Regex("<(?:think|thinking)>[\\s\\S]*?</(?:think|thinking)>", RegexOption.IGNORE_CASE)
 
         /**
+         * Pattern matching tool-call markup leaked by models that support function calling.
+         *
+         * Matches both complete blocks (`<tool_call>...</tool_call>`) and unclosed
+         * tags through end-of-string (e.g. Qwen emitting just `<tool_call>\n`).
+         * Also covers the `<function_call>` variant used by some models.
+         */
+        private val TOOL_CALL_TAG_REGEX =
+            Regex(
+                "<(?:tool_call|function_call)>[\\s\\S]*?</(?:tool_call|function_call)>" +
+                    "|<(?:tool_call|function_call)>[\\s\\S]*$",
+                RegexOption.IGNORE_CASE,
+            )
+
+        /** Displayed when the model response is empty after stripping markup. */
+        private const val EMPTY_RESPONSE_FALLBACK =
+            "The model did not generate a text response."
+
+        /**
          * Removes chain-of-thought thinking tags from a model response.
          *
          * Strips `<think>...</think>` and `<thinking>...</thinking>` blocks
@@ -215,5 +235,18 @@ class ConsoleViewModel(
          * @return Response with thinking blocks removed and leading whitespace trimmed.
          */
         fun stripThinkingTags(text: String): String = text.replace(THINKING_TAG_REGEX, "").trim()
+
+        /**
+         * Removes tool-call markup from a model response.
+         *
+         * Some models (notably Qwen) emit raw `<tool_call>` tags in their text
+         * content when they attempt a function call with no tools available or
+         * produce a malformed tool invocation. This strips such artifacts so they
+         * are not shown to the user.
+         *
+         * @param text Raw model response.
+         * @return Response with tool-call blocks removed and leading whitespace trimmed.
+         */
+        fun stripToolCallTags(text: String): String = text.replace(TOOL_CALL_TAG_REGEX, "").trim()
     }
 }
