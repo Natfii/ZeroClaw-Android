@@ -120,12 +120,12 @@ mod tests {
     #[test]
     fn test_gateway_get_not_running() {
         let result = gateway_get("/api/health");
-        assert!(result.is_err());
-        match result.unwrap_err() {
-            FfiError::StateError { detail } => {
+        match result {
+            Err(FfiError::StateError { detail }) => {
                 assert!(detail.contains("not running"));
             }
-            other => panic!("expected StateError, got {other:?}"),
+            Err(other) => panic!("expected StateError, got {other:?}"),
+            Ok(_) => panic!("expected error, got Ok"),
         }
     }
 
