@@ -102,14 +102,14 @@ private data class FormatOption(
 private val FORMAT_OPTIONS =
     listOf(
         FormatOption(
-            id = "openclaw",
-            title = "OpenClaw",
-            description = "Standard open-source identity format. Default for most users.",
-        ),
-        FormatOption(
             id = "aieos",
             title = "AIEOS",
-            description = "Advanced identity format with extended metadata support.",
+            description = "ZeroClaw's native identity format with extended metadata support.",
+        ),
+        FormatOption(
+            id = "openclaw",
+            title = "OpenClaw",
+            description = "Standard open-source identity format.",
         ),
     )
 

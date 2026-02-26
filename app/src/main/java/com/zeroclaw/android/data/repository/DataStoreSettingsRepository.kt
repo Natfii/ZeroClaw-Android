@@ -7,6 +7,7 @@
 package com.zeroclaw.android.data.repository
 
 import android.content.Context
+import android.content.SharedPreferences
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
@@ -17,21 +18,28 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.zeroclaw.android.data.SecurePrefsProvider
 import com.zeroclaw.android.model.AppSettings
 import com.zeroclaw.android.model.ThemeMode
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 
 /** Extension property providing the singleton [DataStore] for app settings. */
 private val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(
     name = "app_settings",
 )
 
+/** Name for the EncryptedSharedPreferences file storing secret settings. */
+private const val SECURE_SETTINGS_PREFS = "secure_settings"
+
 /**
  * [SettingsRepository] implementation backed by Jetpack DataStore Preferences.
  *
- * Each setting is stored as a separate preference key. The [settings] flow
- * emits a new [AppSettings] whenever any key changes.
+ * Non-secret settings are stored in plaintext DataStore. Secret values
+ * (tunnel tokens, third-party API keys, paired gateway tokens, the PIN
+ * hash, and reliability API keys) are stored in [EncryptedSharedPreferences]
+ * via [SecurePrefsProvider].
  *
  * @param context Application context for DataStore initialization.
  */
@@ -39,8 +47,16 @@ private val Context.settingsDataStore: DataStore<Preferences> by preferencesData
 class DataStoreSettingsRepository(
     private val context: Context,
 ) : SettingsRepository {
+    private val securePrefs: SharedPreferences =
+        SecurePrefsProvider.create(context, SECURE_SETTINGS_PREFS).first
+
+    private val secureRevision = MutableStateFlow(0)
+
     override val settings: Flow<AppSettings> =
-        context.settingsDataStore.data.map { prefs ->
+        combine(
+            context.settingsDataStore.data,
+            secureRevision,
+        ) { prefs, _ ->
             mapPrefsToSettings(prefs)
         }
 
@@ -94,17 +110,17 @@ class DataStoreSettingsRepository(
             requireApprovalMediumRisk = prefs[KEY_REQUIRE_APPROVAL_MEDIUM_RISK] ?: true,
             blockHighRiskCommands = prefs[KEY_BLOCK_HIGH_RISK] ?: true,
             tunnelProvider = prefs[KEY_TUNNEL_PROVIDER] ?: "none",
-            tunnelCloudflareToken = prefs[KEY_TUNNEL_CF_TOKEN] ?: "",
+            tunnelCloudflareToken = securePrefs.getString(SEC_TUNNEL_CF_TOKEN, "") ?: "",
             tunnelTailscaleFunnel = prefs[KEY_TUNNEL_TS_FUNNEL] ?: false,
             tunnelTailscaleHostname = prefs[KEY_TUNNEL_TS_HOSTNAME] ?: "",
-            tunnelNgrokAuthToken = prefs[KEY_TUNNEL_NGROK_TOKEN] ?: "",
+            tunnelNgrokAuthToken = securePrefs.getString(SEC_TUNNEL_NGROK_TOKEN, "") ?: "",
             tunnelNgrokDomain = prefs[KEY_TUNNEL_NGROK_DOMAIN] ?: "",
             tunnelCustomCommand = prefs[KEY_TUNNEL_CUSTOM_CMD] ?: "",
             tunnelCustomHealthUrl = prefs[KEY_TUNNEL_CUSTOM_HEALTH] ?: "",
             tunnelCustomUrlPattern = prefs[KEY_TUNNEL_CUSTOM_PATTERN] ?: "",
             gatewayRequirePairing = prefs[KEY_GW_REQUIRE_PAIRING] ?: false,
             gatewayAllowPublicBind = prefs[KEY_GW_ALLOW_PUBLIC] ?: false,
-            gatewayPairedTokens = prefs[KEY_GW_PAIRED_TOKENS] ?: "",
+            gatewayPairedTokens = securePrefs.getString(SEC_GW_PAIRED_TOKENS, "") ?: "",
             gatewayPairRateLimit =
                 prefs[KEY_GW_PAIR_RATE]
                     ?: AppSettings.DEFAULT_PAIR_RATE_LIMIT,
@@ -151,7 +167,7 @@ class DataStoreSettingsRepository(
                 prefs[KEY_MEMORY_KEYWORD_WEIGHT]
                     ?: AppSettings.DEFAULT_KEYWORD_WEIGHT,
             composioEnabled = prefs[KEY_COMPOSIO_ENABLED] ?: false,
-            composioApiKey = prefs[KEY_COMPOSIO_API_KEY] ?: "",
+            composioApiKey = securePrefs.getString(SEC_COMPOSIO_API_KEY, "") ?: "",
             composioEntityId = prefs[KEY_COMPOSIO_ENTITY_ID] ?: "default",
             browserEnabled = prefs[KEY_BROWSER_ENABLED] ?: false,
             browserAllowedDomains = prefs[KEY_BROWSER_DOMAINS] ?: "",
@@ -161,7 +177,7 @@ class DataStoreSettingsRepository(
             lockTimeoutMinutes =
                 prefs[KEY_LOCK_TIMEOUT]
                     ?: AppSettings.DEFAULT_LOCK_TIMEOUT,
-            pinHash = prefs[KEY_PIN_HASH] ?: "",
+            pinHash = securePrefs.getString(SEC_PIN_HASH, "") ?: "",
             pluginRegistryUrl =
                 prefs[KEY_PLUGIN_REGISTRY_URL]
                     ?: AppSettings.DEFAULT_PLUGIN_REGISTRY_URL,
@@ -188,7 +204,7 @@ class DataStoreSettingsRepository(
             webSearchProvider =
                 prefs[KEY_WEB_SEARCH_PROVIDER]
                     ?: AppSettings.DEFAULT_WEB_SEARCH_PROVIDER,
-            webSearchBraveApiKey = prefs[KEY_WEB_SEARCH_BRAVE_API_KEY] ?: "",
+            webSearchBraveApiKey = securePrefs.getString(SEC_WEB_SEARCH_BRAVE_API_KEY, "") ?: "",
             webSearchMaxResults =
                 prefs[KEY_WEB_SEARCH_MAX_RESULTS]
                     ?: AppSettings.DEFAULT_WEB_SEARCH_MAX_RESULTS,
@@ -232,7 +248,7 @@ class DataStoreSettingsRepository(
             memoryQdrantCollection =
                 prefs[KEY_MEMORY_QDRANT_COLLECTION]
                     ?: AppSettings.DEFAULT_QDRANT_COLLECTION,
-            memoryQdrantApiKey = prefs[KEY_MEMORY_QDRANT_API_KEY] ?: "",
+            memoryQdrantApiKey = securePrefs.getString(SEC_MEMORY_QDRANT_API_KEY, "") ?: "",
             embeddingRoutesJson = prefs[KEY_EMBEDDING_ROUTES_JSON] ?: "[]",
             queryClassificationEnabled = prefs[KEY_QUERY_CLASSIFICATION_ENABLED] ?: false,
             proxyEnabled = prefs[KEY_PROXY_ENABLED] ?: false,
@@ -247,7 +263,8 @@ class DataStoreSettingsRepository(
             reliabilityBackoffMs =
                 prefs[KEY_RELIABILITY_BACKOFF_MS]
                     ?: AppSettings.DEFAULT_RELIABILITY_BACKOFF_MS,
-            reliabilityApiKeysJson = prefs[KEY_RELIABILITY_API_KEYS_JSON] ?: "{}",
+            reliabilityApiKeysJson =
+                securePrefs.getString(SEC_RELIABILITY_API_KEYS_JSON, "{}") ?: "{}",
         )
 
     override suspend fun setHost(host: String) = edit { it[KEY_HOST] = host }
@@ -300,13 +317,13 @@ class DataStoreSettingsRepository(
 
     override suspend fun setTunnelProvider(provider: String) = edit { it[KEY_TUNNEL_PROVIDER] = provider }
 
-    override suspend fun setTunnelCloudflareToken(token: String) = edit { it[KEY_TUNNEL_CF_TOKEN] = token }
+    override suspend fun setTunnelCloudflareToken(token: String) = editSecure(SEC_TUNNEL_CF_TOKEN, token)
 
     override suspend fun setTunnelTailscaleFunnel(enabled: Boolean) = edit { it[KEY_TUNNEL_TS_FUNNEL] = enabled }
 
     override suspend fun setTunnelTailscaleHostname(hostname: String) = edit { it[KEY_TUNNEL_TS_HOSTNAME] = hostname }
 
-    override suspend fun setTunnelNgrokAuthToken(token: String) = edit { it[KEY_TUNNEL_NGROK_TOKEN] = token }
+    override suspend fun setTunnelNgrokAuthToken(token: String) = editSecure(SEC_TUNNEL_NGROK_TOKEN, token)
 
     override suspend fun setTunnelNgrokDomain(domain: String) = edit { it[KEY_TUNNEL_NGROK_DOMAIN] = domain }
 
@@ -320,7 +337,7 @@ class DataStoreSettingsRepository(
 
     override suspend fun setGatewayAllowPublicBind(allowed: Boolean) = edit { it[KEY_GW_ALLOW_PUBLIC] = allowed }
 
-    override suspend fun setGatewayPairedTokens(tokens: String) = edit { it[KEY_GW_PAIRED_TOKENS] = tokens }
+    override suspend fun setGatewayPairedTokens(tokens: String) = editSecure(SEC_GW_PAIRED_TOKENS, tokens)
 
     override suspend fun setGatewayPairRateLimit(limit: Int) = edit { it[KEY_GW_PAIR_RATE] = limit }
 
@@ -362,7 +379,7 @@ class DataStoreSettingsRepository(
 
     override suspend fun setComposioEnabled(enabled: Boolean) = edit { it[KEY_COMPOSIO_ENABLED] = enabled }
 
-    override suspend fun setComposioApiKey(key: String) = edit { it[KEY_COMPOSIO_API_KEY] = key }
+    override suspend fun setComposioApiKey(key: String) = editSecure(SEC_COMPOSIO_API_KEY, key)
 
     override suspend fun setComposioEntityId(entityId: String) = edit { it[KEY_COMPOSIO_ENTITY_ID] = entityId }
 
@@ -388,7 +405,7 @@ class DataStoreSettingsRepository(
 
     override suspend fun setWebSearchProvider(provider: String) = edit { it[KEY_WEB_SEARCH_PROVIDER] = provider }
 
-    override suspend fun setWebSearchBraveApiKey(key: String) = edit { it[KEY_WEB_SEARCH_BRAVE_API_KEY] = key }
+    override suspend fun setWebSearchBraveApiKey(key: String) = editSecure(SEC_WEB_SEARCH_BRAVE_API_KEY, key)
 
     override suspend fun setWebSearchMaxResults(max: Int) = edit { it[KEY_WEB_SEARCH_MAX_RESULTS] = max }
 
@@ -432,7 +449,7 @@ class DataStoreSettingsRepository(
 
     override suspend fun setMemoryQdrantCollection(collection: String) = edit { it[KEY_MEMORY_QDRANT_COLLECTION] = collection }
 
-    override suspend fun setMemoryQdrantApiKey(key: String) = edit { it[KEY_MEMORY_QDRANT_API_KEY] = key }
+    override suspend fun setMemoryQdrantApiKey(key: String) = editSecure(SEC_MEMORY_QDRANT_API_KEY, key)
 
     override suspend fun setEmbeddingRoutesJson(json: String) = edit { it[KEY_EMBEDDING_ROUTES_JSON] = json }
 
@@ -454,13 +471,13 @@ class DataStoreSettingsRepository(
 
     override suspend fun setReliabilityBackoffMs(ms: Int) = edit { it[KEY_RELIABILITY_BACKOFF_MS] = ms }
 
-    override suspend fun setReliabilityApiKeysJson(json: String) = edit { it[KEY_RELIABILITY_API_KEYS_JSON] = json }
+    override suspend fun setReliabilityApiKeysJson(json: String) = editSecure(SEC_RELIABILITY_API_KEYS_JSON, json)
 
     override suspend fun setLockEnabled(enabled: Boolean) = edit { it[KEY_LOCK_ENABLED] = enabled }
 
     override suspend fun setLockTimeoutMinutes(minutes: Int) = edit { it[KEY_LOCK_TIMEOUT] = minutes }
 
-    override suspend fun setPinHash(hash: String) = edit { it[KEY_PIN_HASH] = hash }
+    override suspend fun setPinHash(hash: String) = editSecure(SEC_PIN_HASH, hash)
 
     override suspend fun setPluginRegistryUrl(url: String) = edit { it[KEY_PLUGIN_REGISTRY_URL] = url }
 
@@ -478,9 +495,29 @@ class DataStoreSettingsRepository(
         context.settingsDataStore.edit { prefs -> transform(prefs) }
     }
 
-    /** DataStore preference keys for [DataStoreSettingsRepository]. */
+    private fun editSecure(
+        key: String,
+        value: String,
+    ) {
+        securePrefs.edit().putString(key, value).apply()
+        secureRevision.value++
+    }
+
+    /**
+     * DataStore preference keys for non-secret settings and
+     * EncryptedSharedPreferences keys (SEC_ prefix) for secrets.
+     */
     @Suppress("MemberNameEqualsClassName")
     private companion object {
+        const val SEC_TUNNEL_CF_TOKEN = "sec_tunnel_cf_token"
+        const val SEC_TUNNEL_NGROK_TOKEN = "sec_tunnel_ngrok_token"
+        const val SEC_GW_PAIRED_TOKENS = "sec_gw_paired_tokens"
+        const val SEC_COMPOSIO_API_KEY = "sec_composio_api_key"
+        const val SEC_WEB_SEARCH_BRAVE_API_KEY = "sec_web_search_brave_api_key"
+        const val SEC_MEMORY_QDRANT_API_KEY = "sec_memory_qdrant_api_key"
+        const val SEC_PIN_HASH = "sec_pin_hash"
+        const val SEC_RELIABILITY_API_KEYS_JSON = "sec_reliability_api_keys_json"
+
         val KEY_HOST = stringPreferencesKey("host")
         val KEY_PORT = intPreferencesKey("port")
         val KEY_AUTO_START = booleanPreferencesKey("auto_start_on_boot")

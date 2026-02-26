@@ -119,10 +119,12 @@ object SecurePrefsProvider {
 }
 
 /**
- * Volatile in-memory [SharedPreferences] implementation used as a
- * last-resort fallback when the Android Keystore is completely unusable.
+ * Read-only [SharedPreferences] fallback when the Android Keystore is
+ * completely unusable.
  *
- * Data stored here does not survive process restarts.
+ * All write operations are silently refused to prevent secrets from being
+ * stored in an unencrypted in-memory map. Callers should inspect
+ * [StorageHealth.Degraded] and display an error banner.
  */
 internal class MapSharedPreferences : SharedPreferences {
     private val data = ConcurrentHashMap<String, Any?>()
@@ -166,7 +168,7 @@ internal class MapSharedPreferences : SharedPreferences {
 
     override fun contains(key: String?): Boolean = data.containsKey(key)
 
-    override fun edit(): SharedPreferences.Editor = MapEditor(data, listeners)
+    override fun edit(): SharedPreferences.Editor = MapEditor()
 
     override fun registerOnSharedPreferenceChangeListener(
         listener: SharedPreferences.OnSharedPreferenceChangeListener?,
@@ -182,103 +184,53 @@ internal class MapSharedPreferences : SharedPreferences {
 }
 
 /**
- * Editor for [MapSharedPreferences] that batches changes and applies them
- * atomically via [apply] or [commit].
+ * No-op editor for [MapSharedPreferences] that refuses all writes.
  *
- * @param data The backing map to apply edits to.
- * @param listeners Registered preference change listeners to notify.
+ * In degraded mode, persisting secrets in plaintext memory would give
+ * a false sense of security. [commit] always returns `false` and
+ * [apply] silently discards pending changes.
  */
-private class MapEditor(
-    private val data: ConcurrentHashMap<String, Any?>,
-    private val listeners: ConcurrentHashMap<SharedPreferences.OnSharedPreferenceChangeListener, Boolean>,
-) : SharedPreferences.Editor {
-    private val pending = mutableMapOf<String, Any?>()
-    private val removals = mutableSetOf<String>()
-    private var clearAll = false
-
+private class MapEditor : SharedPreferences.Editor {
     override fun putString(
         key: String?,
         value: String?,
-    ): SharedPreferences.Editor {
-        key?.let { pending[it] = value }
-        return this
-    }
+    ): SharedPreferences.Editor = this
 
     override fun putStringSet(
         key: String?,
         values: MutableSet<String>?,
-    ): SharedPreferences.Editor {
-        key?.let { pending[it] = values }
-        return this
-    }
+    ): SharedPreferences.Editor = this
 
     override fun putInt(
         key: String?,
         value: Int,
-    ): SharedPreferences.Editor {
-        key?.let { pending[it] = value }
-        return this
-    }
+    ): SharedPreferences.Editor = this
 
     override fun putLong(
         key: String?,
         value: Long,
-    ): SharedPreferences.Editor {
-        key?.let { pending[it] = value }
-        return this
-    }
+    ): SharedPreferences.Editor = this
 
     override fun putFloat(
         key: String?,
         value: Float,
-    ): SharedPreferences.Editor {
-        key?.let { pending[it] = value }
-        return this
-    }
+    ): SharedPreferences.Editor = this
 
     override fun putBoolean(
         key: String?,
         value: Boolean,
-    ): SharedPreferences.Editor {
-        key?.let { pending[it] = value }
-        return this
-    }
+    ): SharedPreferences.Editor = this
 
-    override fun remove(key: String?): SharedPreferences.Editor {
-        key?.let { removals.add(it) }
-        return this
-    }
+    override fun remove(key: String?): SharedPreferences.Editor = this
 
-    override fun clear(): SharedPreferences.Editor {
-        clearAll = true
-        return this
-    }
+    override fun clear(): SharedPreferences.Editor = this
 
     override fun commit(): Boolean {
-        applyChanges()
-        return true
+        Log.e("MapEditor", "Write refused: keystore degraded, secrets cannot be stored safely")
+        return false
     }
 
     override fun apply() {
-        applyChanges()
-    }
-
-    private fun applyChanges() {
-        val changedKeys = mutableSetOf<String>()
-        if (clearAll) {
-            changedKeys.addAll(data.keys)
-            data.clear()
-        }
-        removals.forEach { key ->
-            data.remove(key)
-            changedKeys.add(key)
-        }
-        pending.forEach { (key, value) ->
-            data[key] = value
-            changedKeys.add(key)
-        }
-        changedKeys.forEach { key ->
-            listeners.keys.forEach { it.onSharedPreferenceChanged(null, key) }
-        }
+        Log.e("MapEditor", "Write refused: keystore degraded, secrets cannot be stored safely")
     }
 }

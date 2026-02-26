@@ -9,6 +9,8 @@ package com.zeroclaw.android.service
 import com.zeroclaw.android.model.ComponentStatus
 import com.zeroclaw.android.model.DaemonStatus
 import com.zeroclaw.android.model.KeyRejectionEvent
+import com.zeroclaw.android.model.MemoryConflict
+import com.zeroclaw.android.model.MemoryHealthResult
 import com.zeroclaw.android.model.ServiceState
 import com.zeroclaw.ffi.FfiException
 import com.zeroclaw.ffi.getStatus
@@ -16,6 +18,7 @@ import com.zeroclaw.ffi.scaffoldWorkspace
 import com.zeroclaw.ffi.sendMessage
 import com.zeroclaw.ffi.startDaemon
 import com.zeroclaw.ffi.stopDaemon
+import java.io.File
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -139,6 +142,7 @@ class DaemonServiceBridge(
         _serviceState.value = ServiceState.STARTING
         try {
             withContext(ioDispatcher) {
+                migrateOldWorkspace()
                 startDaemon(configToml, dataDir, host, port)
             }
             _lastError.value = null
@@ -245,8 +249,11 @@ class DaemonServiceBridge(
      * Scaffolds the workspace directory with identity template files.
      *
      * Creates the standard `ZeroClaw` workspace structure (5 subdirectories
-     * and 8 markdown identity files) at `{dataDir}/zeroclaw/workspace`.
+     * and 8 markdown identity files) at `{dataDir}/workspace`.
      * Existing files are never overwritten (idempotent).
+     *
+     * Automatically migrates files from the legacy `{dataDir}/zeroclaw/workspace`
+     * path used before v0.0.29.
      *
      * Safe to call from the main thread; the underlying **blocking** FFI
      * call is dispatched to [Dispatchers.IO].
@@ -265,14 +272,182 @@ class DaemonServiceBridge(
         communicationStyle: String,
     ) {
         withContext(ioDispatcher) {
+            migrateOldWorkspace()
             scaffoldWorkspace(
-                "$dataDir/zeroclaw/workspace",
+                "$dataDir/workspace",
                 agentName.take(MAX_IDENTITY_LENGTH),
                 userName.take(MAX_IDENTITY_LENGTH),
                 timezone.take(MAX_IDENTITY_LENGTH),
                 communicationStyle.take(MAX_IDENTITY_LENGTH),
             )
         }
+    }
+
+    /**
+     * Ensures the workspace directory exists and migrates legacy files.
+     *
+     * Always creates `{dataDir}/workspace/` so the Rust daemon can reference
+     * it even on fresh installs. Then, if the legacy path
+     * `{dataDir}/zeroclaw/workspace/` exists (used before v0.0.29), copies
+     * any files from there into the new location, preserving user edits.
+     * Files that already exist at the new location are not overwritten.
+     */
+    private fun migrateOldWorkspace() {
+        val oldDir = File("$dataDir/zeroclaw/workspace")
+        val newDir = File("$dataDir/workspace")
+        newDir.mkdirs()
+        if (!oldDir.isDirectory) return
+        oldDir.listFiles()?.forEach { src ->
+            if (src.isFile) {
+                val dst = File(newDir, src.name)
+                if (!dst.exists()) {
+                    src.copyTo(dst)
+                }
+            }
+        }
+    }
+
+    /**
+     * Detects stale memory backend artifacts in the workspace.
+     *
+     * Scans the `{dataDir}/workspace` directory for files belonging to a
+     * memory backend that is **not** the currently configured one. For
+     * example, when [configuredBackend] is `"sqlite"`, any `.md` files
+     * in the `memory/` subdirectory are considered stale.
+     *
+     * @param configuredBackend The active memory backend identifier
+     *   (`"sqlite"`, `"markdown"`, or `"none"`).
+     * @return [MemoryConflict.StaleData] when leftover files are found,
+     *   or [MemoryConflict.None] when the workspace is clean.
+     */
+    fun detectMemoryConflict(configuredBackend: String): MemoryConflict {
+        val workspace = File("$dataDir/workspace")
+        if (!workspace.isDirectory) return MemoryConflict.None
+
+        val sqliteFiles = findSqliteFiles(workspace)
+        val markdownFiles = findMemoryMarkdownFiles(workspace)
+
+        val staleFiles = when (configuredBackend) {
+            "sqlite" -> markdownFiles
+            "markdown" -> sqliteFiles
+            "none" -> sqliteFiles + markdownFiles
+            else -> emptyList()
+        }
+
+        if (staleFiles.isEmpty()) return MemoryConflict.None
+
+        val staleBackend = when (configuredBackend) {
+            "sqlite" -> "markdown"
+            "markdown" -> "sqlite"
+            "none" -> if (sqliteFiles.isNotEmpty()) "sqlite" else "markdown"
+            else -> "unknown"
+        }
+
+        return MemoryConflict.StaleData(
+            currentBackend = configuredBackend,
+            staleBackend = staleBackend,
+            staleFileCount = staleFiles.size,
+            staleSizeBytes = staleFiles.sumOf { it.length() },
+        )
+    }
+
+    /**
+     * Deletes stale memory backend files identified by a prior conflict scan.
+     *
+     * Removes only files belonging to the [conflict]'s [MemoryConflict.StaleData.staleBackend].
+     * Parent directories (e.g. `memory/`) are preserved even when emptied.
+     *
+     * @param conflict The conflict descriptor returned by [detectMemoryConflict].
+     */
+    fun cleanupStaleMemory(conflict: MemoryConflict.StaleData) {
+        val workspace = File("$dataDir/workspace")
+        when (conflict.staleBackend) {
+            "sqlite" -> findSqliteFiles(workspace).forEach { it.delete() }
+            "markdown" -> findMemoryMarkdownFiles(workspace).forEach { it.delete() }
+        }
+    }
+
+    /**
+     * Probes whether the configured memory backend's storage is writable.
+     *
+     * Writes a small probe file to the target directory, reads it back, and
+     * deletes it. Returns [MemoryHealthResult.Healthy] when the round-trip
+     * succeeds, or [MemoryHealthResult.Unhealthy] with a diagnostic message
+     * on any I/O failure.
+     *
+     * For the `"none"` backend, storage is always considered healthy because
+     * no persistence is required.
+     *
+     * @param configuredBackend The active memory backend identifier
+     *   (`"sqlite"`, `"markdown"`, or `"none"`).
+     * @return Health probe result.
+     */
+    @Suppress("TooGenericExceptionCaught")
+    fun checkMemoryHealth(configuredBackend: String): MemoryHealthResult {
+        if (configuredBackend == "none") return MemoryHealthResult.Healthy
+
+        return try {
+            val targetDir = when (configuredBackend) {
+                "markdown" -> File("$dataDir/workspace/memory")
+                else -> File("$dataDir/workspace")
+            }
+            if (!targetDir.exists() && !targetDir.mkdirs()) {
+                return MemoryHealthResult.Unhealthy(
+                    "Cannot create $configuredBackend storage directory",
+                )
+            }
+            val probe = File(targetDir, ".health_probe")
+            probe.writeText("ok")
+            val readBack = probe.readText()
+            probe.delete()
+            if (readBack == "ok") {
+                MemoryHealthResult.Healthy
+            } else {
+                MemoryHealthResult.Unhealthy(
+                    "Read-back mismatch in $configuredBackend storage",
+                )
+            }
+        } catch (e: Exception) {
+            MemoryHealthResult.Unhealthy(
+                "$configuredBackend storage not writable: ${e.message}",
+            )
+        }
+    }
+
+    /**
+     * Finds SQLite database files in a workspace directory.
+     *
+     * Searches both the workspace root and the `state/` subdirectory for
+     * files with `.db`, `.db-wal`, or `.db-shm` extensions.
+     *
+     * @param workspace The workspace root directory.
+     * @return List of matching [File] objects, empty when none are found.
+     */
+    private fun findSqliteFiles(workspace: File): List<File> {
+        val extensions = setOf("db", "db-wal", "db-shm")
+        val rootFiles = workspace.listFiles()
+            ?.filter { it.isFile && it.extension in extensions }
+            .orEmpty()
+        val stateDir = File(workspace, "state")
+        val stateFiles = stateDir.listFiles()
+            ?.filter { it.isFile && it.extension in extensions }
+            .orEmpty()
+        return rootFiles + stateFiles
+    }
+
+    /**
+     * Finds Markdown memory log files in the workspace's `memory/` subdirectory.
+     *
+     * @param workspace The workspace root directory.
+     * @return List of `.md` files inside `{workspace}/memory/`,
+     *   empty when the directory does not exist.
+     */
+    private fun findMemoryMarkdownFiles(workspace: File): List<File> {
+        val memoryDir = File(workspace, "memory")
+        if (!memoryDir.isDirectory) return emptyList()
+        return memoryDir.listFiles()
+            ?.filter { it.isFile && it.extension == "md" }
+            .orEmpty()
     }
 
     /**

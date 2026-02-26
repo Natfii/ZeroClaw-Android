@@ -481,23 +481,24 @@ private fun NavigationRow(
         horizontalArrangement = Arrangement.SpaceBetween,
         modifier = Modifier.fillMaxWidth(),
     ) {
-        if (!isFirstStep) {
-            OutlinedButton(
-                onClick = onPrevious,
-                modifier =
-                    Modifier.semantics {
-                        contentDescription = "Go to previous step"
-                    },
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = null,
-                )
-                Spacer(modifier = Modifier.width(ButtonIconSpacing))
-                Text(text = "Back")
-            }
-        } else {
-            Spacer(modifier = Modifier.width(1.dp))
+        OutlinedButton(
+            onClick = onPrevious,
+            modifier =
+                Modifier.semantics {
+                    contentDescription =
+                        if (isFirstStep) {
+                            "Go back to channel selection"
+                        } else {
+                            "Go to previous step"
+                        }
+                },
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = null,
+            )
+            Spacer(modifier = Modifier.width(ButtonIconSpacing))
+            Text(text = if (isFirstStep) "Back to Channels" else "Back")
         }
 
         Button(

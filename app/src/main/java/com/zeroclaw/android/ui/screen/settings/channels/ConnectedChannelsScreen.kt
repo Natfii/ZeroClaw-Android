@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -67,6 +68,9 @@ private const val ITEM_SPACING_DP = 8
 
 /** Vertical spacer height in dp. */
 private const val SPACER_HEIGHT_DP = 16
+
+/** Maximum height for the channel type picker dialog content. */
+private const val DIALOG_MAX_HEIGHT_DP = 400
 
 /**
  * List screen for connected channels management.
@@ -273,6 +277,7 @@ private fun ChannelTypePickerDialog(
                         pendingSelection = updated - configuredTypes
                     }
                 },
+                modifier = Modifier.heightIn(max = DIALOG_MAX_HEIGHT_DP.dp),
             )
         },
         confirmButton = {},

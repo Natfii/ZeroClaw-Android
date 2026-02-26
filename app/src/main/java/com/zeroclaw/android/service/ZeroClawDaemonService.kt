@@ -31,6 +31,7 @@ import com.zeroclaw.android.model.ApiKey
 import com.zeroclaw.android.model.AppSettings
 import com.zeroclaw.android.model.LogSeverity
 import com.zeroclaw.android.model.ServiceState
+import com.zeroclaw.android.util.LogSanitizer
 import com.zeroclaw.ffi.FfiException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -438,11 +439,12 @@ class ZeroClawDaemonService : Service() {
                     "Daemon stopped by user",
                 )
             } catch (e: FfiException) {
-                Log.w(TAG, "Daemon stop failed: ${e.message}")
-                logRepository.append(LogSeverity.ERROR, TAG, "Stop failed: ${e.message}")
+                val safeMsg = LogSanitizer.sanitizeLogMessage(e.message ?: "Unknown error")
+                Log.w(TAG, "Daemon stop failed: $safeMsg")
+                logRepository.append(LogSeverity.ERROR, TAG, "Stop failed: $safeMsg")
                 activityRepository.record(
                     ActivityType.DAEMON_ERROR,
-                    "Stop failed: ${e.message}",
+                    "Stop failed: $safeMsg",
                 )
             } finally {
                 releaseWakeLock()
@@ -534,7 +536,8 @@ class ZeroClawDaemonService : Service() {
                             startStatusPolling()
                             return@launch
                         } catch (e: FfiException) {
-                            val errorMsg = e.message ?: "Unknown error"
+                            val errorMsg =
+                                LogSanitizer.sanitizeLogMessage(e.message ?: "Unknown error")
                             val delayMs = retryPolicy.nextDelay()
                             if (delayMs != null) {
                                 Log.w(
@@ -610,15 +613,17 @@ class ZeroClawDaemonService : Service() {
                     try {
                         bridge.pollStatus()
                     } catch (e: FfiException) {
-                        Log.w(TAG, "Status poll failed: ${e.message}")
+                        val safeMsg =
+                            LogSanitizer.sanitizeLogMessage(e.message ?: "Unknown error")
+                        Log.w(TAG, "Status poll failed: $safeMsg")
                         logRepository.append(
                             LogSeverity.WARN,
                             TAG,
-                            "Status poll failed: ${e.message}",
+                            "Status poll failed: $safeMsg",
                         )
                         notificationManager.updateNotification(
                             ServiceState.ERROR,
-                            errorDetail = e.message,
+                            errorDetail = safeMsg,
                         )
                     }
                 }

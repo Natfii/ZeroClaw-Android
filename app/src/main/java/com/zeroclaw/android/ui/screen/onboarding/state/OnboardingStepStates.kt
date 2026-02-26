@@ -11,15 +11,6 @@ import com.zeroclaw.android.model.ChannelType
 import java.util.TimeZone
 
 /**
- * State for the welcome step.
- *
- * @property acknowledged Whether the user has acknowledged the welcome screen.
- */
-data class WelcomeStepState(
-    val acknowledged: Boolean = false,
-)
-
-/**
  * State for the provider configuration step.
  *
  * Tracks the selected provider, API key, base URL, model selection,
@@ -92,7 +83,7 @@ data class TunnelStepState(
 /**
  * State for the security/autonomy configuration step.
  *
- * @property autonomyLevel Autonomy level: "readonly", "supervised", or "full".
+ * @property autonomyLevel Autonomy level: "supervised", "constrained", or "unconstrained".
  */
 data class SecurityStepState(
     val autonomyLevel: String = "supervised",
@@ -130,7 +121,7 @@ data class IdentityStepState(
     val userName: String = "",
     val timezone: String = TimeZone.getDefault().id,
     val communicationStyle: String = "",
-    val identityFormat: String = "openclaw",
+    val identityFormat: String = "aieos",
 )
 
 /**

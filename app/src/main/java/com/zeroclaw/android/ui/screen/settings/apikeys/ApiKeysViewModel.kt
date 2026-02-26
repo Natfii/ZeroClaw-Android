@@ -157,6 +157,16 @@ class ApiKeysViewModel(
     /** Result of the most recent connection probe, or [ConnectionTestState.Idle] if none. */
     val connectionTestState: StateFlow<ConnectionTestState> = _connectionTestState.asStateFlow()
 
+    private val _availableModels = MutableStateFlow<List<String>>(emptyList())
+
+    /** Model names fetched from the current provider's API. */
+    val availableModels: StateFlow<List<String>> = _availableModels.asStateFlow()
+
+    private val _isLoadingModels = MutableStateFlow(false)
+
+    /** Whether a model list fetch is in progress. */
+    val isLoadingModels: StateFlow<Boolean> = _isLoadingModels.asStateFlow()
+
     private val _unreachableKeyIds = MutableStateFlow<Set<String>>(emptySet())
 
     /**
@@ -173,6 +183,9 @@ class ApiKeysViewModel(
      */
     private var revealJob: Job? = null
 
+    /** Debounce job for model fetching after provider/key/URL changes. */
+    private var modelFetchJob: Job? = null
+
     /** Health state of the underlying encrypted storage backend. */
     val storageHealth: StorageHealth
         get() = repository.storageHealth
@@ -186,20 +199,32 @@ class ApiKeysViewModel(
      *
      * Updates [saveState] through [SaveState.Saving] to either
      * [SaveState.Saved] on success or [SaveState.Error] on failure.
+     * When [model] is non-empty, persists the selected model as the
+     * default model in settings.
      *
      * @param provider Provider name (e.g. "OpenAI").
      * @param key The secret key value.
      * @param baseUrl Provider endpoint URL for self-hosted providers, empty for cloud defaults.
+     * @param model Selected model name to save as default, empty to skip.
      */
     @Suppress("TooGenericExceptionCaught")
     fun addKey(
         provider: String,
         key: String,
         baseUrl: String = "",
+        model: String = "",
     ) {
         _saveState.value = SaveState.Saving
         viewModelScope.launch {
             try {
+                val existing = repository.getByProvider(provider)
+                if (existing != null) {
+                    val displayName =
+                        ProviderRegistry.findById(provider)?.displayName ?: provider
+                    _saveState.value =
+                        SaveState.Error("A key for $displayName already exists")
+                    return@launch
+                }
                 repository.save(
                     ApiKey(
                         id = UUID.randomUUID().toString(),
@@ -208,6 +233,7 @@ class ApiKeysViewModel(
                         baseUrl = baseUrl,
                     ),
                 )
+                persistModel(provider, model)
                 _saveState.value = SaveState.Saved
                 daemonBridge.markRestartRequired()
             } catch (e: Exception) {
@@ -221,15 +247,22 @@ class ApiKeysViewModel(
      *
      * Updates [saveState] through [SaveState.Saving] to either
      * [SaveState.Saved] on success or [SaveState.Error] on failure.
+     * When [model] is non-empty, persists the selected model as the
+     * default model in settings.
      *
      * @param apiKey The updated key.
+     * @param model Selected model name to save as default, empty to skip.
      */
     @Suppress("TooGenericExceptionCaught")
-    fun updateKey(apiKey: ApiKey) {
+    fun updateKey(
+        apiKey: ApiKey,
+        model: String = "",
+    ) {
         _saveState.value = SaveState.Saving
         viewModelScope.launch {
             try {
                 repository.save(apiKey)
+                persistModel(apiKey.provider, model)
                 _saveState.value = SaveState.Saved
                 daemonBridge.markRestartRequired()
             } catch (e: Exception) {
@@ -278,19 +311,20 @@ class ApiKeysViewModel(
     }
 
     /**
-     * Deletes an API key by its identifier.
+     * Deletes an API key and optionally its associated agents.
      *
-     * If the deleted key's provider matches [AppSettings.defaultProvider],
-     * that setting is updated to the first remaining key's provider, or
-     * cleared if no keys remain. Always calls
-     * [DaemonServiceBridge.markRestartRequired][com.zeroclaw.android.service.DaemonServiceBridge.markRestartRequired]
-     * so the UI shows a restart banner regardless of whether the daemon
-     * is running.
+     * When [alsoDeleteAgents] is true, all agents whose provider matches
+     * the deleted key's provider are removed. This prevents orphaned agent
+     * entries that reference a provider with no stored credentials.
      *
      * @param id Key identifier to delete.
+     * @param alsoDeleteAgents Whether to cascade-delete agents for this provider.
      */
     @Suppress("TooGenericExceptionCaught")
-    fun deleteKey(id: String) {
+    fun deleteKey(
+        id: String,
+        alsoDeleteAgents: Boolean = false,
+    ) {
         viewModelScope.launch {
             try {
                 val deletedKey = repository.getById(id)
@@ -301,6 +335,9 @@ class ApiKeysViewModel(
                     _revealedKeyId.value = null
                 }
                 if (deletedKey != null) {
+                    if (alsoDeleteAgents) {
+                        deleteAgentsForProvider(deletedKey.provider)
+                    }
                     clearDefaultProviderIfNeeded(
                         deletedKey = deletedKey,
                         keyRepo = repository,
@@ -313,6 +350,48 @@ class ApiKeysViewModel(
                 _snackbarMessage.value = "Delete failed: ${safeErrorMessage(e)}"
             }
         }
+    }
+
+    /**
+     * Returns the number of agents that reference the given API key's provider.
+     *
+     * Used by the UI to show how many agents will be affected in the
+     * delete confirmation dialog.
+     *
+     * @param keyId Key identifier to look up.
+     * @return Number of agents using this key's provider, or 0 if key not found.
+     */
+    suspend fun countAgentsForKey(keyId: String): Int {
+        val key = repository.getById(keyId) ?: return 0
+        val canonical =
+            ProviderRegistry.findById(key.provider)?.id ?: key.provider.lowercase()
+        return agentRepository.agents.first().count { agent ->
+            val agentCanonical =
+                ProviderRegistry.findById(agent.provider)?.id ?: agent.provider.lowercase()
+            agentCanonical == canonical
+        }
+    }
+
+    /**
+     * Deletes all agents whose provider matches the given provider ID.
+     *
+     * Resolves aliases via [ProviderRegistry] to ensure "grok" and "xai"
+     * are treated as the same provider.
+     *
+     * @param provider Provider ID or alias.
+     */
+    private suspend fun deleteAgentsForProvider(provider: String) {
+        val canonical =
+            ProviderRegistry.findById(provider)?.id ?: provider.lowercase()
+        val agents = agentRepository.agents.first()
+        agents
+            .filter { agent ->
+                val agentCanonical =
+                    ProviderRegistry.findById(agent.provider)?.id ?: agent.provider.lowercase()
+                agentCanonical == canonical
+            }.forEach { agent ->
+                agentRepository.delete(agent.id)
+            }
     }
 
     /**
@@ -464,6 +543,66 @@ class ApiKeysViewModel(
     }
 
     /**
+     * Schedules a debounced model fetch for the given provider credentials.
+     *
+     * Cancels any pending fetch and waits [MODEL_FETCH_DEBOUNCE_MS] before
+     * starting the network call. This prevents excessive requests while the
+     * user is still typing. Also clears stale model data immediately when
+     * the provider changes.
+     *
+     * @param providerId Canonical provider identifier from the registry.
+     * @param apiKey API key value (may be empty for URL-only providers).
+     * @param baseUrl Provider endpoint URL override (may be empty for cloud providers).
+     */
+    fun scheduleFetchModels(
+        providerId: String,
+        apiKey: String,
+        baseUrl: String,
+    ) {
+        modelFetchJob?.cancel()
+        _availableModels.value = emptyList()
+        modelFetchJob =
+            viewModelScope.launch {
+                delay(MODEL_FETCH_DEBOUNCE_MS)
+                fetchModels(providerId, apiKey, baseUrl)
+            }
+    }
+
+    /**
+     * Fetches available models from the provider's API.
+     *
+     * Updates [availableModels] and [isLoadingModels]. Silently ignores
+     * failures since model listing is a convenience feature.
+     *
+     * @param providerId Canonical provider identifier.
+     * @param apiKey API key value.
+     * @param baseUrl Provider endpoint URL override.
+     */
+    @Suppress("TooGenericExceptionCaught")
+    private suspend fun fetchModels(
+        providerId: String,
+        apiKey: String,
+        baseUrl: String,
+    ) {
+        if (providerId.isBlank()) return
+        val info = ProviderRegistry.findById(providerId) ?: return
+        if (info.modelListFormat == ModelListFormat.NONE) return
+        if (apiKey.isBlank() && baseUrl.isBlank()) return
+
+        _isLoadingModels.value = true
+        try {
+            val result = ModelFetcher.fetchModels(info, apiKey, baseUrl)
+            result.onSuccess { models ->
+                _availableModels.value = models
+            }
+        } catch (_: Exception) {
+            // Model listing is best-effort; failures are silently ignored
+        } finally {
+            _isLoadingModels.value = false
+        }
+    }
+
+    /**
      * Imports an API key from a Claude Code `.credentials.json` file.
      *
      * Reads the file via [android.content.ContentResolver], parses the
@@ -529,6 +668,27 @@ class ApiKeysViewModel(
     }
 
     /**
+     * Persists the selected model as the default model in settings.
+     *
+     * Only updates settings when [model] is non-empty. Also sets the
+     * default provider when it is currently blank.
+     *
+     * @param provider Canonical provider identifier.
+     * @param model Selected model name, empty to skip.
+     */
+    private suspend fun persistModel(
+        provider: String,
+        model: String,
+    ) {
+        if (model.isBlank()) return
+        val settings = settingsRepository.settings.first()
+        if (settings.defaultProvider.isBlank()) {
+            settingsRepository.setDefaultProvider(provider)
+        }
+        settingsRepository.setDefaultModel(model)
+    }
+
+    /**
      * Maps an exception to a generic user-facing message that does not
      * leak internal details such as key fragments or file paths.
      *
@@ -550,6 +710,9 @@ class ApiKeysViewModel(
 
         /** Duration in milliseconds before a revealed key is automatically hidden. */
         private const val REVEAL_TIMEOUT_MS = 30_000L
+
+        /** Debounce delay in milliseconds before fetching models after input changes. */
+        private const val MODEL_FETCH_DEBOUNCE_MS = 500L
     }
 }
 

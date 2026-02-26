@@ -6,6 +6,7 @@
 
 package com.zeroclaw.android.data
 
+import android.util.Log
 import com.zeroclaw.android.model.ApiKey
 import java.util.UUID
 import org.json.JSONObject
@@ -31,6 +32,7 @@ object CredentialsJsonParser {
     private const val KEY_ACCESS_TOKEN = "accessToken"
     private const val KEY_REFRESH_TOKEN = "refreshToken"
     private const val KEY_EXPIRES_AT = "expiresAt"
+    private const val TAG = "CredentialsJsonParser"
     private const val PROVIDER_ANTHROPIC = "anthropic"
 
     /**
@@ -59,7 +61,8 @@ object CredentialsJsonParser {
                 refreshToken = refreshToken,
                 expiresAt = expiresAt,
             )
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to parse credentials JSON: ${e.javaClass.simpleName}")
             null
         }
     }

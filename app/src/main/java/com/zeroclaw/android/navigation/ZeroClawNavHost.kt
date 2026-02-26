@@ -89,6 +89,7 @@ fun ZeroClawNavHost(
     modifier: Modifier = Modifier,
 ) {
     val pluginsViewModel: PluginsViewModel = viewModel()
+    val scannedTokenHolder: ScannedTokenHolder = viewModel()
     val context = LocalContext.current
     val app = remember(context) { context.applicationContext as ZeroClawApplication }
     val restartRequired by app.daemonBridge.restartRequired
@@ -282,6 +283,7 @@ fun ZeroClawNavHost(
                         .AppSettings(),
             )
             var pendingRevealKeyId by remember { mutableStateOf<String?>(null) }
+            var showPinSetupForReveal by remember { mutableStateOf(false) }
             val credentialsLauncher =
                 rememberLauncherForActivityResult(
                     contract = ActivityResultContracts.OpenDocument(),
@@ -296,7 +298,8 @@ fun ZeroClawNavHost(
                     if (settings.pinHash.isNotEmpty()) {
                         pendingRevealKeyId = keyId
                     } else {
-                        apiKeysViewModel.revealKey(keyId)
+                        pendingRevealKeyId = keyId
+                        showPinSetupForReveal = true
                     }
                 },
                 onExportResult = { payload ->
@@ -323,12 +326,29 @@ fun ZeroClawNavHost(
                 apiKeysViewModel = apiKeysViewModel,
             )
 
-            pendingRevealKeyId?.let { keyId ->
+            if (showPinSetupForReveal && pendingRevealKeyId != null) {
+                PinEntrySheet(
+                    mode = PinEntryMode.SETUP,
+                    currentPinHash = "",
+                    onPinSet = { newHash ->
+                        restartScope.launch {
+                            app.settingsRepository.setPinHash(newHash)
+                        }
+                        pendingRevealKeyId?.let { apiKeysViewModel.revealKey(it) }
+                        pendingRevealKeyId = null
+                        showPinSetupForReveal = false
+                    },
+                    onDismiss = {
+                        pendingRevealKeyId = null
+                        showPinSetupForReveal = false
+                    },
+                )
+            } else if (pendingRevealKeyId != null && settings.pinHash.isNotEmpty()) {
                 PinEntrySheet(
                     mode = PinEntryMode.VERIFY,
                     currentPinHash = settings.pinHash,
                     onPinSet = {
-                        apiKeysViewModel.revealKey(keyId)
+                        pendingRevealKeyId?.let { apiKeysViewModel.revealKey(it) }
                         pendingRevealKeyId = null
                     },
                     onDismiss = { pendingRevealKeyId = null },
@@ -338,8 +358,7 @@ fun ZeroClawNavHost(
 
         composable<ApiKeyDetailRoute> { backStackEntry ->
             val route = backStackEntry.toRoute<ApiKeyDetailRoute>()
-            val scannedKey by backStackEntry.savedStateHandle
-                .getStateFlow("scanned_token", "")
+            val scannedKey by scannedTokenHolder.token
                 .collectAsStateWithLifecycle()
 
             ApiKeyDetailScreen(
@@ -348,9 +367,7 @@ fun ZeroClawNavHost(
                 onNavigateToQrScanner = { navController.navigate(QrScannerRoute) },
                 edgeMargin = edgeMargin,
                 scannedApiKey = scannedKey,
-                onScannedApiKeyConsumed = {
-                    backStackEntry.savedStateHandle["scanned_token"] = ""
-                },
+                onScannedApiKeyConsumed = { scannedTokenHolder.consume() },
             )
         }
 
@@ -374,6 +391,7 @@ fun ZeroClawNavHost(
                 channelId = route.channelId,
                 channelTypeName = route.channelType,
                 onSaved = { navController.popBackStack() },
+                onBack = { navController.popBackStack() },
                 edgeMargin = edgeMargin,
             )
         }
@@ -423,10 +441,9 @@ fun ZeroClawNavHost(
             TunnelScreen(edgeMargin = edgeMargin)
         }
 
-        composable<GatewayRoute> { backStackEntry ->
+        composable<GatewayRoute> {
             val settingsVm: SettingsViewModel = viewModel()
-            val scannedToken by backStackEntry.savedStateHandle
-                .getStateFlow("scanned_token", "")
+            val scannedToken by scannedTokenHolder.token
                 .collectAsStateWithLifecycle()
 
             LaunchedEffect(scannedToken) {
@@ -440,7 +457,7 @@ fun ZeroClawNavHost(
                             "$existingTokens,$scannedToken"
                         }
                     settingsVm.updateGatewayPairedTokens(merged)
-                    backStackEntry.savedStateHandle["scanned_token"] = ""
+                    scannedTokenHolder.consume()
                 }
             }
 
@@ -481,9 +498,7 @@ fun ZeroClawNavHost(
         composable<QrScannerRoute> {
             QrScannerScreen(
                 onTokenScanned = { token ->
-                    navController.previousBackStackEntry
-                        ?.savedStateHandle
-                        ?.set("scanned_token", token)
+                    scannedTokenHolder.set(token)
                     navController.popBackStack()
                 },
                 onBack = { navController.popBackStack() },

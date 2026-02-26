@@ -115,15 +115,7 @@ object ModelFetcher {
         format: ModelListFormat,
         apiKey: String,
     ): String {
-        val finalUrl =
-            if (format == ModelListFormat.GOOGLE_GEMINI && apiKey.isNotBlank()) {
-                val separator = if ('?' in url) '&' else '?'
-                "$url${separator}key=$apiKey"
-            } else {
-                url
-            }
-
-        val connection = URL(finalUrl).openConnection() as HttpURLConnection
+        val connection = URL(url).openConnection() as HttpURLConnection
         try {
             connection.requestMethod = "GET"
             connection.connectTimeout = CONNECT_TIMEOUT_MS
@@ -168,7 +160,8 @@ object ModelFetcher {
                 connection.setRequestProperty("x-api-key", apiKey)
                 connection.setRequestProperty("anthropic-version", ANTHROPIC_VERSION)
             }
-            ModelListFormat.GOOGLE_GEMINI -> { }
+            ModelListFormat.GOOGLE_GEMINI ->
+                connection.setRequestProperty("x-goog-api-key", apiKey)
             ModelListFormat.OLLAMA -> { }
             else -> connection.setRequestProperty("Authorization", "Bearer $apiKey")
         }

@@ -88,6 +88,11 @@ private val TUNNEL_OPTIONS =
             description = "Tunnel via Cloudflare for public endpoint",
         ),
         TunnelOption(
+            id = "tailscale",
+            title = "Tailscale",
+            description = "Tunnel via Tailscale for private mesh network access",
+        ),
+        TunnelOption(
             id = "custom",
             title = "Custom",
             description = "Specify your own public endpoint URL",
@@ -97,8 +102,8 @@ private val TUNNEL_OPTIONS =
 /**
  * Tunnel configuration form for selecting and configuring a tunnel provider.
  *
- * Presents four selectable cards for tunnel type selection (Local Only, Ngrok,
- * Cloudflare, Custom) and conditionally renders additional fields based on the
+ * Presents five selectable cards for tunnel type selection (Local Only, Ngrok,
+ * Cloudflare, Tailscale, Custom) and conditionally renders additional fields based on the
  * chosen type:
  * - **Ngrok** or **Cloudflare**: a password-masked token field.
  * - **Custom**: a URL text field for the public endpoint.
@@ -107,7 +112,7 @@ private val TUNNEL_OPTIONS =
  * `tunnelProvider`, `tunnelNgrokAuthToken`, `tunnelCloudflareToken`, and
  * `tunnelCustomCommand`.
  *
- * @param tunnelType Current tunnel type identifier: "none", "ngrok", "cloudflare", or "custom".
+ * @param tunnelType Current tunnel type identifier: "none", "ngrok", "cloudflare", "tailscale", or "custom".
  * @param tunnelToken Authentication token for ngrok or Cloudflare tunnels.
  * @param customEndpoint Custom public endpoint URL when tunnel type is "custom".
  * @param onTunnelTypeChanged Callback when the user selects a different tunnel type.
@@ -160,11 +165,7 @@ fun TunnelConfigFlow(
         if (tunnelType == "ngrok" || tunnelType == "cloudflare") {
             Spacer(modifier = Modifier.height(FieldSpacing))
             val label =
-                if (tunnelType == "ngrok") {
-                    "Ngrok Auth Token"
-                } else {
-                    "Cloudflare Token"
-                }
+                if (tunnelType == "ngrok") "Ngrok Auth Token" else "Cloudflare Token"
             OutlinedTextField(
                 value = tunnelToken,
                 onValueChange = onTunnelTokenChanged,
@@ -180,6 +181,26 @@ fun TunnelConfigFlow(
                         .fillMaxWidth()
                         .semantics {
                             contentDescription = label
+                        },
+            )
+        }
+
+        if (tunnelType == "tailscale") {
+            Spacer(modifier = Modifier.height(FieldSpacing))
+            OutlinedTextField(
+                value = customEndpoint,
+                onValueChange = onCustomEndpointChanged,
+                label = { Text("Tailscale Hostname") },
+                singleLine = true,
+                keyboardOptions =
+                    KeyboardOptions(
+                        keyboardType = KeyboardType.Uri,
+                    ),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .semantics {
+                            contentDescription = "Tailscale Hostname"
                         },
             )
         }

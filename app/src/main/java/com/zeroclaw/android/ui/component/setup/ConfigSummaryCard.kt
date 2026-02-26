@@ -73,7 +73,7 @@ data class ConfigSummary(
     val autoSave: Boolean = true,
     val channels: List<String> = emptyList(),
     val tunnel: String = "none",
-    val identityFormat: String = "openclaw",
+    val identityFormat: String = "aieos",
     val agentName: String = "",
 )
 

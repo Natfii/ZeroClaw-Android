@@ -93,8 +93,10 @@ fun OnboardingScreen(
 ) {
     val currentStep by coordinator.currentStep.collectAsStateWithLifecycle()
     val activationState by coordinator.activationState.collectAsStateWithLifecycle()
+    val channelSelectionState by coordinator.channelSelectionState.collectAsStateWithLifecycle()
     val totalSteps = coordinator.totalSteps
     val snackbarHostState = remember { SnackbarHostState() }
+    val hasActiveSubFlow = channelSelectionState.activeSubFlowType != null
 
     LaunchedEffect(activationState.completeError) {
         val error = activationState.completeError ?: return@LaunchedEffect
@@ -112,8 +114,20 @@ fun OnboardingScreen(
                 isCompleting = activationState.isCompleting,
             ),
         snackbarHostState = snackbarHostState,
-        onNextStep = coordinator::nextStep,
-        onPreviousStep = coordinator::previousStep,
+        onNextStep = {
+            if (hasActiveSubFlow) {
+                coordinator.exitChannelSubFlow()
+            } else {
+                coordinator.nextStep()
+            }
+        },
+        onPreviousStep = {
+            if (hasActiveSubFlow) {
+                coordinator.exitChannelSubFlow()
+            } else {
+                coordinator.previousStep()
+            }
+        },
         stepContent = { step ->
             when (step) {
                 OnboardingCoordinator.STEP_PERMISSIONS ->
@@ -137,6 +151,7 @@ fun OnboardingScreen(
                         coordinator = coordinator,
                         onActivate = onActivate,
                     )
+                else -> Unit
             }
         },
         modifier = modifier,
@@ -264,6 +279,8 @@ private fun ProviderStepCollector(coordinator: OnboardingCoordinator) {
         apiKey = state.apiKey,
         baseUrl = state.baseUrl,
         selectedModel = state.model,
+        availableModels = state.availableModels,
+        isLoadingModels = state.isLoadingModels,
         validationResult = state.validationResult,
         onProviderChanged = coordinator::setProvider,
         onApiKeyChanged = coordinator::setApiKey,
@@ -324,11 +341,16 @@ private fun ChannelStepCollector(coordinator: OnboardingCoordinator) {
         Column {
             ChannelSelectionGrid(
                 selectedTypes = selectionState.selectedTypes,
+                configuredTypes =
+                    subFlowStates
+                        .filter { it.value.completed }
+                        .keys,
                 onSelectionChanged = { newSelection ->
                     val added = newSelection - selectionState.selectedTypes
                     val removed = selectionState.selectedTypes - newSelection
                     added.forEach { coordinator.toggleChannelSelection(it) }
                     removed.forEach { coordinator.toggleChannelSelection(it) }
+                    added.firstOrNull()?.let { coordinator.startChannelSubFlow(it) }
                 },
                 showSkipHint = true,
             )

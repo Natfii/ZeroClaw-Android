@@ -10,9 +10,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.invisibleToUser
-import androidx.compose.ui.semantics.semantics
 
 /** Number of trailing characters shown unmasked. */
 private const val VISIBLE_SUFFIX_LENGTH = 4
@@ -27,9 +26,9 @@ private const val MINIMUM_MASK_LENGTH = 4
  * Displays text with all but the last [VISIBLE_SUFFIX_LENGTH] characters
  * masked as bullet dots.
  *
- * The masked portion is hidden from screen readers via
- * [invisibleToUser] semantics to prevent leaking secrets to
- * accessibility services.
+ * Uses [clearAndSetSemantics] to replace the entire semantic tree node
+ * with a safe description, preventing screen readers and accessibility
+ * services from reading the actual secret text in either state.
  *
  * @param text The full secret text to mask.
  * @param revealed Whether to show the full text unmasked.
@@ -41,16 +40,21 @@ fun MaskedText(
     revealed: Boolean,
     modifier: Modifier = Modifier,
 ) {
+    val suffix =
+        if (text.length > VISIBLE_SUFFIX_LENGTH) {
+            ", ending in ${text.takeLast(VISIBLE_SUFFIX_LENGTH)}"
+        } else {
+            ""
+        }
+
     if (revealed) {
         Text(
             text = text,
             style = MaterialTheme.typography.bodyMedium,
             modifier =
-                modifier.semantics {
+                modifier.clearAndSetSemantics {
                     contentDescription =
-                        "API key revealed, tap hide to conceal"
-                    @Suppress("DEPRECATION")
-                    invisibleToUser()
+                        "API key revealed$suffix. Tap hide to conceal credential."
                 },
         )
     } else {
@@ -58,9 +62,8 @@ fun MaskedText(
             text = maskText(text),
             style = MaterialTheme.typography.bodyMedium,
             modifier =
-                modifier.semantics {
-                    @Suppress("DEPRECATION")
-                    invisibleToUser()
+                modifier.clearAndSetSemantics {
+                    contentDescription = "API key hidden$suffix"
                 },
         )
     }

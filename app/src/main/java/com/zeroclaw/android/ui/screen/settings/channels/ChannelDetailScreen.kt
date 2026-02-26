@@ -26,6 +26,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -85,6 +88,7 @@ private const val ADVANCED_THRESHOLD = 4
  * @param channelId Existing channel ID for editing, or null for new.
  * @param channelTypeName Channel type name for new channel creation.
  * @param onSaved Callback invoked after saving.
+ * @param onBack Callback invoked when the user navigates back from the setup flow.
  * @param edgeMargin Horizontal padding based on window width size class.
  * @param channelsViewModel The [ChannelsViewModel] for persistence.
  * @param modifier Modifier applied to the root layout.
@@ -94,11 +98,20 @@ fun ChannelDetailScreen(
     channelId: String?,
     channelTypeName: String?,
     onSaved: () -> Unit,
+    onBack: () -> Unit = {},
     edgeMargin: Dp,
     channelsViewModel: ChannelsViewModel = viewModel(),
     modifier: Modifier = Modifier,
 ) {
     val saveState by channelsViewModel.saveState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(saveState) {
+        if (saveState is SaveState.Error) {
+            snackbarHostState.showSnackbar((saveState as SaveState.Error).message)
+        }
+    }
+
     val channelType =
         remember(channelId, channelTypeName) {
             if (channelTypeName != null) {
@@ -144,36 +157,41 @@ fun ChannelDetailScreen(
     val isNewChannel = channelId == null && channelType != null
     val setupSpec = if (isNewChannel) ChannelSetupSpecs.forType(currentType) else null
 
-    if (isNewChannel && setupSpec != null) {
-        NewChannelSetupContent(
-            setupSpec = setupSpec,
-            currentType = currentType,
-            fieldValues = fieldValues,
-            saveState = saveState,
-            onSave = { values ->
-                val channel =
-                    ConnectedChannel(
-                        id = UUID.randomUUID().toString(),
-                        type = currentType,
-                    )
-                channelsViewModel.saveChannel(channel, values)
-            },
-            edgeMargin = edgeMargin,
-            modifier = modifier,
-        )
-    } else {
-        EditChannelFormContent(
-            channelId = channelId,
-            currentType = currentType,
-            loadedChannel = loadedChannel,
-            fieldValues = fieldValues,
-            saveState = saveState,
-            onSave = { channel, values ->
-                channelsViewModel.saveChannel(channel, values)
-            },
-            edgeMargin = edgeMargin,
-            modifier = modifier,
-        )
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        modifier = modifier,
+    ) { innerPadding ->
+        if (isNewChannel && setupSpec != null) {
+            NewChannelSetupContent(
+                setupSpec = setupSpec,
+                currentType = currentType,
+                fieldValues = fieldValues,
+                onSave = { values ->
+                    val channel =
+                        ConnectedChannel(
+                            id = UUID.randomUUID().toString(),
+                            type = currentType,
+                        )
+                    channelsViewModel.saveChannel(channel, values)
+                },
+                onBack = onBack,
+                edgeMargin = edgeMargin,
+                modifier = Modifier.padding(innerPadding),
+            )
+        } else {
+            EditChannelFormContent(
+                channelId = channelId,
+                currentType = currentType,
+                loadedChannel = loadedChannel,
+                fieldValues = fieldValues,
+                saveState = saveState,
+                onSave = { channel, values ->
+                    channelsViewModel.saveChannel(channel, values)
+                },
+                edgeMargin = edgeMargin,
+                modifier = Modifier.padding(innerPadding),
+            )
+        }
     }
 }
 
@@ -188,8 +206,8 @@ fun ChannelDetailScreen(
  * @param setupSpec The channel setup specification defining the sub-steps.
  * @param currentType The channel type being configured.
  * @param fieldValues Mutable map of field keys to current string values.
- * @param saveState Current save operation state from the view model.
  * @param onSave Callback to persist the channel with the collected field values.
+ * @param onBack Callback invoked when the user presses Back on the first sub-step.
  * @param edgeMargin Horizontal padding based on window width size class.
  * @param modifier Modifier applied to the root layout.
  */
@@ -199,8 +217,8 @@ private fun NewChannelSetupContent(
     setupSpec: ChannelSetupSpec,
     currentType: ChannelType,
     fieldValues: MutableMap<String, String>,
-    saveState: SaveState,
     onSave: (Map<String, String>) -> Unit,
+    onBack: () -> Unit,
     edgeMargin: Dp,
     modifier: Modifier = Modifier,
 ) {
@@ -233,6 +251,8 @@ private fun NewChannelSetupContent(
             if (currentSubStep > 0) {
                 currentSubStep--
                 validationResult = ValidationResult.Idle
+            } else {
+                onBack()
             }
         },
         modifier =
@@ -240,15 +260,6 @@ private fun NewChannelSetupContent(
                 .fillMaxSize()
                 .padding(horizontal = edgeMargin),
     )
-
-    if (saveState is SaveState.Error) {
-        Spacer(modifier = Modifier.height(FIELD_SPACING_DP.dp))
-        Text(
-            text = (saveState as SaveState.Error).message,
-            color = MaterialTheme.colorScheme.error,
-            style = MaterialTheme.typography.bodySmall,
-        )
-    }
 }
 
 /**
@@ -379,7 +390,7 @@ private fun EditChannelFormContent(
         if (saveState is SaveState.Error) {
             Spacer(modifier = Modifier.height(FIELD_SPACING_DP.dp))
             Text(
-                text = (saveState as SaveState.Error).message,
+                text = saveState.message,
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodySmall,
             )

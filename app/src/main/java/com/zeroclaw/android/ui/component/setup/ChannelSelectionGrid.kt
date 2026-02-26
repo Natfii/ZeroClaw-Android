@@ -33,8 +33,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.zeroclaw.android.model.ChannelType
@@ -182,7 +182,7 @@ private fun ChannelCard(
     onToggle: () -> Unit,
 ) {
     val hasVisualEmphasis = isSelected || isConfigured
-    val stateDescription =
+    val cardStateDescription =
         when {
             isConfigured -> "configured"
             isSelected -> "selected"
@@ -213,10 +213,9 @@ private fun ChannelCard(
             Modifier
                 .fillMaxWidth()
                 .semantics(mergeDescendants = true) {
-                    contentDescription =
-                        "${type.displayName}, $stateDescription"
+                    contentDescription = type.displayName
                     role = Role.Checkbox
-                    selected = isSelected || isConfigured
+                    stateDescription = cardStateDescription
                 },
     ) {
         Row(

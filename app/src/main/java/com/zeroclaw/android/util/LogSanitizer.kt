@@ -38,6 +38,18 @@ object LogSanitizer {
     /** Matches `x-api-key` header values. */
     private val X_API_KEY_PATTERN = Regex("""x-api-key:\s*\S+""", RegexOption.IGNORE_CASE)
 
+    /** Matches AWS access keys (`AKIA...`). */
+    private val AWS_KEY_PATTERN = Regex("""AKIA[A-Z0-9]{16}""")
+
+    /** Matches GitHub personal access tokens and app tokens. */
+    private val GITHUB_TOKEN_PATTERN = Regex("""gh[pos]_[A-Za-z0-9_]{36,}""")
+
+    /** Matches Discord bot tokens (base64-encoded). */
+    private val DISCORD_TOKEN_PATTERN = Regex("""[A-Za-z0-9_-]{24}\.[A-Za-z0-9_-]{6}\.[A-Za-z0-9_-]{27,}""")
+
+    /** Matches JWT tokens (three dot-separated base64 segments). */
+    private val JWT_PATTERN = Regex("""eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+""")
+
     /** Matches suspiciously long URLs that may contain credentials. */
     private val LONG_URL_PATTERN = Regex("""https?://[^\s]{50,}""")
 
@@ -52,10 +64,14 @@ object LogSanitizer {
      */
     fun sanitizeLogMessage(message: String): String =
         message
+            .replace(JWT_PATTERN, REDACTION_PLACEHOLDER)
             .replace(BEARER_PATTERN, "Bearer $REDACTION_PLACEHOLDER")
             .replace(ANTHROPIC_KEY_PATTERN, REDACTION_PLACEHOLDER)
             .replace(API_KEY_PATTERN, REDACTION_PLACEHOLDER)
             .replace(GOOGLE_KEY_PATTERN, REDACTION_PLACEHOLDER)
+            .replace(AWS_KEY_PATTERN, REDACTION_PLACEHOLDER)
+            .replace(GITHUB_TOKEN_PATTERN, REDACTION_PLACEHOLDER)
+            .replace(DISCORD_TOKEN_PATTERN, REDACTION_PLACEHOLDER)
             .replace(BOT_TOKEN_PATTERN, REDACTION_PLACEHOLDER)
             .replace(NGROK_TOKEN_PATTERN, REDACTION_PLACEHOLDER)
             .replace(AUTH_HEADER_PATTERN, "Authorization: $REDACTION_PLACEHOLDER")

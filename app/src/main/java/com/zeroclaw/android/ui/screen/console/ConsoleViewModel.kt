@@ -148,7 +148,8 @@ class ConsoleViewModel(
                     } else {
                         cleaned
                     }
-                val displayResponse = response.ifBlank { EMPTY_RESPONSE_FALLBACK }
+                val displayResponse =
+                    response.ifBlank { rawResponse.trim().ifBlank { EMPTY_RESPONSE_FALLBACK } }
                 chatMessageRepository.append(content = displayResponse, isFromUser = false)
             } catch (e: FfiException) {
                 val sanitized = ErrorSanitizer.sanitizeForUi(e)

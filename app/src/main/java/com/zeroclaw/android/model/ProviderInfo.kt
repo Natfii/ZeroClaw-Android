@@ -47,7 +47,7 @@ enum class ModelListFormat {
     /** `{"data": [{"id": "..."}]}` with `X-Api-Key` header (Anthropic). */
     ANTHROPIC,
 
-    /** `{"models": [{"name": "models/..."}]}` with `?key=` query param (Google Gemini). */
+    /** `{"models": [{"name": "models/..."}]}` with `x-goog-api-key` header (Google Gemini). */
     GOOGLE_GEMINI,
 
     /** `{"models": [{"name": "..."}]}` with no auth (Ollama). */

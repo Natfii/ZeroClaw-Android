@@ -153,9 +153,12 @@ object ExternalAppLauncher {
         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(target.uri))
         try {
             context.startActivity(intent)
-        } catch (_: ActivityNotFoundException) {
-            target.fallbackUri?.let {
-                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(it)))
+        } catch (e: ActivityNotFoundException) {
+            val fallback = target.fallbackUri
+            if (fallback != null) {
+                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(fallback)))
+            } else {
+                throw e
             }
         }
     }

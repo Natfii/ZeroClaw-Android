@@ -9,6 +9,7 @@ package com.zeroclaw.android.data.validation
 import com.zeroclaw.android.data.ProviderRegistry
 import com.zeroclaw.android.data.remote.ModelFetcher
 import com.zeroclaw.android.model.ModelListFormat
+import com.zeroclaw.android.util.LogSanitizer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -148,8 +149,9 @@ object ProviderValidator {
             )
         }
 
+        val safeMessage = LogSanitizer.sanitizeLogMessage(message)
         return ValidationResult.Offline(
-            message = "Could not reach provider \u2014 $message",
+            message = "Could not reach provider \u2014 $safeMessage",
         )
     }
 }

@@ -6,20 +6,26 @@
 
 package com.zeroclaw.android.service
 
+import com.zeroclaw.android.model.MemoryConflict
+import com.zeroclaw.android.model.MemoryHealthResult
 import com.zeroclaw.android.model.ServiceState
 import com.zeroclaw.ffi.FfiException
 import io.mockk.every
 import io.mockk.mockkStatic
 import io.mockk.unmockkAll
+import java.nio.file.Path
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.api.io.TempDir
 
 /**
  * Unit tests for [DaemonServiceBridge].
@@ -177,4 +183,199 @@ class DaemonServiceBridgeTest {
             assertNull(bridge.lastError.value)
             assertEquals(ServiceState.STOPPED, bridge.serviceState.value)
         }
+
+    /**
+     * Creates a [DaemonServiceBridge] whose `dataDir` points at the
+     * given temporary directory, allowing filesystem-based tests to
+     * run in isolation.
+     */
+    private fun bridgeWithDir(dir: Path): DaemonServiceBridge =
+        DaemonServiceBridge(
+            dir.toAbsolutePath().toString(),
+            ioDispatcher = UnconfinedTestDispatcher(),
+        )
+
+    @Test
+    @DisplayName("detectMemoryConflict returns None when no stale files")
+    fun `detectMemoryConflict returns None when no stale files`(
+        @TempDir tempDir: Path,
+    ) {
+        val ws = tempDir.resolve("workspace").toFile()
+        ws.mkdirs()
+        val b = bridgeWithDir(tempDir)
+
+        assertEquals(MemoryConflict.None, b.detectMemoryConflict("sqlite"))
+    }
+
+    @Test
+    @DisplayName("detectMemoryConflict finds stale markdown when backend is sqlite")
+    fun `detectMemoryConflict finds stale markdown when backend is sqlite`(
+        @TempDir tempDir: Path,
+    ) {
+        val ws = tempDir.resolve("workspace").toFile()
+        val memDir = java.io.File(ws, "memory")
+        memDir.mkdirs()
+        java.io.File(memDir, "2026-02-26.md").writeText("log entry")
+        java.io.File(memDir, "2026-02-25.md").writeText("older entry")
+
+        val b = bridgeWithDir(tempDir)
+        val result = b.detectMemoryConflict("sqlite")
+
+        assertTrue(result is MemoryConflict.StaleData)
+        val stale = result as MemoryConflict.StaleData
+        assertEquals("sqlite", stale.currentBackend)
+        assertEquals("markdown", stale.staleBackend)
+        assertEquals(2, stale.staleFileCount)
+        assertTrue(stale.staleSizeBytes > 0)
+    }
+
+    @Test
+    @DisplayName("detectMemoryConflict finds stale sqlite when backend is markdown")
+    fun `detectMemoryConflict finds stale sqlite when backend is markdown`(
+        @TempDir tempDir: Path,
+    ) {
+        val ws = tempDir.resolve("workspace").toFile()
+        ws.mkdirs()
+        java.io.File(ws, "memory.db").writeText("fake db")
+
+        val b = bridgeWithDir(tempDir)
+        val result = b.detectMemoryConflict("markdown")
+
+        assertTrue(result is MemoryConflict.StaleData)
+        val stale = result as MemoryConflict.StaleData
+        assertEquals("markdown", stale.currentBackend)
+        assertEquals("sqlite", stale.staleBackend)
+        assertEquals(1, stale.staleFileCount)
+    }
+
+    @Test
+    @DisplayName("detectMemoryConflict returns None for backend none with empty workspace")
+    fun `detectMemoryConflict returns None for backend none with empty workspace`(
+        @TempDir tempDir: Path,
+    ) {
+        val ws = tempDir.resolve("workspace").toFile()
+        ws.mkdirs()
+
+        val b = bridgeWithDir(tempDir)
+        assertEquals(MemoryConflict.None, b.detectMemoryConflict("none"))
+    }
+
+    @Test
+    @DisplayName("detectMemoryConflict for none backend finds stale data")
+    fun `detectMemoryConflict for none backend finds stale data`(
+        @TempDir tempDir: Path,
+    ) {
+        val ws = tempDir.resolve("workspace").toFile()
+        ws.mkdirs()
+        java.io.File(ws, "memory.db").writeText("fake db")
+
+        val b = bridgeWithDir(tempDir)
+        val result = b.detectMemoryConflict("none")
+
+        assertTrue(result is MemoryConflict.StaleData)
+        val stale = result as MemoryConflict.StaleData
+        assertEquals("none", stale.currentBackend)
+        assertEquals("sqlite", stale.staleBackend)
+    }
+
+    @Test
+    @DisplayName("cleanupStaleMemory deletes markdown daily logs")
+    fun `cleanupStaleMemory deletes markdown daily logs`(
+        @TempDir tempDir: Path,
+    ) {
+        val ws = tempDir.resolve("workspace").toFile()
+        val memDir = java.io.File(ws, "memory")
+        memDir.mkdirs()
+        val log1 = java.io.File(memDir, "2026-02-26.md")
+        val log2 = java.io.File(memDir, "2026-02-25.md")
+        log1.writeText("entry1")
+        log2.writeText("entry2")
+
+        val b = bridgeWithDir(tempDir)
+        val conflict = MemoryConflict.StaleData(
+            currentBackend = "sqlite",
+            staleBackend = "markdown",
+            staleFileCount = 2,
+            staleSizeBytes = log1.length() + log2.length(),
+        )
+
+        b.cleanupStaleMemory(conflict)
+
+        assertFalse(log1.exists())
+        assertFalse(log2.exists())
+        assertTrue(memDir.isDirectory)
+    }
+
+    @Test
+    @DisplayName("cleanupStaleMemory deletes sqlite db files")
+    fun `cleanupStaleMemory deletes sqlite db files`(
+        @TempDir tempDir: Path,
+    ) {
+        val ws = tempDir.resolve("workspace").toFile()
+        ws.mkdirs()
+        val db = java.io.File(ws, "memory.db")
+        val wal = java.io.File(ws, "memory.db-wal")
+        val shm = java.io.File(ws, "memory.db-shm")
+        db.writeText("db")
+        wal.writeText("wal")
+        shm.writeText("shm")
+
+        val b = bridgeWithDir(tempDir)
+        val conflict = MemoryConflict.StaleData(
+            currentBackend = "markdown",
+            staleBackend = "sqlite",
+            staleFileCount = 3,
+            staleSizeBytes = db.length() + wal.length() + shm.length(),
+        )
+
+        b.cleanupStaleMemory(conflict)
+
+        assertFalse(db.exists())
+        assertFalse(wal.exists())
+        assertFalse(shm.exists())
+    }
+
+    @Test
+    @DisplayName("checkMemoryHealth returns Healthy for none backend")
+    fun `checkMemoryHealth returns Healthy for none backend`(
+        @TempDir tempDir: Path,
+    ) {
+        val b = bridgeWithDir(tempDir)
+        assertEquals(MemoryHealthResult.Healthy, b.checkMemoryHealth("none"))
+    }
+
+    @Test
+    @DisplayName("checkMemoryHealth returns Healthy for writable markdown dir")
+    fun `checkMemoryHealth returns Healthy for writable markdown dir`(
+        @TempDir tempDir: Path,
+    ) {
+        val memDir = tempDir.resolve("workspace").resolve("memory").toFile()
+        memDir.mkdirs()
+
+        val b = bridgeWithDir(tempDir)
+        assertEquals(MemoryHealthResult.Healthy, b.checkMemoryHealth("markdown"))
+    }
+
+    @Test
+    @DisplayName("checkMemoryHealth returns Unhealthy when dir is not writable")
+    fun `checkMemoryHealth returns Unhealthy when dir is not writable`() {
+        val b = DaemonServiceBridge(
+            "/nonexistent/path/that/does/not/exist",
+            ioDispatcher = UnconfinedTestDispatcher(),
+        )
+        val result = b.checkMemoryHealth("markdown")
+        assertTrue(result is MemoryHealthResult.Unhealthy)
+    }
+
+    @Test
+    @DisplayName("checkMemoryHealth returns Healthy for writable sqlite workspace")
+    fun `checkMemoryHealth returns Healthy for writable sqlite workspace`(
+        @TempDir tempDir: Path,
+    ) {
+        val ws = tempDir.resolve("workspace").toFile()
+        ws.mkdirs()
+
+        val b = bridgeWithDir(tempDir)
+        assertEquals(MemoryHealthResult.Healthy, b.checkMemoryHealth("sqlite"))
+    }
 }

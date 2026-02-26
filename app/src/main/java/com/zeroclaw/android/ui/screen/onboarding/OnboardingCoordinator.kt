@@ -32,7 +32,6 @@ import com.zeroclaw.android.ui.screen.onboarding.state.MemoryStepState
 import com.zeroclaw.android.ui.screen.onboarding.state.ProviderStepState
 import com.zeroclaw.android.ui.screen.onboarding.state.SecurityStepState
 import com.zeroclaw.android.ui.screen.onboarding.state.TunnelStepState
-import com.zeroclaw.android.ui.screen.onboarding.state.WelcomeStepState
 import java.util.TimeZone
 import java.util.UUID
 import kotlinx.coroutines.Job
@@ -129,11 +128,6 @@ class OnboardingCoordinator(
         /** Total number of onboarding steps. */
         const val TOTAL_STEPS = 9
     }
-
-    private val _welcomeState = MutableStateFlow(WelcomeStepState())
-
-    /** Observable state for the welcome step. */
-    val welcomeState: StateFlow<WelcomeStepState> = _welcomeState.asStateFlow()
 
     private val _pinHash = MutableStateFlow("")
 
@@ -252,15 +246,6 @@ class OnboardingCoordinator(
         if (_currentStep.value > 0) {
             _currentStep.value--
         }
-    }
-
-    /**
-     * Marks the welcome step as acknowledged.
-     *
-     * Called when the user taps "Get Started" on the welcome screen.
-     */
-    fun acknowledgeWelcome() {
-        _welcomeState.value = _welcomeState.value.copy(acknowledged = true)
     }
 
     /**
@@ -496,7 +481,7 @@ class OnboardingCoordinator(
      * @param type One of "none", "cloudflare", "tailscale", "ngrok", "custom".
      */
     fun setTunnelType(type: String) {
-        _tunnelState.value = _tunnelState.value.copy(tunnelType = type)
+        _tunnelState.value = TunnelStepState(tunnelType = type)
     }
 
     /**
@@ -520,7 +505,7 @@ class OnboardingCoordinator(
     /**
      * Sets the autonomy level.
      *
-     * @param level One of "readonly", "supervised", or "full".
+     * @param level One of "supervised", "constrained", or "unconstrained".
      */
     fun setAutonomyLevel(level: String) {
         _securityState.value = _securityState.value.copy(autonomyLevel = level)
@@ -770,10 +755,10 @@ class OnboardingCoordinator(
                             else -> ""
                         },
                     customEndpoint =
-                        if (settings.tunnelProvider == "custom") {
-                            settings.tunnelCustomHealthUrl
-                        } else {
-                            ""
+                        when (settings.tunnelProvider) {
+                            "custom" -> settings.tunnelCustomHealthUrl
+                            "tailscale" -> settings.tunnelTailscaleHostname
+                            else -> ""
                         },
                 )
 
@@ -835,9 +820,10 @@ class OnboardingCoordinator(
         }
 
         if (provider.isNotBlank() && (key.isNotBlank() || url.isNotBlank())) {
+            val existingKey = apiKeyRepository.getByProvider(provider)
             apiKeyRepository.save(
                 ApiKey(
-                    id = UUID.randomUUID().toString(),
+                    id = existingKey?.id ?: UUID.randomUUID().toString(),
                     provider = provider,
                     key = key,
                     baseUrl = url,
@@ -846,8 +832,15 @@ class OnboardingCoordinator(
         }
 
         if (name.isNotBlank() && provider.isNotBlank()) {
+            val canonicalId =
+                ProviderRegistry.findById(provider)?.id ?: provider.lowercase()
             val existing =
-                agentRepository.agents.first().firstOrNull { it.provider == provider }
+                agentRepository.agents.first().firstOrNull { agent ->
+                    val agentCanonical =
+                        ProviderRegistry.findById(agent.provider)?.id
+                            ?: agent.provider.lowercase()
+                    agentCanonical == canonicalId
+                }
             if (existing != null) {
                 agentRepository.save(
                     existing.copy(
@@ -1019,6 +1012,8 @@ class OnboardingCoordinator(
         when (tunnel.tunnelType) {
             "cloudflare" -> settingsRepository.setTunnelCloudflareToken(tunnel.tunnelToken)
             "ngrok" -> settingsRepository.setTunnelNgrokAuthToken(tunnel.tunnelToken)
+            "tailscale" ->
+                settingsRepository.setTunnelTailscaleHostname(tunnel.customEndpoint)
             "custom" -> settingsRepository.setTunnelCustomHealthUrl(tunnel.customEndpoint)
         }
     }

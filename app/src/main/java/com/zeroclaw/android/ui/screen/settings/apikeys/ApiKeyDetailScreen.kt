@@ -49,6 +49,7 @@ import com.zeroclaw.android.data.ProviderKeyValidator
 import com.zeroclaw.android.data.ProviderRegistry
 import com.zeroclaw.android.model.ProviderAuthType
 import com.zeroclaw.android.ui.component.LoadingIndicator
+import com.zeroclaw.android.ui.component.ModelSuggestionField
 import com.zeroclaw.android.ui.component.ProviderCredentialForm
 import com.zeroclaw.android.ui.component.SectionHeader
 
@@ -98,6 +99,8 @@ fun ApiKeyDetailScreen(
     val keys by apiKeysViewModel.keys.collectAsStateWithLifecycle()
     val saveState by apiKeysViewModel.saveState.collectAsStateWithLifecycle()
     val connectionTestState by apiKeysViewModel.connectionTestState.collectAsStateWithLifecycle()
+    val availableModels by apiKeysViewModel.availableModels.collectAsStateWithLifecycle()
+    val isLoadingModels by apiKeysViewModel.isLoadingModels.collectAsStateWithLifecycle()
     val existingKey = remember(keyId, keys) { keys.find { it.id == keyId } }
 
     var providerId by remember(existingKey) {
@@ -108,6 +111,9 @@ fun ApiKeyDetailScreen(
     }
     var baseUrl by remember(existingKey) {
         mutableStateOf(existingKey?.baseUrl.orEmpty())
+    }
+    var model by remember(existingKey) {
+        mutableStateOf("")
     }
 
     LaunchedEffect(saveState) {
@@ -126,6 +132,7 @@ fun ApiKeyDetailScreen(
 
     LaunchedEffect(providerId, key, baseUrl) {
         apiKeysViewModel.resetConnectionTestState()
+        apiKeysViewModel.scheduleFetchModels(providerId, key, baseUrl)
     }
 
     val providerInfo = ProviderRegistry.findById(providerId)
@@ -133,6 +140,21 @@ fun ApiKeyDetailScreen(
     val needsKey = authType == ProviderAuthType.API_KEY_ONLY
     val isSaving = saveState is SaveState.Saving
     val isTesting = connectionTestState is ConnectionTestState.Testing
+
+    val providerAlreadyExists =
+        remember(providerId, keys, keyId) {
+            if (keyId != null || providerId.isBlank()) {
+                false
+            } else {
+                val targetId = providerInfo?.id ?: providerId.lowercase()
+                keys.any { existing ->
+                    val existingId =
+                        ProviderRegistry.findById(existing.provider)?.id
+                            ?: existing.provider.lowercase()
+                    existingId == targetId
+                }
+            }
+        }
 
     val prefixValid =
         run {
@@ -145,11 +167,18 @@ fun ApiKeyDetailScreen(
             warning == null || providerInfo?.keyPrefix.isNullOrEmpty()
         }
     val saveEnabled =
-        providerId.isNotBlank() && (key.isNotBlank() || !needsKey) && !isSaving && prefixValid
+        providerId.isNotBlank() &&
+            (key.isNotBlank() || !needsKey) &&
+            !isSaving &&
+            prefixValid &&
+            !providerAlreadyExists
 
     LaunchedEffect(providerId) {
         if (existingKey == null && providerInfo?.defaultBaseUrl?.isNotEmpty() == true) {
             baseUrl = providerInfo.defaultBaseUrl
+        }
+        if (existingKey == null) {
+            model = providerInfo?.suggestedModels?.firstOrNull().orEmpty()
         }
     }
 
@@ -198,6 +227,18 @@ fun ApiKeyDetailScreen(
             modifier = Modifier.fillMaxWidth(),
         )
 
+        if (providerId.isNotBlank()) {
+            ModelSuggestionField(
+                value = model,
+                onValueChanged = { model = it },
+                suggestions = providerInfo?.suggestedModels.orEmpty(),
+                liveSuggestions = availableModels,
+                isLoadingLive = isLoadingModels,
+                isLiveData = availableModels.isNotEmpty(),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(),
@@ -211,12 +252,14 @@ fun ApiKeyDetailScreen(
                                 key = key,
                                 baseUrl = baseUrl,
                             ),
+                            model = model,
                         )
                     } else {
                         apiKeysViewModel.addKey(
                             provider = providerId,
                             key = key,
                             baseUrl = baseUrl,
+                            model = model,
                         )
                     }
                 },
@@ -284,6 +327,18 @@ fun ApiKeyDetailScreen(
                         },
                 )
             else -> Unit
+        }
+
+        if (providerAlreadyExists) {
+            Text(
+                text = "A key for ${providerInfo?.displayName ?: providerId} already exists",
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+                modifier =
+                    Modifier.semantics {
+                        liveRegion = LiveRegionMode.Polite
+                    },
+            )
         }
 
         if (saveState is SaveState.Error) {

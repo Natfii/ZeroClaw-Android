@@ -1,11 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Cleartext HTTP must be globally permitted because the network scanner
-  probes arbitrary private IPs (e.g. 192.168.1.50:1234) for local AI
-  servers. Android's <domain-config> element uses DNS hostname matching,
+  SECURITY NOTE: Cleartext HTTP is globally permitted because the network
+  scanner probes arbitrary private IPs (e.g. 192.168.1.50:1234) for local
+  AI servers. Android's <domain-config> element uses DNS hostname matching,
   NOT IP subnet/CIDR matching, so entries like "192.168.0.0" with
   includeSubdomains="true" do NOT match actual hosts in the subnet.
-  All cloud provider APIs use HTTPS exclusively via the Rust layer.
+
+  All cloud provider APIs enforce HTTPS at the Rust/OkHttp transport layer.
+  This setting only affects HttpURLConnection used by the network scanner.
+  Risk: a MITM could intercept local network scanner probes on public Wi-Fi.
+  Accepted because local AI servers rarely use TLS.
 -->
 <network-security-config>
     <base-config cleartextTrafficPermitted="true">

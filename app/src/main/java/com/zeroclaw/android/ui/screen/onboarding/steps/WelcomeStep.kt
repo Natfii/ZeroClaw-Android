@@ -7,6 +7,7 @@
 package com.zeroclaw.android.ui.screen.onboarding.steps
 
 import android.content.res.Configuration
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,7 +20,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -28,14 +28,16 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.zeroclaw.android.R
 import com.zeroclaw.android.ui.theme.ZeroClawTheme
 
-/** Size of the hero icon at the top of the welcome screen. */
-private val HeroIconSize = 64.dp
+/** Size of the hero image at the top of the welcome screen. */
+private val HeroImageSize = 160.dp
 
 /** Spacing after the hero icon. */
 private val HeroSpacing = 24.dp
@@ -79,11 +81,10 @@ fun WelcomeStep(modifier: Modifier = Modifier) {
         modifier = modifier.verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Icon(
-            imageVector = Icons.Filled.SmartToy,
-            contentDescription = "ZeroClaw logo",
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(HeroIconSize),
+        Image(
+            painter = painterResource(R.drawable.zero_crab),
+            contentDescription = "Zero the crab, ZeroClaw mascot",
+            modifier = Modifier.size(HeroImageSize),
         )
 
         Spacer(modifier = Modifier.height(HeroSpacing))
