@@ -35,12 +35,11 @@ class OnboardingScreenTest {
                 snackbarHostState = remember { SnackbarHostState() },
                 onNextStep = {},
                 onPreviousStep = {},
-                onActivate = {},
                 stepContent = { Text("Step $it") },
             )
         }
         composeTestRule
-            .onNodeWithText("Step 1 of 5")
+            .onNodeWithText("Step 1 of 9")
             .assertIsDisplayed()
     }
 
@@ -52,7 +51,6 @@ class OnboardingScreenTest {
                 snackbarHostState = remember { SnackbarHostState() },
                 onNextStep = {},
                 onPreviousStep = {},
-                onActivate = {},
                 stepContent = { Text("Step $it") },
             )
         }
@@ -69,7 +67,6 @@ class OnboardingScreenTest {
                 snackbarHostState = remember { SnackbarHostState() },
                 onNextStep = {},
                 onPreviousStep = {},
-                onActivate = {},
                 stepContent = { Text("Step $it") },
             )
         }
@@ -86,13 +83,12 @@ class OnboardingScreenTest {
                 snackbarHostState = remember { SnackbarHostState() },
                 onNextStep = {},
                 onPreviousStep = {},
-                onActivate = {},
                 stepContent = { Text("Step $it") },
             )
         }
         composeTestRule.onNodeWithText("Back").assertIsDisplayed()
         composeTestRule.onNodeWithText("Next").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Step 3 of 5").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Step 3 of 9").assertIsDisplayed()
     }
 
     @Test
@@ -103,7 +99,6 @@ class OnboardingScreenTest {
                 snackbarHostState = remember { SnackbarHostState() },
                 onNextStep = {},
                 onPreviousStep = {},
-                onActivate = {},
                 stepContent = { Text("Custom step content") },
             )
         }

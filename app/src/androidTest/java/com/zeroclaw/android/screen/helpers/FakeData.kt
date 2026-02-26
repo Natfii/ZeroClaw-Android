@@ -199,12 +199,12 @@ internal fun fakePluginsState(): PluginsState =
 /**
  * Creates a default [OnboardingState] at the first step.
  *
- * @return An onboarding state at step 0 of 5.
+ * @return An onboarding state at step 0 of 9.
  */
 internal fun fakeOnboardingState(): OnboardingState =
     OnboardingState(
         currentStep = 0,
-        totalSteps = 5,
+        totalSteps = 9,
         isCompleting = false,
     )
 
