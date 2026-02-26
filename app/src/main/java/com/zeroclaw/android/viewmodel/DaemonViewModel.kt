@@ -17,6 +17,7 @@ import com.zeroclaw.android.model.CronJob
 import com.zeroclaw.android.model.DaemonStatus
 import com.zeroclaw.android.model.HealthDetail
 import com.zeroclaw.android.model.KeyRejectionEvent
+import com.zeroclaw.android.model.MemoryConflict
 import com.zeroclaw.android.model.ServiceState
 import com.zeroclaw.android.service.CostBridge
 import com.zeroclaw.android.service.CronBridge
@@ -262,6 +263,28 @@ class DaemonViewModel(
     /** Clears the current key rejection event after the user has dismissed it. */
     fun dismissKeyRejection() {
         _keyRejectionEvent.value = null
+    }
+
+    /** Pending memory conflict requiring user action, or null. */
+    val memoryConflict: StateFlow<MemoryConflict?> = bridge.memoryConflict
+
+    /** Warning when memory health check fails post-startup, or null. */
+    val memoryHealthWarning: StateFlow<String?> = bridge.memoryHealthWarning
+
+    /**
+     * Resolves the pending memory conflict dialog.
+     *
+     * @param shouldDelete True to delete stale files, false to keep.
+     */
+    fun resolveMemoryConflict(shouldDelete: Boolean) {
+        bridge.resolveMemoryConflict(shouldDelete)
+    }
+
+    /**
+     * Dismisses the memory health warning banner.
+     */
+    fun dismissMemoryHealthWarning() {
+        bridge.dismissMemoryHealthWarning()
     }
 
     @Suppress("TooGenericExceptionCaught")
