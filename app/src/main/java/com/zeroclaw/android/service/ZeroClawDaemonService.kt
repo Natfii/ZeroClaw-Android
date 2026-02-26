@@ -30,6 +30,8 @@ import com.zeroclaw.android.model.ActivityType
 import com.zeroclaw.android.model.ApiKey
 import com.zeroclaw.android.model.AppSettings
 import com.zeroclaw.android.model.LogSeverity
+import com.zeroclaw.android.model.MemoryConflict
+import com.zeroclaw.android.model.MemoryHealthResult
 import com.zeroclaw.android.model.ServiceState
 import com.zeroclaw.android.util.LogSanitizer
 import com.zeroclaw.ffi.FfiException
@@ -229,6 +231,20 @@ class ZeroClawDaemonService : Service() {
             val agentsToml = buildAgentsToml()
             val configToml = baseToml + channelsToml + agentsToml
 
+            val conflict = bridge.detectMemoryConflict(effectiveSettings.memoryBackend)
+            if (conflict is MemoryConflict.StaleData) {
+                val shouldDelete = bridge.awaitConflictResolution(conflict)
+                if (shouldDelete) {
+                    bridge.cleanupStaleMemory(conflict)
+                    logRepository.append(
+                        LogSeverity.INFO,
+                        TAG,
+                        "Cleaned up ${conflict.staleFileCount} stale " +
+                            "${conflict.staleBackend} memory files",
+                    )
+                }
+            }
+
             retryPolicy.reset()
             val validPort =
                 if (settings.port in VALID_PORT_RANGE) {
@@ -240,6 +256,7 @@ class ZeroClawDaemonService : Service() {
                 configToml = configToml,
                 host = settings.host,
                 port = validPort.toUShort(),
+                memoryBackend = effectiveSettings.memoryBackend,
             )
         }
     }
@@ -514,6 +531,7 @@ class ZeroClawDaemonService : Service() {
         configToml: String,
         host: String,
         port: UShort,
+        memoryBackend: String = "none",
     ) {
         startJob?.cancel()
         startJob =
@@ -534,6 +552,7 @@ class ZeroClawDaemonService : Service() {
                                 "Daemon started on $host:$port",
                             )
                             startStatusPolling()
+                            runMemoryHealthCheck(memoryBackend)
                             return@launch
                         } catch (e: FfiException) {
                             val errorMsg =
@@ -628,6 +647,26 @@ class ZeroClawDaemonService : Service() {
                     }
                 }
             }
+    }
+
+    /**
+     * Runs the memory backend health probe after a successful daemon start.
+     *
+     * If the probe fails, a warning is surfaced to the UI through the bridge
+     * and logged. Called once per daemon start attempt.
+     *
+     * @param memoryBackend The configured memory backend identifier.
+     */
+    private fun runMemoryHealthCheck(memoryBackend: String) {
+        val healthResult = bridge.checkMemoryHealth(memoryBackend)
+        if (healthResult is MemoryHealthResult.Unhealthy) {
+            bridge.setMemoryHealthWarning(healthResult.reason)
+            logRepository.append(
+                LogSeverity.WARN,
+                TAG,
+                "Memory health check failed: ${healthResult.reason}",
+            )
+        }
     }
 
     private fun observeServiceState() {
