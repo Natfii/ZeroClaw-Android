@@ -133,12 +133,13 @@ fun ConfigSummaryCard(
 
             Spacer(modifier = Modifier.height(RowSpacing))
 
-            val memoryValue = buildString {
-                append(summary.memoryBackend.replaceFirstChar { it.uppercase() })
-                if (summary.autoSave) {
-                    append(" (auto-save)")
+            val memoryValue =
+                buildString {
+                    append(summary.memoryBackend.replaceFirstChar { it.uppercase() })
+                    if (summary.autoSave) {
+                        append(" (auto-save)")
+                    }
                 }
-            }
             SummaryRow(
                 label = "Memory",
                 value = memoryValue,
@@ -147,11 +148,12 @@ fun ConfigSummaryCard(
 
             Spacer(modifier = Modifier.height(RowSpacing))
 
-            val channelsValue = if (summary.channels.isEmpty()) {
-                "None configured"
-            } else {
-                summary.channels.joinToString(", ")
-            }
+            val channelsValue =
+                if (summary.channels.isEmpty()) {
+                    "None configured"
+                } else {
+                    summary.channels.joinToString(", ")
+                }
             SummaryRow(
                 label = "Channels",
                 value = channelsValue,
@@ -170,10 +172,11 @@ fun ConfigSummaryCard(
 
             SummaryRow(
                 label = "Identity",
-                value = when (summary.identityFormat) {
-                    "aieos" -> "AIEOS"
-                    else -> "OpenClaw"
-                },
+                value =
+                    when (summary.identityFormat) {
+                        "aieos" -> "AIEOS"
+                        else -> "OpenClaw"
+                    },
                 isConfigured = true,
             )
 
@@ -207,24 +210,27 @@ private fun SummaryRow(
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .semantics(mergeDescendants = true) {
-                contentDescription = "$label: $value"
-            },
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .semantics(mergeDescendants = true) {
+                    contentDescription = "$label: $value"
+                },
     ) {
         Icon(
-            imageVector = if (isConfigured) {
-                Icons.Filled.CheckCircle
-            } else {
-                Icons.Filled.Warning
-            },
+            imageVector =
+                if (isConfigured) {
+                    Icons.Filled.CheckCircle
+                } else {
+                    Icons.Filled.Warning
+                },
             contentDescription = null,
-            tint = if (isConfigured) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                MaterialTheme.colorScheme.tertiary
-            },
+            tint =
+                if (isConfigured) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.tertiary
+                },
             modifier = Modifier.size(StatusIconSize),
         )
         Spacer(modifier = Modifier.width(IconTextSpacing))
@@ -236,11 +242,12 @@ private fun SummaryRow(
         Text(
             text = value,
             style = MaterialTheme.typography.bodyMedium,
-            color = if (isConfigured) {
-                MaterialTheme.colorScheme.onSurface
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            },
+            color =
+                if (isConfigured) {
+                    MaterialTheme.colorScheme.onSurface
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
             modifier = Modifier.weight(1f),
         )
     }
@@ -252,17 +259,18 @@ private fun PreviewFullyConfigured() {
     ZeroClawTheme {
         Surface {
             ConfigSummaryCard(
-                summary = ConfigSummary(
-                    provider = "openai",
-                    model = "gpt-4o",
-                    autonomy = "supervised",
-                    memoryBackend = "sqlite",
-                    autoSave = true,
-                    channels = listOf("Telegram", "Discord"),
-                    tunnel = "ngrok",
-                    identityFormat = "openclaw",
-                    agentName = "ZeroClaw",
-                ),
+                summary =
+                    ConfigSummary(
+                        provider = "openai",
+                        model = "gpt-4o",
+                        autonomy = "supervised",
+                        memoryBackend = "sqlite",
+                        autoSave = true,
+                        channels = listOf("Telegram", "Discord"),
+                        tunnel = "ngrok",
+                        identityFormat = "openclaw",
+                        agentName = "ZeroClaw",
+                    ),
             )
         }
     }
@@ -274,17 +282,18 @@ private fun PreviewMinimal() {
     ZeroClawTheme {
         Surface {
             ConfigSummaryCard(
-                summary = ConfigSummary(
-                    provider = "",
-                    model = "",
-                    autonomy = "supervised",
-                    memoryBackend = "sqlite",
-                    autoSave = true,
-                    channels = emptyList(),
-                    tunnel = "none",
-                    identityFormat = "openclaw",
-                    agentName = "",
-                ),
+                summary =
+                    ConfigSummary(
+                        provider = "",
+                        model = "",
+                        autonomy = "supervised",
+                        memoryBackend = "sqlite",
+                        autoSave = true,
+                        channels = emptyList(),
+                        tunnel = "none",
+                        identityFormat = "openclaw",
+                        agentName = "",
+                    ),
             )
         }
     }
@@ -296,17 +305,18 @@ private fun PreviewAieos() {
     ZeroClawTheme {
         Surface {
             ConfigSummaryCard(
-                summary = ConfigSummary(
-                    provider = "anthropic",
-                    model = "claude-sonnet-4-20250514",
-                    autonomy = "unconstrained",
-                    memoryBackend = "markdown",
-                    autoSave = false,
-                    channels = listOf("Slack"),
-                    tunnel = "cloudflare",
-                    identityFormat = "aieos",
-                    agentName = "Atlas",
-                ),
+                summary =
+                    ConfigSummary(
+                        provider = "anthropic",
+                        model = "claude-sonnet-4-20250514",
+                        autonomy = "unconstrained",
+                        memoryBackend = "markdown",
+                        autoSave = false,
+                        channels = listOf("Slack"),
+                        tunnel = "cloudflare",
+                        identityFormat = "aieos",
+                        agentName = "Atlas",
+                    ),
             )
         }
     }
@@ -321,17 +331,18 @@ private fun PreviewDark() {
     ZeroClawTheme {
         Surface {
             ConfigSummaryCard(
-                summary = ConfigSummary(
-                    provider = "openai",
-                    model = "gpt-4o",
-                    autonomy = "constrained",
-                    memoryBackend = "sqlite",
-                    autoSave = true,
-                    channels = listOf("Telegram"),
-                    tunnel = "none",
-                    identityFormat = "openclaw",
-                    agentName = "ZeroClaw",
-                ),
+                summary =
+                    ConfigSummary(
+                        provider = "openai",
+                        model = "gpt-4o",
+                        autonomy = "constrained",
+                        memoryBackend = "sqlite",
+                        autoSave = true,
+                        channels = listOf("Telegram"),
+                        tunnel = "none",
+                        identityFormat = "openclaw",
+                        agentName = "ZeroClaw",
+                    ),
             )
         }
     }

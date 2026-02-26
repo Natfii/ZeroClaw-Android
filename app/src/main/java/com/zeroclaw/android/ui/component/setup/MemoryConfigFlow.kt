@@ -20,9 +20,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
@@ -90,23 +90,24 @@ private data class BackendOption(
 )
 
 /** Available memory backend options. */
-private val BACKEND_OPTIONS = listOf(
-    BackendOption(
-        id = "sqlite",
-        title = "SQLite",
-        description = "Fast local database. Best for most users.",
-    ),
-    BackendOption(
-        id = "markdown",
-        title = "Markdown",
-        description = "Plain text files. Easy to read and edit manually.",
-    ),
-    BackendOption(
-        id = "none",
-        title = "None",
-        description = "No persistent memory. Agent starts fresh each session.",
-    ),
-)
+private val BACKEND_OPTIONS =
+    listOf(
+        BackendOption(
+            id = "sqlite",
+            title = "SQLite",
+            description = "Fast local database. Best for most users.",
+        ),
+        BackendOption(
+            id = "markdown",
+            title = "Markdown",
+            description = "Plain text files. Easy to read and edit manually.",
+        ),
+        BackendOption(
+            id = "none",
+            title = "None",
+            description = "No persistent memory. Agent starts fresh each session.",
+        ),
+    )
 
 /**
  * Describes an embedding provider option for the dropdown menu.
@@ -120,11 +121,12 @@ private data class EmbeddingOption(
 )
 
 /** Available embedding provider options. */
-private val EMBEDDING_OPTIONS = listOf(
-    EmbeddingOption(id = "", displayName = "None"),
-    EmbeddingOption(id = "openai", displayName = "OpenAI"),
-    EmbeddingOption(id = "anthropic", displayName = "Anthropic"),
-)
+private val EMBEDDING_OPTIONS =
+    listOf(
+        EmbeddingOption(id = "", displayName = "None"),
+        EmbeddingOption(id = "openai", displayName = "OpenAI"),
+        EmbeddingOption(id = "anthropic", displayName = "Anthropic"),
+    )
 
 /**
  * Describes a retention period option for the chip selector.
@@ -138,12 +140,13 @@ private data class RetentionOption(
 )
 
 /** Available retention period options. */
-private val RETENTION_OPTIONS = listOf(
-    RetentionOption(days = 7, label = "7 days"),
-    RetentionOption(days = 30, label = "30 days"),
-    RetentionOption(days = 90, label = "90 days"),
-    RetentionOption(days = RETENTION_FOREVER, label = "Forever"),
-)
+private val RETENTION_OPTIONS =
+    listOf(
+        RetentionOption(days = 7, label = "7 days"),
+        RetentionOption(days = 30, label = "30 days"),
+        RetentionOption(days = 90, label = "90 days"),
+        RetentionOption(days = RETENTION_FOREVER, label = "Forever"),
+    )
 
 /**
  * Memory configuration form for selecting backend, auto-save, embedding, and retention.
@@ -251,29 +254,32 @@ private fun BackendOptionCard(
 ) {
     Card(
         onClick = onClick,
-        colors = if (isSelected) {
-            CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-            )
-        } else {
-            CardDefaults.cardColors()
-        },
-        border = if (isSelected) {
-            BorderStroke(
-                SelectedBorderWidth,
-                MaterialTheme.colorScheme.primary,
-            )
-        } else {
-            null
-        },
-        modifier = Modifier
-            .fillMaxWidth()
-            .semantics(mergeDescendants = true) {
-                contentDescription =
-                    "${option.title}, ${if (isSelected) "selected" else "not selected"}"
-                role = Role.RadioButton
-                selected = isSelected
+        colors =
+            if (isSelected) {
+                CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                )
+            } else {
+                CardDefaults.cardColors()
             },
+        border =
+            if (isSelected) {
+                BorderStroke(
+                    SelectedBorderWidth,
+                    MaterialTheme.colorScheme.primary,
+                )
+            } else {
+                null
+            },
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .semantics(mergeDescendants = true) {
+                    contentDescription =
+                        "${option.title}, ${if (isSelected) "selected" else "not selected"}"
+                    role = Role.RadioButton
+                    selected = isSelected
+                },
     ) {
         Column(
             modifier = Modifier.padding(CardPadding),
@@ -308,12 +314,13 @@ private fun AutoSaveToggle(
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
-        modifier = Modifier
-            .fillMaxWidth()
-            .semantics(mergeDescendants = true) {
-                contentDescription =
-                    "Auto-save conversations, ${if (autoSave) "on" else "off"}"
-            },
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .semantics(mergeDescendants = true) {
+                    contentDescription =
+                        "Auto-save conversations, ${if (autoSave) "on" else "off"}"
+                },
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -350,9 +357,10 @@ private fun EmbeddingProviderDropdown(
     onEmbeddingProviderChanged: (String) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val currentDisplay = EMBEDDING_OPTIONS
-        .find { it.id == embeddingProvider }
-        ?.displayName ?: "None"
+    val currentDisplay =
+        EMBEDDING_OPTIONS
+            .find { it.id == embeddingProvider }
+            ?.displayName ?: "None"
 
     Text(
         text = "Embedding Provider",
@@ -372,12 +380,13 @@ private fun EmbeddingProviderDropdown(
             trailingIcon = {
                 ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
             },
-            modifier = Modifier
-                .fillMaxWidth()
-                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                .semantics {
-                    contentDescription = "Embedding provider: $currentDisplay"
-                },
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                    .semantics {
+                        contentDescription = "Embedding provider: $currentDisplay"
+                    },
         )
         ExposedDropdownMenu(
             expanded = expanded,
@@ -428,11 +437,12 @@ private fun RetentionPicker(
                 selected = isSelected,
                 onClick = { onRetentionDaysChanged(option.days) },
                 label = { Text(option.label) },
-                modifier = Modifier.semantics {
-                    contentDescription =
-                        "${option.label}, ${if (isSelected) "selected" else "not selected"}"
-                    role = Role.RadioButton
-                },
+                modifier =
+                    Modifier.semantics {
+                        contentDescription =
+                            "${option.label}, ${if (isSelected) "selected" else "not selected"}"
+                        role = Role.RadioButton
+                    },
             )
         }
     }

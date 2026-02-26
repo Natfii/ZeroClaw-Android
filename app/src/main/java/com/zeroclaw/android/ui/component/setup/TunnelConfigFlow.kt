@@ -70,28 +70,29 @@ private data class TunnelOption(
 )
 
 /** Available tunnel options presented to the user. */
-private val TUNNEL_OPTIONS = listOf(
-    TunnelOption(
-        id = "none",
-        title = "Local Only",
-        description = "Agent accessible only on this device and local network",
-    ),
-    TunnelOption(
-        id = "ngrok",
-        title = "Ngrok",
-        description = "Tunnel via ngrok for public HTTPS endpoint",
-    ),
-    TunnelOption(
-        id = "cloudflare",
-        title = "Cloudflare",
-        description = "Tunnel via Cloudflare for public endpoint",
-    ),
-    TunnelOption(
-        id = "custom",
-        title = "Custom",
-        description = "Specify your own public endpoint URL",
-    ),
-)
+private val TUNNEL_OPTIONS =
+    listOf(
+        TunnelOption(
+            id = "none",
+            title = "Local Only",
+            description = "Agent accessible only on this device and local network",
+        ),
+        TunnelOption(
+            id = "ngrok",
+            title = "Ngrok",
+            description = "Tunnel via ngrok for public HTTPS endpoint",
+        ),
+        TunnelOption(
+            id = "cloudflare",
+            title = "Cloudflare",
+            description = "Tunnel via Cloudflare for public endpoint",
+        ),
+        TunnelOption(
+            id = "custom",
+            title = "Custom",
+            description = "Specify your own public endpoint URL",
+        ),
+    )
 
 /**
  * Tunnel configuration form for selecting and configuring a tunnel provider.
@@ -158,25 +159,28 @@ fun TunnelConfigFlow(
 
         if (tunnelType == "ngrok" || tunnelType == "cloudflare") {
             Spacer(modifier = Modifier.height(FieldSpacing))
-            val label = if (tunnelType == "ngrok") {
-                "Ngrok Auth Token"
-            } else {
-                "Cloudflare Token"
-            }
+            val label =
+                if (tunnelType == "ngrok") {
+                    "Ngrok Auth Token"
+                } else {
+                    "Cloudflare Token"
+                }
             OutlinedTextField(
                 value = tunnelToken,
                 onValueChange = onTunnelTokenChanged,
                 label = { Text(label) },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Password,
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .semantics {
-                        contentDescription = label
-                    },
+                keyboardOptions =
+                    KeyboardOptions(
+                        keyboardType = KeyboardType.Password,
+                    ),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .semantics {
+                            contentDescription = label
+                        },
             )
         }
 
@@ -187,14 +191,16 @@ fun TunnelConfigFlow(
                 onValueChange = onCustomEndpointChanged,
                 label = { Text("Public Endpoint URL") },
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Uri,
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .semantics {
-                        contentDescription = "Public Endpoint URL"
-                    },
+                keyboardOptions =
+                    KeyboardOptions(
+                        keyboardType = KeyboardType.Uri,
+                    ),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .semantics {
+                            contentDescription = "Public Endpoint URL"
+                        },
             )
         }
 
@@ -229,29 +235,32 @@ private fun TunnelOptionCard(
 ) {
     Card(
         onClick = onClick,
-        colors = if (isSelected) {
-            CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-            )
-        } else {
-            CardDefaults.cardColors()
-        },
-        border = if (isSelected) {
-            BorderStroke(
-                SelectedBorderWidth,
-                MaterialTheme.colorScheme.primary,
-            )
-        } else {
-            null
-        },
-        modifier = Modifier
-            .fillMaxWidth()
-            .semantics(mergeDescendants = true) {
-                contentDescription =
-                    "${option.title}, ${if (isSelected) "selected" else "not selected"}"
-                role = Role.RadioButton
-                selected = isSelected
+        colors =
+            if (isSelected) {
+                CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                )
+            } else {
+                CardDefaults.cardColors()
             },
+        border =
+            if (isSelected) {
+                BorderStroke(
+                    SelectedBorderWidth,
+                    MaterialTheme.colorScheme.primary,
+                )
+            } else {
+                null
+            },
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .semantics(mergeDescendants = true) {
+                    contentDescription =
+                        "${option.title}, ${if (isSelected) "selected" else "not selected"}"
+                    role = Role.RadioButton
+                    selected = isSelected
+                },
     ) {
         Column(
             modifier = Modifier.padding(CardPadding),

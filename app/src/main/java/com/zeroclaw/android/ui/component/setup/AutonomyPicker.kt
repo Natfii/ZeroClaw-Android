@@ -80,27 +80,28 @@ private data class AutonomyOption(
 )
 
 /** Available autonomy levels presented to the user. */
-private val AUTONOMY_OPTIONS = listOf(
-    AutonomyOption(
-        id = "supervised",
-        title = "Supervised",
-        description = "Agent asks before taking actions. Recommended for most users.",
-        icon = Icons.Filled.Shield,
-    ),
-    AutonomyOption(
-        id = "constrained",
-        title = "Constrained",
-        description = "Agent acts within defined boundaries without asking.",
-        icon = Icons.Filled.Security,
-    ),
-    AutonomyOption(
-        id = "unconstrained",
-        title = "Unconstrained",
-        description = "Agent acts freely with no restrictions.",
-        icon = Icons.Filled.Warning,
-        isWarning = true,
-    ),
-)
+private val AUTONOMY_OPTIONS =
+    listOf(
+        AutonomyOption(
+            id = "supervised",
+            title = "Supervised",
+            description = "Agent asks before taking actions. Recommended for most users.",
+            icon = Icons.Filled.Shield,
+        ),
+        AutonomyOption(
+            id = "constrained",
+            title = "Constrained",
+            description = "Agent acts within defined boundaries without asking.",
+            icon = Icons.Filled.Security,
+        ),
+        AutonomyOption(
+            id = "unconstrained",
+            title = "Unconstrained",
+            description = "Agent acts freely with no restrictions.",
+            icon = Icons.Filled.Warning,
+            isWarning = true,
+        ),
+    )
 
 /**
  * Autonomy level selector for configuring agent independence.
@@ -173,39 +174,45 @@ private fun AutonomyOptionCard(
     isSelected: Boolean,
     onClick: () -> Unit,
 ) {
-    val borderColor = when {
-        isSelected && option.isWarning -> MaterialTheme.colorScheme.error
-        isSelected -> MaterialTheme.colorScheme.primary
-        else -> null
-    }
-    val containerColor = when {
-        isSelected && option.isWarning ->
-            MaterialTheme.colorScheme.errorContainer
-        isSelected -> MaterialTheme.colorScheme.primaryContainer
-        else -> MaterialTheme.colorScheme.surface
-    }
-    val iconTint = when {
-        option.isWarning -> MaterialTheme.colorScheme.error
-        isSelected -> MaterialTheme.colorScheme.primary
-        else -> MaterialTheme.colorScheme.onSurfaceVariant
-    }
+    val borderColor =
+        when {
+            isSelected && option.isWarning -> MaterialTheme.colorScheme.error
+            isSelected -> MaterialTheme.colorScheme.primary
+            else -> null
+        }
+    val containerColor =
+        when {
+            isSelected && option.isWarning ->
+                MaterialTheme.colorScheme.errorContainer
+            isSelected -> MaterialTheme.colorScheme.primaryContainer
+            else -> MaterialTheme.colorScheme.surface
+        }
+    val iconTint =
+        when {
+            option.isWarning -> MaterialTheme.colorScheme.error
+            isSelected -> MaterialTheme.colorScheme.primary
+            else -> MaterialTheme.colorScheme.onSurfaceVariant
+        }
 
     Card(
         onClick = onClick,
-        colors = CardDefaults.cardColors(
-            containerColor = containerColor,
-        ),
-        border = borderColor?.let {
-            BorderStroke(SelectedBorderWidth, it)
-        },
-        modifier = Modifier
-            .fillMaxWidth()
-            .semantics(mergeDescendants = true) {
-                contentDescription =
-                    "${option.title}, ${if (isSelected) "selected" else "not selected"}"
-                role = Role.RadioButton
-                selected = isSelected
+        colors =
+            CardDefaults.cardColors(
+                containerColor = containerColor,
+            ),
+        border =
+            borderColor?.let {
+                BorderStroke(SelectedBorderWidth, it)
             },
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .semantics(mergeDescendants = true) {
+                    contentDescription =
+                        "${option.title}, ${if (isSelected) "selected" else "not selected"}"
+                    role = Role.RadioButton
+                    selected = isSelected
+                },
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,

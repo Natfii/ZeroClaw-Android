@@ -76,13 +76,14 @@ private data class StyleOption(
 )
 
 /** Available communication styles including a "None" option. */
-private val STYLE_OPTIONS = listOf(
-    StyleOption(id = "", label = "None"),
-    StyleOption(id = "professional", label = "Professional"),
-    StyleOption(id = "casual", label = "Casual"),
-    StyleOption(id = "concise", label = "Concise"),
-    StyleOption(id = "detailed", label = "Detailed"),
-)
+private val STYLE_OPTIONS =
+    listOf(
+        StyleOption(id = "", label = "None"),
+        StyleOption(id = "professional", label = "Professional"),
+        StyleOption(id = "casual", label = "Casual"),
+        StyleOption(id = "concise", label = "Concise"),
+        StyleOption(id = "detailed", label = "Detailed"),
+    )
 
 /**
  * Describes an identity format option for the card selector.
@@ -98,18 +99,19 @@ private data class FormatOption(
 )
 
 /** Available identity format options. */
-private val FORMAT_OPTIONS = listOf(
-    FormatOption(
-        id = "openclaw",
-        title = "OpenClaw",
-        description = "Standard open-source identity format. Default for most users.",
-    ),
-    FormatOption(
-        id = "aieos",
-        title = "AIEOS",
-        description = "Advanced identity format with extended metadata support.",
-    ),
-)
+private val FORMAT_OPTIONS =
+    listOf(
+        FormatOption(
+            id = "openclaw",
+            title = "OpenClaw",
+            description = "Standard open-source identity format. Default for most users.",
+        ),
+        FormatOption(
+            id = "aieos",
+            title = "AIEOS",
+            description = "Advanced identity format with extended metadata support.",
+        ),
+    )
 
 /**
  * Agent identity configuration form.
@@ -172,16 +174,18 @@ fun IdentityConfigFlow(
             label = { Text("Agent Name *") },
             singleLine = true,
             isError = showNameError,
-            supportingText = if (showNameError) {
-                { Text("Agent name is required") }
-            } else {
-                null
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .semantics {
-                    contentDescription = "Agent Name, required"
+            supportingText =
+                if (showNameError) {
+                    { Text("Agent name is required") }
+                } else {
+                    null
                 },
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .semantics {
+                        contentDescription = "Agent Name, required"
+                    },
         )
 
         Spacer(modifier = Modifier.height(FieldSpacing))
@@ -192,11 +196,12 @@ fun IdentityConfigFlow(
             label = { Text("Your Name") },
             singleLine = true,
             supportingText = { Text("Used for personalization") },
-            modifier = Modifier
-                .fillMaxWidth()
-                .semantics {
-                    contentDescription = "Your Name"
-                },
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .semantics {
+                        contentDescription = "Your Name"
+                    },
         )
 
         Spacer(modifier = Modifier.height(FieldSpacing))
@@ -207,11 +212,12 @@ fun IdentityConfigFlow(
             label = { Text("Timezone") },
             singleLine = true,
             supportingText = { Text("Auto-detected; change if needed") },
-            modifier = Modifier
-                .fillMaxWidth()
-                .semantics {
-                    contentDescription = "Timezone"
-                },
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .semantics {
+                        contentDescription = "Timezone"
+                    },
         )
 
         Spacer(modifier = Modifier.height(SectionSpacing))
@@ -262,11 +268,12 @@ private fun CommunicationStylePicker(
                 selected = isSelected,
                 onClick = { onStyleChanged(option.id) },
                 label = { Text(option.label) },
-                modifier = Modifier.semantics {
-                    contentDescription =
-                        "${option.label}, ${if (isSelected) "selected" else "not selected"}"
-                    role = Role.RadioButton
-                },
+                modifier =
+                    Modifier.semantics {
+                        contentDescription =
+                            "${option.label}, ${if (isSelected) "selected" else "not selected"}"
+                        role = Role.RadioButton
+                    },
             )
         }
     }
@@ -298,30 +305,33 @@ private fun IdentityFormatSelector(
 
         Card(
             onClick = { onFormatChanged(option.id) },
-            colors = if (isSelected) {
-                CardDefaults.cardColors(
-                    containerColor =
-                        MaterialTheme.colorScheme.primaryContainer,
-                )
-            } else {
-                CardDefaults.cardColors()
-            },
-            border = if (isSelected) {
-                BorderStroke(
-                    SelectedBorderWidth,
-                    MaterialTheme.colorScheme.primary,
-                )
-            } else {
-                null
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .semantics(mergeDescendants = true) {
-                    contentDescription =
-                        "${option.title}, ${if (isSelected) "selected" else "not selected"}"
-                    role = Role.RadioButton
-                    selected = isSelected
+            colors =
+                if (isSelected) {
+                    CardDefaults.cardColors(
+                        containerColor =
+                            MaterialTheme.colorScheme.primaryContainer,
+                    )
+                } else {
+                    CardDefaults.cardColors()
                 },
+            border =
+                if (isSelected) {
+                    BorderStroke(
+                        SelectedBorderWidth,
+                        MaterialTheme.colorScheme.primary,
+                    )
+                } else {
+                    null
+                },
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .semantics(mergeDescendants = true) {
+                        contentDescription =
+                            "${option.title}, ${if (isSelected) "selected" else "not selected"}"
+                        role = Role.RadioButton
+                        selected = isSelected
+                    },
         ) {
             Column(
                 modifier = Modifier.padding(CardPadding),

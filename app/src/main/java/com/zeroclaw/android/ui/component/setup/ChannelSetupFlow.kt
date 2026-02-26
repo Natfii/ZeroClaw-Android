@@ -106,9 +106,10 @@ fun ChannelSetupFlow(
     val step = spec.steps[currentSubStep]
     val isFirstStep = currentSubStep == 0
     val isLastStep = currentSubStep == spec.steps.size - 1
-    val requiredFieldsBlank = step.fields
-        .filter { it.isRequired }
-        .any { fieldValues[it.key].isNullOrBlank() }
+    val requiredFieldsBlank =
+        step.fields
+            .filter { it.isRequired }
+            .any { fieldValues[it.key].isNullOrBlank() }
 
     Column(
         modifier = modifier.verticalScroll(rememberScrollState()),
@@ -117,10 +118,11 @@ fun ChannelSetupFlow(
             text = "Step ${currentSubStep + 1} of ${spec.steps.size}",
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.semantics {
-                contentDescription =
-                    "Step ${currentSubStep + 1} of ${spec.steps.size}"
-            },
+            modifier =
+                Modifier.semantics {
+                    contentDescription =
+                        "Step ${currentSubStep + 1} of ${spec.steps.size}"
+                },
         )
 
         Spacer(modifier = Modifier.height(ElementSpacing))
@@ -231,14 +233,16 @@ private fun ChannelField(
                 onValueChange = onValueChanged,
                 label = { Text(label) },
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Number,
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .semantics {
-                        contentDescription = label
-                    },
+                keyboardOptions =
+                    KeyboardOptions(
+                        keyboardType = KeyboardType.Number,
+                    ),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .semantics {
+                            contentDescription = label
+                        },
             )
         }
         FieldInputType.URL -> {
@@ -247,14 +251,16 @@ private fun ChannelField(
                 onValueChange = onValueChanged,
                 label = { Text(label) },
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Uri,
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .semantics {
-                        contentDescription = label
-                    },
+                keyboardOptions =
+                    KeyboardOptions(
+                        keyboardType = KeyboardType.Uri,
+                    ),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .semantics {
+                            contentDescription = label
+                        },
             )
         }
         FieldInputType.LIST -> {
@@ -266,14 +272,16 @@ private fun ChannelField(
                 supportingText = {
                     Text("Comma-separated values")
                 },
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Text,
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .semantics {
-                        contentDescription = label
-                    },
+                keyboardOptions =
+                    KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                    ),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .semantics {
+                            contentDescription = label
+                        },
             )
         }
         FieldInputType.TEXT -> {
@@ -289,14 +297,16 @@ private fun ChannelField(
                     onValueChange = onValueChanged,
                     label = { Text(label) },
                     singleLine = true,
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Text,
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .semantics {
-                            contentDescription = label
-                        },
+                    keyboardOptions =
+                        KeyboardOptions(
+                            keyboardType = KeyboardType.Text,
+                        ),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .semantics {
+                                contentDescription = label
+                            },
                 )
             }
         }
@@ -327,40 +337,46 @@ private fun SecretField(
         onValueChange = onValueChanged,
         label = { Text(label) },
         singleLine = true,
-        visualTransformation = if (revealed) {
-            VisualTransformation.None
-        } else {
-            PasswordVisualTransformation()
-        },
-        keyboardOptions = KeyboardOptions(
-            keyboardType = KeyboardType.Password,
-        ),
+        visualTransformation =
+            if (revealed) {
+                VisualTransformation.None
+            } else {
+                PasswordVisualTransformation()
+            },
+        keyboardOptions =
+            KeyboardOptions(
+                keyboardType = KeyboardType.Password,
+            ),
         trailingIcon = {
             IconButton(
                 onClick = { revealed = !revealed },
-                modifier = Modifier.semantics {
-                    contentDescription = if (revealed) {
-                        "Hide $label"
-                    } else {
-                        "Show $label"
-                    }
-                },
+                modifier =
+                    Modifier.semantics {
+                        contentDescription =
+                            if (revealed) {
+                                "Hide $label"
+                            } else {
+                                "Show $label"
+                            }
+                    },
             ) {
                 Icon(
-                    imageVector = if (revealed) {
-                        Icons.Filled.VisibilityOff
-                    } else {
-                        Icons.Filled.Visibility
-                    },
+                    imageVector =
+                        if (revealed) {
+                            Icons.Filled.VisibilityOff
+                        } else {
+                            Icons.Filled.Visibility
+                        },
                     contentDescription = null,
                 )
             }
         },
-        modifier = Modifier
-            .fillMaxWidth()
-            .semantics {
-                contentDescription = label
-            },
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .semantics {
+                    contentDescription = label
+                },
     )
 }
 
@@ -384,11 +400,12 @@ private fun BooleanField(
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
-        modifier = Modifier
-            .fillMaxWidth()
-            .semantics(mergeDescendants = true) {
-                contentDescription = "$label, ${if (checked) "on" else "off"}"
-            },
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .semantics(mergeDescendants = true) {
+                    contentDescription = "$label, ${if (checked) "on" else "off"}"
+                },
     ) {
         Text(
             text = label,
@@ -421,11 +438,12 @@ private fun ValidateActionRow(
     FilledTonalButton(
         onClick = onValidate,
         enabled = !isLoading,
-        modifier = Modifier
-            .fillMaxWidth()
-            .semantics {
-                contentDescription = "Validate credentials"
-            },
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .semantics {
+                    contentDescription = "Validate credentials"
+                },
     ) {
         Icon(
             imageVector = Icons.Filled.Verified,
@@ -466,9 +484,10 @@ private fun NavigationRow(
         if (!isFirstStep) {
             OutlinedButton(
                 onClick = onPrevious,
-                modifier = Modifier.semantics {
-                    contentDescription = "Go to previous step"
-                },
+                modifier =
+                    Modifier.semantics {
+                        contentDescription = "Go to previous step"
+                    },
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -484,22 +503,25 @@ private fun NavigationRow(
         Button(
             onClick = onNext,
             enabled = nextEnabled,
-            modifier = Modifier.semantics {
-                contentDescription = if (isLastStep) {
-                    "Finish channel setup"
-                } else {
-                    "Go to next step"
-                }
-            },
+            modifier =
+                Modifier.semantics {
+                    contentDescription =
+                        if (isLastStep) {
+                            "Finish channel setup"
+                        } else {
+                            "Go to next step"
+                        }
+                },
         ) {
             Text(text = if (isLastStep) "Done" else "Next")
             Spacer(modifier = Modifier.width(ButtonIconSpacing))
             Icon(
-                imageVector = if (isLastStep) {
-                    Icons.Filled.Done
-                } else {
-                    Icons.AutoMirrored.Filled.ArrowForward
-                },
+                imageVector =
+                    if (isLastStep) {
+                        Icons.Filled.Done
+                    } else {
+                        Icons.AutoMirrored.Filled.ArrowForward
+                    },
                 contentDescription = null,
             )
         }
@@ -512,55 +534,61 @@ private fun PreviewStep1() {
     ZeroClawTheme {
         Surface {
             ChannelSetupFlow(
-                spec = ChannelSetupSpec(
-                    channelType = ChannelType.TELEGRAM,
-                    steps = listOf(
-                        ChannelSetupStepSpec(
-                            title = "Create a Telegram Bot",
-                            instructions = listOf(
-                                InstructionItem.Text(
-                                    "Create a new bot using BotFather.",
+                spec =
+                    ChannelSetupSpec(
+                        channelType = ChannelType.TELEGRAM,
+                        steps =
+                            listOf(
+                                ChannelSetupStepSpec(
+                                    title = "Create a Telegram Bot",
+                                    instructions =
+                                        listOf(
+                                            InstructionItem.Text(
+                                                "Create a new bot using BotFather.",
+                                            ),
+                                            InstructionItem.NumberedStep(
+                                                1,
+                                                "Open BotFather.",
+                                            ),
+                                            InstructionItem.NumberedStep(
+                                                2,
+                                                "Send /newbot.",
+                                            ),
+                                            InstructionItem.Warning(
+                                                "Keep your bot token secret.",
+                                            ),
+                                        ),
+                                    fields =
+                                        listOf(
+                                            ChannelFieldSpec(
+                                                key = "bot_token",
+                                                label = "Bot Token",
+                                                isRequired = true,
+                                                isSecret = true,
+                                                inputType = FieldInputType.SECRET,
+                                            ),
+                                        ),
+                                    validatorType = ValidatorType.TELEGRAM_BOT_TOKEN,
                                 ),
-                                InstructionItem.NumberedStep(
-                                    1,
-                                    "Open BotFather.",
-                                ),
-                                InstructionItem.NumberedStep(
-                                    2,
-                                    "Send /newbot.",
-                                ),
-                                InstructionItem.Warning(
-                                    "Keep your bot token secret.",
+                                ChannelSetupStepSpec(
+                                    title = "Allow Your Account",
+                                    instructions =
+                                        listOf(
+                                            InstructionItem.Text(
+                                                "Restrict which users can interact.",
+                                            ),
+                                        ),
+                                    fields =
+                                        listOf(
+                                            ChannelFieldSpec(
+                                                key = "allowed_users",
+                                                label = "Allowed Users",
+                                                inputType = FieldInputType.LIST,
+                                            ),
+                                        ),
                                 ),
                             ),
-                            fields = listOf(
-                                ChannelFieldSpec(
-                                    key = "bot_token",
-                                    label = "Bot Token",
-                                    isRequired = true,
-                                    isSecret = true,
-                                    inputType = FieldInputType.SECRET,
-                                ),
-                            ),
-                            validatorType = ValidatorType.TELEGRAM_BOT_TOKEN,
-                        ),
-                        ChannelSetupStepSpec(
-                            title = "Allow Your Account",
-                            instructions = listOf(
-                                InstructionItem.Text(
-                                    "Restrict which users can interact.",
-                                ),
-                            ),
-                            fields = listOf(
-                                ChannelFieldSpec(
-                                    key = "allowed_users",
-                                    label = "Allowed Users",
-                                    inputType = FieldInputType.LIST,
-                                ),
-                            ),
-                        ),
                     ),
-                ),
                 currentSubStep = 0,
                 fieldValues = emptyMap(),
                 onFieldChanged = { _, _ -> },
@@ -577,44 +605,50 @@ private fun PreviewStep2() {
     ZeroClawTheme {
         Surface {
             ChannelSetupFlow(
-                spec = ChannelSetupSpec(
-                    channelType = ChannelType.TELEGRAM,
-                    steps = listOf(
-                        ChannelSetupStepSpec(
-                            title = "Create a Telegram Bot",
-                            instructions = emptyList(),
-                            fields = listOf(
-                                ChannelFieldSpec(
-                                    key = "bot_token",
-                                    label = "Bot Token",
-                                    isRequired = true,
-                                    isSecret = true,
-                                    inputType = FieldInputType.SECRET,
+                spec =
+                    ChannelSetupSpec(
+                        channelType = ChannelType.TELEGRAM,
+                        steps =
+                            listOf(
+                                ChannelSetupStepSpec(
+                                    title = "Create a Telegram Bot",
+                                    instructions = emptyList(),
+                                    fields =
+                                        listOf(
+                                            ChannelFieldSpec(
+                                                key = "bot_token",
+                                                label = "Bot Token",
+                                                isRequired = true,
+                                                isSecret = true,
+                                                inputType = FieldInputType.SECRET,
+                                            ),
+                                        ),
+                                ),
+                                ChannelSetupStepSpec(
+                                    title = "Allow Your Account",
+                                    instructions =
+                                        listOf(
+                                            InstructionItem.Text(
+                                                "Restrict which users can interact.",
+                                            ),
+                                        ),
+                                    fields =
+                                        listOf(
+                                            ChannelFieldSpec(
+                                                key = "allowed_users",
+                                                label = "Allowed Users",
+                                                inputType = FieldInputType.LIST,
+                                            ),
+                                        ),
                                 ),
                             ),
-                        ),
-                        ChannelSetupStepSpec(
-                            title = "Allow Your Account",
-                            instructions = listOf(
-                                InstructionItem.Text(
-                                    "Restrict which users can interact.",
-                                ),
-                            ),
-                            fields = listOf(
-                                ChannelFieldSpec(
-                                    key = "allowed_users",
-                                    label = "Allowed Users",
-                                    inputType = FieldInputType.LIST,
-                                ),
-                            ),
-                        ),
                     ),
-                ),
                 currentSubStep = 1,
-                fieldValues = mapOf(
-                    "bot_token" to "123456:ABC-DEF",
-                    "allowed_users" to "12345",
-                ),
+                fieldValues =
+                    mapOf(
+                        "bot_token" to "123456:ABC-DEF",
+                        "allowed_users" to "12345",
+                    ),
                 onFieldChanged = { _, _ -> },
                 onNextSubStep = {},
                 onPreviousSubStep = {},
@@ -629,34 +663,39 @@ private fun PreviewValidationSuccess() {
     ZeroClawTheme {
         Surface {
             ChannelSetupFlow(
-                spec = ChannelSetupSpec(
-                    channelType = ChannelType.DISCORD,
-                    steps = listOf(
-                        ChannelSetupStepSpec(
-                            title = "Create a Discord Bot",
-                            instructions = listOf(
-                                InstructionItem.Text(
-                                    "Create a new Discord application.",
+                spec =
+                    ChannelSetupSpec(
+                        channelType = ChannelType.DISCORD,
+                        steps =
+                            listOf(
+                                ChannelSetupStepSpec(
+                                    title = "Create a Discord Bot",
+                                    instructions =
+                                        listOf(
+                                            InstructionItem.Text(
+                                                "Create a new Discord application.",
+                                            ),
+                                        ),
+                                    fields =
+                                        listOf(
+                                            ChannelFieldSpec(
+                                                key = "bot_token",
+                                                label = "Bot Token",
+                                                isRequired = true,
+                                                isSecret = true,
+                                                inputType = FieldInputType.SECRET,
+                                            ),
+                                        ),
+                                    validatorType = ValidatorType.DISCORD_BOT_TOKEN,
                                 ),
                             ),
-                            fields = listOf(
-                                ChannelFieldSpec(
-                                    key = "bot_token",
-                                    label = "Bot Token",
-                                    isRequired = true,
-                                    isSecret = true,
-                                    inputType = FieldInputType.SECRET,
-                                ),
-                            ),
-                            validatorType = ValidatorType.DISCORD_BOT_TOKEN,
-                        ),
                     ),
-                ),
                 currentSubStep = 0,
                 fieldValues = mapOf("bot_token" to "discord-token"),
-                validationResult = ValidationResult.Success(
-                    details = "Bot: ZeroClaw#1234",
-                ),
+                validationResult =
+                    ValidationResult.Success(
+                        details = "Bot: ZeroClaw#1234",
+                    ),
                 onFieldChanged = { _, _ -> },
                 onNextSubStep = {},
                 onPreviousSubStep = {},
@@ -674,43 +713,48 @@ private fun PreviewDark() {
     ZeroClawTheme {
         Surface {
             ChannelSetupFlow(
-                spec = ChannelSetupSpec(
-                    channelType = ChannelType.TELEGRAM,
-                    steps = listOf(
-                        ChannelSetupStepSpec(
-                            title = "Create a Telegram Bot",
-                            instructions = listOf(
-                                InstructionItem.Text(
-                                    "Create a new bot using BotFather.",
+                spec =
+                    ChannelSetupSpec(
+                        channelType = ChannelType.TELEGRAM,
+                        steps =
+                            listOf(
+                                ChannelSetupStepSpec(
+                                    title = "Create a Telegram Bot",
+                                    instructions =
+                                        listOf(
+                                            InstructionItem.Text(
+                                                "Create a new bot using BotFather.",
+                                            ),
+                                            InstructionItem.Warning(
+                                                "Keep your bot token secret.",
+                                            ),
+                                        ),
+                                    fields =
+                                        listOf(
+                                            ChannelFieldSpec(
+                                                key = "bot_token",
+                                                label = "Bot Token",
+                                                isRequired = true,
+                                                isSecret = true,
+                                                inputType = FieldInputType.SECRET,
+                                            ),
+                                        ),
+                                    validatorType = ValidatorType.TELEGRAM_BOT_TOKEN,
                                 ),
-                                InstructionItem.Warning(
-                                    "Keep your bot token secret.",
+                                ChannelSetupStepSpec(
+                                    title = "Allow Your Account",
+                                    instructions = emptyList(),
+                                    fields =
+                                        listOf(
+                                            ChannelFieldSpec(
+                                                key = "allowed_users",
+                                                label = "Allowed Users",
+                                                inputType = FieldInputType.LIST,
+                                            ),
+                                        ),
                                 ),
                             ),
-                            fields = listOf(
-                                ChannelFieldSpec(
-                                    key = "bot_token",
-                                    label = "Bot Token",
-                                    isRequired = true,
-                                    isSecret = true,
-                                    inputType = FieldInputType.SECRET,
-                                ),
-                            ),
-                            validatorType = ValidatorType.TELEGRAM_BOT_TOKEN,
-                        ),
-                        ChannelSetupStepSpec(
-                            title = "Allow Your Account",
-                            instructions = emptyList(),
-                            fields = listOf(
-                                ChannelFieldSpec(
-                                    key = "allowed_users",
-                                    label = "Allowed Users",
-                                    inputType = FieldInputType.LIST,
-                                ),
-                            ),
-                        ),
                     ),
-                ),
                 currentSubStep = 0,
                 fieldValues = mapOf("bot_token" to "test-token"),
                 validationResult = ValidationResult.Loading,

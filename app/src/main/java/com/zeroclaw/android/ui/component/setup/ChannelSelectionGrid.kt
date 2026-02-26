@@ -33,8 +33,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.zeroclaw.android.model.ChannelType
@@ -103,8 +103,9 @@ fun ChannelSelectionGrid(
         Spacer(modifier = Modifier.height(TitleSpacing))
 
         Text(
-            text = "Choose messaging platforms for your agent. " +
-                "You can add more later.",
+            text =
+                "Choose messaging platforms for your agent. " +
+                    "You can add more later.",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -130,11 +131,12 @@ fun ChannelSelectionGrid(
                     isSelected = isSelected,
                     isConfigured = isConfigured,
                     onToggle = {
-                        val updated = if (isSelected) {
-                            selectedTypes - type
-                        } else {
-                            selectedTypes + type
-                        }
+                        val updated =
+                            if (isSelected) {
+                                selectedTypes - type
+                            } else {
+                                selectedTypes + type
+                            }
                         onSelectionChanged(updated)
                     },
                 )
@@ -144,8 +146,9 @@ fun ChannelSelectionGrid(
         if (showSkipHint) {
             Spacer(modifier = Modifier.height(HintSpacing))
             Text(
-                text = "You can skip this and add channels later " +
-                    "in Settings",
+                text =
+                    "You can skip this and add channels later " +
+                        "in Settings",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -179,45 +182,50 @@ private fun ChannelCard(
     onToggle: () -> Unit,
 ) {
     val hasVisualEmphasis = isSelected || isConfigured
-    val stateDescription = when {
-        isConfigured -> "configured"
-        isSelected -> "selected"
-        else -> "not selected"
-    }
+    val stateDescription =
+        when {
+            isConfigured -> "configured"
+            isSelected -> "selected"
+            else -> "not selected"
+        }
 
     Card(
         onClick = onToggle,
-        colors = if (isSelected && !isConfigured) {
-            CardDefaults.cardColors(
-                containerColor =
-                    MaterialTheme.colorScheme.primaryContainer,
-            )
-        } else {
-            CardDefaults.cardColors()
-        },
-        border = if (hasVisualEmphasis) {
-            BorderStroke(
-                SelectedBorderWidth,
-                MaterialTheme.colorScheme.primary,
-            )
-        } else {
-            null
-        },
-        modifier = Modifier
-            .fillMaxWidth()
-            .semantics(mergeDescendants = true) {
-                contentDescription =
-                    "${type.displayName}, $stateDescription"
-                role = Role.Checkbox
-                selected = isSelected || isConfigured
+        colors =
+            if (isSelected && !isConfigured) {
+                CardDefaults.cardColors(
+                    containerColor =
+                        MaterialTheme.colorScheme.primaryContainer,
+                )
+            } else {
+                CardDefaults.cardColors()
             },
+        border =
+            if (hasVisualEmphasis) {
+                BorderStroke(
+                    SelectedBorderWidth,
+                    MaterialTheme.colorScheme.primary,
+                )
+            } else {
+                null
+            },
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .semantics(mergeDescendants = true) {
+                    contentDescription =
+                        "${type.displayName}, $stateDescription"
+                    role = Role.Checkbox
+                    selected = isSelected || isConfigured
+                },
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(CardPadding),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(CardPadding),
         ) {
             Text(
                 text = type.displayName,
@@ -257,10 +265,11 @@ private fun PreviewWithSelections() {
     ZeroClawTheme {
         Surface {
             ChannelSelectionGrid(
-                selectedTypes = setOf(
-                    ChannelType.TELEGRAM,
-                    ChannelType.DISCORD,
-                ),
+                selectedTypes =
+                    setOf(
+                        ChannelType.TELEGRAM,
+                        ChannelType.DISCORD,
+                    ),
                 configuredTypes = setOf(ChannelType.TELEGRAM),
                 onSelectionChanged = {},
             )
@@ -278,10 +287,11 @@ private fun PreviewDark() {
         Surface {
             ChannelSelectionGrid(
                 selectedTypes = setOf(ChannelType.SLACK),
-                configuredTypes = setOf(
-                    ChannelType.TELEGRAM,
-                    ChannelType.DISCORD,
-                ),
+                configuredTypes =
+                    setOf(
+                        ChannelType.TELEGRAM,
+                        ChannelType.DISCORD,
+                    ),
                 onSelectionChanged = {},
                 showSkipHint = true,
             )

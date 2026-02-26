@@ -112,8 +112,9 @@ fun ProviderSetupFlow(
     val providerInfo = ProviderRegistry.findById(selectedProvider)
     val suggestedModels = providerInfo?.suggestedModels.orEmpty()
     val consoleTarget = ExternalAppLauncher.providerConsoleTarget(selectedProvider)
-    val validateEnabled = selectedProvider.isNotBlank() &&
-        (apiKey.isNotBlank() || baseUrl.isNotBlank())
+    val validateEnabled =
+        selectedProvider.isNotBlank() &&
+            (apiKey.isNotBlank() || baseUrl.isNotBlank())
 
     Column(
         modifier = modifier.verticalScroll(rememberScrollState()),
