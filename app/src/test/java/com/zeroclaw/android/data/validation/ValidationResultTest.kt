@@ -85,10 +85,11 @@ class ValidationResultTest {
         @Test
         @DisplayName("retryable can be set to false")
         fun `retryable can be set to false`() {
-            val result = ValidationResult.Failure(
-                message = "Invalid key format",
-                retryable = false,
-            )
+            val result =
+                ValidationResult.Failure(
+                    message = "Invalid key format",
+                    retryable = false,
+                )
             assertFalse(result.retryable)
         }
     }
