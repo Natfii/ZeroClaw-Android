@@ -25,9 +25,10 @@ import org.junit.jupiter.api.Test
  * Tests for provider-related logic extracted from [OnboardingViewModel].
  *
  * Uses test doubles that mirror the ViewModel's behavior to avoid
- * requiring [android.app.Application].
+ * requiring [android.app.Application]. See [OnboardingCoordinatorTest]
+ * for the current 9-step wizard tests.
  */
-@DisplayName("OnboardingViewModel provider logic")
+@DisplayName("OnboardingViewModel provider logic (legacy)")
 class OnboardingViewModelProviderTest {
     @Test
     @DisplayName("setProvider updates selectedProvider state")

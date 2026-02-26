@@ -26,7 +26,7 @@ import androidx.compose.ui.unit.dp
  *
  * Allows the user to set a name that becomes both the AIEOS identity
  * and the nickname for their first connection profile. The name is
- * propagated to [com.zeroclaw.android.ui.screen.onboarding.OnboardingViewModel]
+ * propagated to [com.zeroclaw.android.ui.screen.onboarding.OnboardingCoordinator]
  * and persisted when onboarding completes.
  *
  * @param agentName Current daemon name value.

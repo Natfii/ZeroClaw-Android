@@ -35,7 +35,7 @@ import kotlinx.serialization.json.putJsonObject
 private const val TOTAL_STEPS = 5
 
 /**
- * ViewModel for the onboarding wizard.
+ * ViewModel for the legacy 5-step onboarding wizard.
  *
  * Tracks the current step, provider/API key input state, and handles
  * completion persistence including saving the API key and default
@@ -43,6 +43,10 @@ private const val TOTAL_STEPS = 5
  *
  * @param application Application context for accessing repositories.
  */
+@Deprecated(
+    message = "Replaced by OnboardingCoordinator which supports the 9-step wizard.",
+    replaceWith = ReplaceWith("OnboardingCoordinator"),
+)
 class OnboardingViewModel(
     application: Application,
 ) : AndroidViewModel(application) {

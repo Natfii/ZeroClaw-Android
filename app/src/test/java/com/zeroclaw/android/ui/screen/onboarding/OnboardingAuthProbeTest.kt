@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test
 
 /**
  * Unit tests for [isDefinitiveAuthFailure], the probe decision function
- * used by [OnboardingViewModel.complete] to detect bad credentials before
+ * used by [OnboardingCoordinator] to detect bad credentials before
  * persisting them.
  *
  * Only HTTP 401 and 403 should block onboarding; all other failures

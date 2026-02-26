@@ -15,12 +15,13 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
 /**
- * Unit tests for [OnboardingViewModel] step management logic.
+ * Unit tests for legacy [OnboardingViewModel] step management logic.
  *
  * Uses a test double for [OnboardingRepository] to avoid
- * requiring [android.app.Application].
+ * requiring [android.app.Application]. See [OnboardingCoordinatorTest]
+ * for the current 9-step wizard tests.
  */
-@DisplayName("OnboardingViewModel step logic")
+@DisplayName("OnboardingViewModel step logic (legacy)")
 class OnboardingViewModelTest {
     @Test
     @DisplayName("nextStep advances within bounds")
