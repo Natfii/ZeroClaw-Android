@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -56,6 +57,7 @@ import com.zeroclaw.android.model.CronJob
 import com.zeroclaw.android.model.DaemonStatus
 import com.zeroclaw.android.model.HealthDetail
 import com.zeroclaw.android.model.KeyRejectionEvent
+import com.zeroclaw.android.model.MemoryConflict
 import com.zeroclaw.android.model.ServiceState
 import com.zeroclaw.android.ui.component.LoadingIndicator
 import com.zeroclaw.android.ui.component.SectionHeader
@@ -76,6 +78,7 @@ import com.zeroclaw.android.viewmodel.DaemonViewModel
  * @property installedPluginCount Number of installed plugins.
  * @property daemonStatus Latest daemon status snapshot, if available.
  * @property activityEvents Recent activity feed events.
+ * @property memoryHealthWarning Warning from failed memory health check, if any.
  */
 data class DashboardState(
     val serviceState: ServiceState,
@@ -88,6 +91,7 @@ data class DashboardState(
     val installedPluginCount: Int,
     val daemonStatus: DaemonStatus?,
     val activityEvents: List<ActivityEvent>,
+    val memoryHealthWarning: String? = null,
 )
 
 /**
@@ -121,6 +125,17 @@ fun DashboardScreen(
     val installedPluginCount by viewModel.installedPluginCount.collectAsStateWithLifecycle()
     val daemonStatus by viewModel.daemonStatus.collectAsStateWithLifecycle()
     val activityEvents by viewModel.activityEvents.collectAsStateWithLifecycle()
+    val memoryConflict by viewModel.memoryConflict.collectAsStateWithLifecycle()
+    val memoryHealthWarning by viewModel.memoryHealthWarning.collectAsStateWithLifecycle()
+
+    val conflictData = memoryConflict
+    if (conflictData is MemoryConflict.StaleData) {
+        MemoryConflictDialog(
+            conflict = conflictData,
+            onDelete = { viewModel.resolveMemoryConflict(shouldDelete = true) },
+            onKeep = { viewModel.resolveMemoryConflict(shouldDelete = false) },
+        )
+    }
 
     DashboardContent(
         state =
@@ -135,6 +150,7 @@ fun DashboardScreen(
                 installedPluginCount = installedPluginCount,
                 daemonStatus = daemonStatus,
                 activityEvents = activityEvents,
+                memoryHealthWarning = memoryHealthWarning,
             ),
         edgeMargin = edgeMargin,
         onNavigateToCostDetail = onNavigateToCostDetail,
@@ -142,6 +158,7 @@ fun DashboardScreen(
         onStartDaemon = viewModel::requestStart,
         onStopDaemon = viewModel::requestStop,
         onDismissKeyRejection = viewModel::dismissKeyRejection,
+        onDismissMemoryHealthWarning = viewModel::dismissMemoryHealthWarning,
         modifier = modifier,
     )
 }
@@ -159,6 +176,7 @@ fun DashboardScreen(
  * @param onStartDaemon Callback to start the daemon.
  * @param onStopDaemon Callback to stop the daemon.
  * @param onDismissKeyRejection Callback to dismiss the key rejection banner.
+ * @param onDismissMemoryHealthWarning Callback to dismiss the memory health warning.
  * @param modifier Modifier applied to the root layout.
  */
 @Composable
@@ -170,6 +188,7 @@ internal fun DashboardContent(
     onStartDaemon: () -> Unit,
     onStopDaemon: () -> Unit,
     onDismissKeyRejection: () -> Unit,
+    onDismissMemoryHealthWarning: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -202,6 +221,13 @@ internal fun DashboardContent(
 
         if (state.keyRejection != null) {
             KeyRejectionBanner(onDismiss = onDismissKeyRejection)
+        }
+
+        if (state.memoryHealthWarning != null) {
+            MemoryHealthWarningBanner(
+                warning = state.memoryHealthWarning,
+                onDismiss = onDismissMemoryHealthWarning,
+            )
         }
 
         StatusHeroCard(
@@ -685,3 +711,97 @@ private fun ComponentHealthChip(
         }
     }
 }
+
+/**
+ * Blocking dialog shown when stale memory backend data is found at daemon startup.
+ *
+ * @param conflict The stale data descriptor.
+ * @param onDelete Callback when user chooses to delete stale files.
+ * @param onKeep Callback when user chooses to keep stale files.
+ */
+@Composable
+private fun MemoryConflictDialog(
+    conflict: MemoryConflict.StaleData,
+    onDelete: () -> Unit,
+    onKeep: () -> Unit,
+) {
+    val sizeText = formatFileSize(conflict.staleSizeBytes)
+    val plural = if (conflict.staleFileCount != 1) "s" else ""
+    AlertDialog(
+        onDismissRequest = { /* non-dismissable — user must choose */ },
+        title = { Text("Memory Backend Changed") },
+        text = {
+            Text(
+                "You switched from ${conflict.staleBackend} to " +
+                    "${conflict.currentBackend}. Found " +
+                    "${conflict.staleFileCount} stale ${conflict.staleBackend} " +
+                    "file$plural ($sizeText).\n\n" +
+                    "Delete old data to prevent conflicts?",
+            )
+        },
+        confirmButton = {
+            FilledTonalButton(onClick = onDelete) {
+                Text("Delete")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onKeep) {
+                Text("Keep")
+            }
+        },
+    )
+}
+
+/**
+ * Persistent warning banner for a failed memory health check.
+ *
+ * @param warning Human-readable failure reason.
+ * @param onDismiss Callback to dismiss the banner.
+ */
+@Composable
+private fun MemoryHealthWarningBanner(
+    warning: String,
+    onDismiss: () -> Unit,
+) {
+    Card(
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.errorContainer,
+            ),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "Memory: $warning",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = onDismiss) {
+                Text("Dismiss")
+            }
+        }
+    }
+}
+
+/**
+ * Formats a byte count as a human-readable file size.
+ *
+ * @param bytes Size in bytes.
+ * @return Formatted string (e.g. "2.4 MB", "128 KB").
+ */
+private fun formatFileSize(bytes: Long): String {
+    val kb = BYTES_PER_KB
+    val mb = kb * BYTES_PER_KB
+    return when {
+        bytes >= mb -> "%.1f MB".format(bytes.toFloat() / mb)
+        bytes >= kb -> "%.0f KB".format(bytes.toFloat() / kb)
+        else -> "$bytes B"
+    }
+}
+
+/** Number of bytes per kilobyte. */
+private const val BYTES_PER_KB = 1024L
