@@ -261,13 +261,16 @@ class DaemonServiceBridgeTest {
     }
 
     @Test
-    @DisplayName("detectMemoryConflict for none backend finds stale data")
+    @DisplayName("detectMemoryConflict for none backend finds stale data from both backends")
     fun `detectMemoryConflict for none backend finds stale data`(
         @TempDir tempDir: Path,
     ) {
         val ws = tempDir.resolve("workspace").toFile()
         ws.mkdirs()
         java.io.File(ws, "memory.db").writeText("fake db")
+        val memDir = java.io.File(ws, "memory")
+        memDir.mkdirs()
+        java.io.File(memDir, "2026-02-26.md").writeText("log entry")
 
         val b = bridgeWithDir(tempDir)
         val result = b.detectMemoryConflict("none")
@@ -275,7 +278,53 @@ class DaemonServiceBridgeTest {
         assertTrue(result is MemoryConflict.StaleData)
         val stale = result as MemoryConflict.StaleData
         assertEquals("none", stale.currentBackend)
+        assertEquals("both", stale.staleBackend)
+        assertEquals(2, stale.staleFileCount)
+    }
+
+    @Test
+    @DisplayName("detectMemoryConflict finds stale sqlite in state subdirectory")
+    fun `detectMemoryConflict finds stale sqlite in state subdirectory`(
+        @TempDir tempDir: Path,
+    ) {
+        val ws = tempDir.resolve("workspace").toFile()
+        val stateDir = java.io.File(ws, "state")
+        stateDir.mkdirs()
+        java.io.File(stateDir, "memory.db").writeText("fake db")
+
+        val b = bridgeWithDir(tempDir)
+        val result = b.detectMemoryConflict("markdown")
+
+        assertTrue(result is MemoryConflict.StaleData)
+        val stale = result as MemoryConflict.StaleData
         assertEquals("sqlite", stale.staleBackend)
+        assertEquals(1, stale.staleFileCount)
+    }
+
+    @Test
+    @DisplayName("cleanupStaleMemory deletes sqlite files from state subdirectory")
+    fun `cleanupStaleMemory deletes sqlite files from state subdirectory`(
+        @TempDir tempDir: Path,
+    ) {
+        val ws = tempDir.resolve("workspace").toFile()
+        val stateDir = java.io.File(ws, "state")
+        stateDir.mkdirs()
+        val db = java.io.File(stateDir, "memory.db")
+        db.writeText("fake db")
+
+        val b = bridgeWithDir(tempDir)
+        val conflict =
+            MemoryConflict.StaleData(
+                currentBackend = "markdown",
+                staleBackend = "sqlite",
+                staleFileCount = 1,
+                staleSizeBytes = db.length(),
+            )
+
+        b.cleanupStaleMemory(conflict)
+
+        assertFalse(db.exists())
+        assertTrue(stateDir.isDirectory)
     }
 
     @Test
@@ -292,12 +341,13 @@ class DaemonServiceBridgeTest {
         log2.writeText("entry2")
 
         val b = bridgeWithDir(tempDir)
-        val conflict = MemoryConflict.StaleData(
-            currentBackend = "sqlite",
-            staleBackend = "markdown",
-            staleFileCount = 2,
-            staleSizeBytes = log1.length() + log2.length(),
-        )
+        val conflict =
+            MemoryConflict.StaleData(
+                currentBackend = "sqlite",
+                staleBackend = "markdown",
+                staleFileCount = 2,
+                staleSizeBytes = log1.length() + log2.length(),
+            )
 
         b.cleanupStaleMemory(conflict)
 
@@ -321,12 +371,13 @@ class DaemonServiceBridgeTest {
         shm.writeText("shm")
 
         val b = bridgeWithDir(tempDir)
-        val conflict = MemoryConflict.StaleData(
-            currentBackend = "markdown",
-            staleBackend = "sqlite",
-            staleFileCount = 3,
-            staleSizeBytes = db.length() + wal.length() + shm.length(),
-        )
+        val conflict =
+            MemoryConflict.StaleData(
+                currentBackend = "markdown",
+                staleBackend = "sqlite",
+                staleFileCount = 3,
+                staleSizeBytes = db.length() + wal.length() + shm.length(),
+            )
 
         b.cleanupStaleMemory(conflict)
 
@@ -358,11 +409,15 @@ class DaemonServiceBridgeTest {
 
     @Test
     @DisplayName("checkMemoryHealth returns Unhealthy when dir is not writable")
-    fun `checkMemoryHealth returns Unhealthy when dir is not writable`() {
-        val b = DaemonServiceBridge(
-            "/nonexistent/path/that/does/not/exist",
-            ioDispatcher = UnconfinedTestDispatcher(),
-        )
+    fun `checkMemoryHealth returns Unhealthy when dir is not writable`(
+        @TempDir tempDir: Path,
+    ) {
+        val ws = tempDir.resolve("workspace").toFile()
+        ws.mkdirs()
+        val blocker = java.io.File(ws, "memory")
+        blocker.writeText("not a directory")
+
+        val b = bridgeWithDir(tempDir)
         val result = b.checkMemoryHealth("markdown")
         assertTrue(result is MemoryHealthResult.Unhealthy)
     }

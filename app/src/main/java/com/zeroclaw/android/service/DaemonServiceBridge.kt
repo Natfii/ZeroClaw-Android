@@ -327,29 +327,51 @@ class DaemonServiceBridge(
         val sqliteFiles = findSqliteFiles(workspace)
         val markdownFiles = findMemoryMarkdownFiles(workspace)
 
-        val staleFiles = when (configuredBackend) {
-            "sqlite" -> markdownFiles
-            "markdown" -> sqliteFiles
-            "none" -> sqliteFiles + markdownFiles
-            else -> emptyList()
-        }
+        val staleFiles =
+            when (configuredBackend) {
+                "sqlite" -> markdownFiles
+                "markdown" -> sqliteFiles
+                "none" -> sqliteFiles + markdownFiles
+                else -> emptyList()
+            }
 
         if (staleFiles.isEmpty()) return MemoryConflict.None
 
-        val staleBackend = when (configuredBackend) {
-            "sqlite" -> "markdown"
-            "markdown" -> "sqlite"
-            "none" -> if (sqliteFiles.isNotEmpty()) "sqlite" else "markdown"
-            else -> "unknown"
-        }
-
         return MemoryConflict.StaleData(
             currentBackend = configuredBackend,
-            staleBackend = staleBackend,
+            staleBackend =
+                resolveStaleBackend(
+                    configuredBackend,
+                    sqliteFiles,
+                    markdownFiles,
+                ),
             staleFileCount = staleFiles.size,
             staleSizeBytes = staleFiles.sumOf { it.length() },
         )
     }
+
+    /**
+     * Determines which stale backend label to use in a [MemoryConflict.StaleData].
+     *
+     * Returns `"both"` when the `"none"` backend has leftover files from
+     * both SQLite and Markdown.
+     */
+    private fun resolveStaleBackend(
+        configuredBackend: String,
+        sqliteFiles: List<File>,
+        markdownFiles: List<File>,
+    ): String =
+        when (configuredBackend) {
+            "sqlite" -> "markdown"
+            "markdown" -> "sqlite"
+            "none" ->
+                when {
+                    sqliteFiles.isNotEmpty() && markdownFiles.isNotEmpty() -> "both"
+                    sqliteFiles.isNotEmpty() -> "sqlite"
+                    else -> "markdown"
+                }
+            else -> "unknown"
+        }
 
     /**
      * Deletes stale memory backend files identified by a prior conflict scan.
@@ -364,6 +386,10 @@ class DaemonServiceBridge(
         when (conflict.staleBackend) {
             "sqlite" -> findSqliteFiles(workspace).forEach { it.delete() }
             "markdown" -> findMemoryMarkdownFiles(workspace).forEach { it.delete() }
+            "both" -> {
+                findSqliteFiles(workspace).forEach { it.delete() }
+                findMemoryMarkdownFiles(workspace).forEach { it.delete() }
+            }
         }
     }
 
@@ -387,25 +413,29 @@ class DaemonServiceBridge(
         if (configuredBackend == "none") return MemoryHealthResult.Healthy
 
         return try {
-            val targetDir = when (configuredBackend) {
-                "markdown" -> File("$dataDir/workspace/memory")
-                else -> File("$dataDir/workspace")
-            }
+            val targetDir =
+                when (configuredBackend) {
+                    "markdown" -> File("$dataDir/workspace/memory")
+                    else -> File("$dataDir/workspace")
+                }
             if (!targetDir.exists() && !targetDir.mkdirs()) {
                 return MemoryHealthResult.Unhealthy(
                     "Cannot create $configuredBackend storage directory",
                 )
             }
             val probe = File(targetDir, ".health_probe")
-            probe.writeText("ok")
-            val readBack = probe.readText()
-            probe.delete()
-            if (readBack == "ok") {
-                MemoryHealthResult.Healthy
-            } else {
-                MemoryHealthResult.Unhealthy(
-                    "Read-back mismatch in $configuredBackend storage",
-                )
+            try {
+                probe.writeText("ok")
+                val readBack = probe.readText()
+                if (readBack == "ok") {
+                    MemoryHealthResult.Healthy
+                } else {
+                    MemoryHealthResult.Unhealthy(
+                        "Read-back mismatch in $configuredBackend storage",
+                    )
+                }
+            } finally {
+                probe.delete()
             }
         } catch (e: Exception) {
             MemoryHealthResult.Unhealthy(
@@ -425,13 +455,17 @@ class DaemonServiceBridge(
      */
     private fun findSqliteFiles(workspace: File): List<File> {
         val extensions = setOf("db", "db-wal", "db-shm")
-        val rootFiles = workspace.listFiles()
-            ?.filter { it.isFile && it.extension in extensions }
-            .orEmpty()
+        val rootFiles =
+            workspace
+                .listFiles()
+                ?.filter { it.isFile && it.extension in extensions }
+                .orEmpty()
         val stateDir = File(workspace, "state")
-        val stateFiles = stateDir.listFiles()
-            ?.filter { it.isFile && it.extension in extensions }
-            .orEmpty()
+        val stateFiles =
+            stateDir
+                .listFiles()
+                ?.filter { it.isFile && it.extension in extensions }
+                .orEmpty()
         return rootFiles + stateFiles
     }
 
@@ -445,7 +479,8 @@ class DaemonServiceBridge(
     private fun findMemoryMarkdownFiles(workspace: File): List<File> {
         val memoryDir = File(workspace, "memory")
         if (!memoryDir.isDirectory) return emptyList()
-        return memoryDir.listFiles()
+        return memoryDir
+            .listFiles()
             ?.filter { it.isFile && it.extension == "md" }
             .orEmpty()
     }
