@@ -32,6 +32,7 @@ import com.zeroclaw.android.ui.screen.onboarding.state.MemoryStepState
 import com.zeroclaw.android.ui.screen.onboarding.state.ProviderStepState
 import com.zeroclaw.android.ui.screen.onboarding.state.SecurityStepState
 import com.zeroclaw.android.ui.screen.onboarding.state.TunnelStepState
+import com.zeroclaw.android.ui.screen.onboarding.state.WelcomeStepState
 import java.util.TimeZone
 import java.util.UUID
 import kotlinx.coroutines.Job
@@ -128,6 +129,11 @@ class OnboardingCoordinator(
         /** Total number of onboarding steps. */
         const val TOTAL_STEPS = 9
     }
+
+    private val _welcomeState = MutableStateFlow(WelcomeStepState())
+
+    /** Observable state for the welcome step. */
+    val welcomeState: StateFlow<WelcomeStepState> = _welcomeState.asStateFlow()
 
     private val _pinHash = MutableStateFlow("")
 
@@ -246,6 +252,15 @@ class OnboardingCoordinator(
         if (_currentStep.value > 0) {
             _currentStep.value--
         }
+    }
+
+    /**
+     * Marks the welcome step as acknowledged.
+     *
+     * Called when the user taps "Get Started" on the welcome screen.
+     */
+    fun acknowledgeWelcome() {
+        _welcomeState.value = _welcomeState.value.copy(acknowledged = true)
     }
 
     /**
@@ -1051,6 +1066,8 @@ class OnboardingCoordinator(
         val providerInfo = ProviderRegistry.findById(providerId) ?: return false
         if (providerInfo.modelListFormat == ModelListFormat.NONE) return false
         val probeResult = ModelFetcher.fetchModels(providerInfo, key, url)
-        return isDefinitiveAuthFailure(probeResult)
+        val failure = probeResult.exceptionOrNull() ?: return false
+        val msg = failure.message ?: ""
+        return "HTTP 401" in msg || "HTTP 403" in msg
     }
 }
