@@ -51,6 +51,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zeroclaw.android.model.ChannelType
 import com.zeroclaw.android.model.ConnectedChannel
 import com.zeroclaw.android.ui.component.EmptyState
+import com.zeroclaw.android.ui.component.setup.ChannelSelectionGrid
 
 /** Minimum touch target height in dp. */
 private const val MIN_TOUCH_TARGET_DP = 48
@@ -239,7 +240,10 @@ private fun ChannelListItem(
 /**
  * Dialog showing available channel types for adding a new channel.
  *
- * Already-configured types are disabled in the list.
+ * Uses [ChannelSelectionGrid] in single-select mode: tapping a channel type
+ * that is not already configured immediately triggers [onTypeSelected] and
+ * closes the dialog. Already-configured types display a checkmark indicator
+ * but can still be tapped to view their configuration.
  *
  * @param configuredTypes Set of channel types that are already configured.
  * @param onTypeSelected Callback when a type is selected.
@@ -251,30 +255,25 @@ private fun ChannelTypePickerDialog(
     onTypeSelected: (ChannelType) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    var pendingSelection by remember { mutableStateOf<Set<ChannelType>>(emptySet()) }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Add Channel") },
         text = {
-            Column {
-                @Suppress("DEPRECATION")
-                ChannelType.entries.filter { it != ChannelType.WEBHOOK }.forEach { type ->
-                    val isConfigured = type in configuredTypes
-                    TextButton(
-                        onClick = { onTypeSelected(type) },
-                        enabled = !isConfigured,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(
-                            text =
-                                if (isConfigured) {
-                                    "${type.displayName} (configured)"
-                                } else {
-                                    type.displayName
-                                },
-                        )
+            ChannelSelectionGrid(
+                selectedTypes = pendingSelection,
+                configuredTypes = configuredTypes,
+                onSelectionChanged = { updated ->
+                    val newlySelected = updated - configuredTypes - pendingSelection
+                    val target = newlySelected.firstOrNull()
+                    if (target != null) {
+                        onTypeSelected(target)
+                    } else {
+                        pendingSelection = updated - configuredTypes
                     }
-                }
-            }
+                },
+            )
         },
         confirmButton = {},
         dismissButton = {
