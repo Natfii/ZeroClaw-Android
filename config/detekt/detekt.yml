@@ -43,6 +43,7 @@ complexity:
       - "Composable"
   TooManyFunctions:
     active: true
+    thresholdInObjects: 15
     thresholdInClasses: 22
     thresholdInFiles: 23
     thresholdInInterfaces: 21
@@ -54,6 +55,10 @@ naming:
       - "Composable"
 
 style:
+  UnusedPrivateMember:
+    active: true
+    ignoreAnnotated:
+      - "Preview"
   MaxLineLength:
     active: false
   ForbiddenComment:

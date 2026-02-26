@@ -120,7 +120,9 @@ object ChannelValidator {
                 )
             }
             ValidationResult.Success(details = "Connected as @$username")
-        } catch (@Suppress("SwallowedException") e: Exception) {
+        } catch (
+            @Suppress("SwallowedException", "TooGenericExceptionCaught") e: Exception,
+        ) {
             ValidationResult.Offline(message = "Failed to parse response")
         }
     }
@@ -159,7 +161,9 @@ object ChannelValidator {
                 )
             }
             ValidationResult.Success(details = "Connected as $username")
-        } catch (@Suppress("SwallowedException") e: Exception) {
+        } catch (
+            @Suppress("SwallowedException", "TooGenericExceptionCaught") e: Exception,
+        ) {
             ValidationResult.Offline(message = "Failed to parse response")
         }
     }
@@ -205,7 +209,9 @@ object ChannelValidator {
                 )
             }
             ValidationResult.Success(details = "Connected to $team as $user")
-        } catch (@Suppress("SwallowedException") e: Exception) {
+        } catch (
+            @Suppress("SwallowedException", "TooGenericExceptionCaught") e: Exception,
+        ) {
             ValidationResult.Offline(message = "Failed to parse response")
         }
     }
@@ -244,7 +250,9 @@ object ChannelValidator {
                 )
             }
             ValidationResult.Success(details = "Connected as $userId")
-        } catch (@Suppress("SwallowedException") e: Exception) {
+        } catch (
+            @Suppress("SwallowedException", "TooGenericExceptionCaught") e: Exception,
+        ) {
             ValidationResult.Offline(message = "Failed to parse response")
         }
     }
@@ -255,8 +263,7 @@ object ChannelValidator {
      *
      * @return [ValidationResult.Success] with a deferred-validation message.
      */
-    internal fun classifyOtherChannel(): ValidationResult.Success =
-        ValidationResult.Success(details = DEFERRED_MESSAGE)
+    internal fun classifyOtherChannel(): ValidationResult.Success = ValidationResult.Success(details = DEFERRED_MESSAGE)
 
     /**
      * Validates a Telegram bot token by calling the `getMe` endpoint.
@@ -433,8 +440,7 @@ object ChannelValidator {
      * @param responseCode HTTP status code to check.
      * @return True if the code is 401 or 403.
      */
-    private fun isAuthError(responseCode: Int): Boolean =
-        responseCode == HTTP_UNAUTHORIZED || responseCode == HTTP_FORBIDDEN
+    private fun isAuthError(responseCode: Int): Boolean = responseCode == HTTP_UNAUTHORIZED || responseCode == HTTP_FORBIDDEN
 
     /** Upper bound (exclusive) for successful HTTP status codes. */
     private const val HTTP_REDIRECT_BOUNDARY = 300

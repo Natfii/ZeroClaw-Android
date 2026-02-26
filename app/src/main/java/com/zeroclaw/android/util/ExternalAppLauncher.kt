@@ -40,42 +40,46 @@ object ExternalAppLauncher {
      *
      * Falls back to the `t.me` web link when Telegram is not installed.
      */
-    val TELEGRAM_BOTFATHER = DeepLinkTarget(
-        uri = "tg://resolve?domain=BotFather",
-        fallbackUri = "https://t.me/BotFather",
-        label = "Open @BotFather",
-    )
+    val TELEGRAM_BOTFATHER =
+        DeepLinkTarget(
+            uri = "tg://resolve?domain=BotFather",
+            fallbackUri = "https://t.me/BotFather",
+            label = "Open @BotFather",
+        )
 
     /**
      * Opens the Telegram userinfobot conversation for retrieving the user's numeric ID.
      *
      * Falls back to the `t.me` web link when Telegram is not installed.
      */
-    val TELEGRAM_USERINFOBOT = DeepLinkTarget(
-        uri = "tg://resolve?domain=userinfobot",
-        fallbackUri = "https://t.me/userinfobot",
-        label = "Get My User ID",
-    )
+    val TELEGRAM_USERINFOBOT =
+        DeepLinkTarget(
+            uri = "tg://resolve?domain=userinfobot",
+            fallbackUri = "https://t.me/userinfobot",
+            label = "Get My User ID",
+        )
 
     /**
      * Opens the Discord Developer Portal applications page.
      *
      * No fallback is needed because this is already an HTTPS URL.
      */
-    val DISCORD_DEV_PORTAL = DeepLinkTarget(
-        uri = "https://discord.com/developers/applications",
-        label = "Open Developer Portal",
-    )
+    val DISCORD_DEV_PORTAL =
+        DeepLinkTarget(
+            uri = "https://discord.com/developers/applications",
+            label = "Open Developer Portal",
+        )
 
     /**
      * Opens the Slack App Console for creating and managing Slack apps.
      *
      * No fallback is needed because this is already an HTTPS URL.
      */
-    val SLACK_APP_CONSOLE = DeepLinkTarget(
-        uri = "https://api.slack.com/apps",
-        label = "Open Slack App Console",
-    )
+    val SLACK_APP_CONSOLE =
+        DeepLinkTarget(
+            uri = "https://api.slack.com/apps",
+            label = "Open Slack App Console",
+        )
 
     /**
      * Provider-ID-to-console-URL lookup for AI provider API-key pages.
@@ -83,36 +87,44 @@ object ExternalAppLauncher {
      * Each entry maps a ZeroClaw provider identifier to the web console
      * where the user can create or retrieve an API key.
      */
-    private val PROVIDER_CONSOLES: Map<String, DeepLinkTarget> = mapOf(
-        "openai" to DeepLinkTarget(
-            uri = "https://platform.openai.com/api-keys",
-            label = "Get OpenAI API Key",
-        ),
-        "anthropic" to DeepLinkTarget(
-            uri = "https://console.anthropic.com/settings/keys",
-            label = "Get Anthropic API Key",
-        ),
-        "openrouter" to DeepLinkTarget(
-            uri = "https://openrouter.ai/keys",
-            label = "Get OpenRouter API Key",
-        ),
-        "google_gemini" to DeepLinkTarget(
-            uri = "https://aistudio.google.com/apikey",
-            label = "Get Google AI API Key",
-        ),
-        "groq" to DeepLinkTarget(
-            uri = "https://console.groq.com/keys",
-            label = "Get Groq API Key",
-        ),
-        "together" to DeepLinkTarget(
-            uri = "https://api.together.xyz/settings/api-keys",
-            label = "Get Together API Key",
-        ),
-        "mistral" to DeepLinkTarget(
-            uri = "https://console.mistral.ai/api-keys",
-            label = "Get Mistral API Key",
-        ),
-    )
+    private val PROVIDER_CONSOLES: Map<String, DeepLinkTarget> =
+        mapOf(
+            "openai" to
+                DeepLinkTarget(
+                    uri = "https://platform.openai.com/api-keys",
+                    label = "Get OpenAI API Key",
+                ),
+            "anthropic" to
+                DeepLinkTarget(
+                    uri = "https://console.anthropic.com/settings/keys",
+                    label = "Get Anthropic API Key",
+                ),
+            "openrouter" to
+                DeepLinkTarget(
+                    uri = "https://openrouter.ai/keys",
+                    label = "Get OpenRouter API Key",
+                ),
+            "google_gemini" to
+                DeepLinkTarget(
+                    uri = "https://aistudio.google.com/apikey",
+                    label = "Get Google AI API Key",
+                ),
+            "groq" to
+                DeepLinkTarget(
+                    uri = "https://console.groq.com/keys",
+                    label = "Get Groq API Key",
+                ),
+            "together" to
+                DeepLinkTarget(
+                    uri = "https://api.together.xyz/settings/api-keys",
+                    label = "Get Together API Key",
+                ),
+            "mistral" to
+                DeepLinkTarget(
+                    uri = "https://console.mistral.ai/api-keys",
+                    label = "Get Mistral API Key",
+                ),
+        )
 
     /**
      * Returns the API-key console [DeepLinkTarget] for the given provider, or null
@@ -121,8 +133,7 @@ object ExternalAppLauncher {
      * @param providerId ZeroClaw provider identifier (e.g. `"openai"`, `"anthropic"`).
      * @return The console target, or null for unknown providers.
      */
-    fun providerConsoleTarget(providerId: String): DeepLinkTarget? =
-        PROVIDER_CONSOLES[providerId]
+    fun providerConsoleTarget(providerId: String): DeepLinkTarget? = PROVIDER_CONSOLES[providerId]
 
     /**
      * Launches an [Intent.ACTION_VIEW] for the given [target].
@@ -135,7 +146,10 @@ object ExternalAppLauncher {
      * @param context Android context used to start the activity.
      * @param target Deep-link destination to open.
      */
-    fun launch(context: Context, target: DeepLinkTarget) {
+    fun launch(
+        context: Context,
+        target: DeepLinkTarget,
+    ) {
         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(target.uri))
         try {
             context.startActivity(intent)
