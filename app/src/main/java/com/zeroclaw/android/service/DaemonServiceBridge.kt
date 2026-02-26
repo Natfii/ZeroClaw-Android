@@ -19,6 +19,7 @@ import com.zeroclaw.ffi.sendMessage
 import com.zeroclaw.ffi.startDaemon
 import com.zeroclaw.ffi.stopDaemon
 import java.io.File
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -114,6 +115,81 @@ class DaemonServiceBridge(
      * surface targeted recovery UI to the user.
      */
     val keyRejections: SharedFlow<KeyRejectionEvent> = _keyRejections.asSharedFlow()
+
+    private val _memoryConflict = MutableStateFlow<MemoryConflict?>(null)
+
+    /**
+     * Pending memory conflict that requires user acknowledgment before daemon startup.
+     *
+     * Non-null when [detectMemoryConflict] found stale artifacts and the daemon
+     * is waiting for the user to choose Delete or Keep. Cleared after the user
+     * responds via [resolveMemoryConflict].
+     */
+    val memoryConflict: StateFlow<MemoryConflict?> = _memoryConflict.asStateFlow()
+
+    private val _memoryHealthWarning = MutableStateFlow<String?>(null)
+
+    /**
+     * Warning message when the post-startup memory health check fails.
+     *
+     * Non-null when [checkMemoryHealth] returned [MemoryHealthResult.Unhealthy].
+     * Cleared by [dismissMemoryHealthWarning].
+     */
+    val memoryHealthWarning: StateFlow<String?> = _memoryHealthWarning.asStateFlow()
+
+    /**
+     * Deferred that the UI resolves when the user responds to the memory conflict dialog.
+     *
+     * `true` = delete stale data, `false` = keep. Null when no dialog is pending.
+     */
+    @Volatile
+    private var conflictDeferred: CompletableDeferred<Boolean>? = null
+
+    /**
+     * Emits a memory conflict for the UI to display and suspends until resolved.
+     *
+     * Called by [ZeroClawDaemonService] during startup when stale artifacts are
+     * detected. Returns `true` if the user chose to delete stale data.
+     *
+     * @param conflict The detected conflict descriptor.
+     * @return `true` if the user confirmed deletion, `false` to keep.
+     */
+    internal suspend fun awaitConflictResolution(conflict: MemoryConflict.StaleData): Boolean {
+        val deferred = CompletableDeferred<Boolean>()
+        conflictDeferred = deferred
+        _memoryConflict.value = conflict
+        return deferred.await()
+    }
+
+    /**
+     * Sets a post-startup memory health warning.
+     *
+     * Called by [ZeroClawDaemonService] when [checkMemoryHealth] returns
+     * [MemoryHealthResult.Unhealthy].
+     *
+     * @param reason Human-readable failure description.
+     */
+    internal fun setMemoryHealthWarning(reason: String) {
+        _memoryHealthWarning.value = reason
+    }
+
+    /**
+     * Called by the UI when the user responds to the memory conflict dialog.
+     *
+     * @param shouldDelete True to delete stale files, false to keep them.
+     */
+    fun resolveMemoryConflict(shouldDelete: Boolean) {
+        conflictDeferred?.complete(shouldDelete)
+        conflictDeferred = null
+        _memoryConflict.value = null
+    }
+
+    /**
+     * Dismisses the memory health warning banner.
+     */
+    fun dismissMemoryHealthWarning() {
+        _memoryHealthWarning.value = null
+    }
 
     /**
      * Starts the ZeroClaw daemon with the provided configuration.
