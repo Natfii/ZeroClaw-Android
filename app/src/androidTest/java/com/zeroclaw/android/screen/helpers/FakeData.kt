@@ -31,6 +31,8 @@ import com.zeroclaw.android.ui.screen.plugins.PluginsState
 import com.zeroclaw.android.ui.screen.plugins.SyncUiState
 import com.zeroclaw.android.ui.screen.settings.apikeys.ApiKeysState
 import com.zeroclaw.android.ui.screen.settings.doctor.DoctorState
+import com.zeroclaw.android.ui.screen.terminal.TerminalBlock
+import com.zeroclaw.android.ui.screen.terminal.TerminalState
 import com.zeroclaw.android.viewmodel.DaemonUiState
 
 /**
@@ -256,6 +258,26 @@ internal fun fakeProcessedImage(): ProcessedImage =
         height = 100,
         originalUri = "content://test/image1",
         displayName = "test-image.jpg",
+    )
+
+/**
+ * Creates a default [TerminalState] with a welcome system block.
+ *
+ * @return A terminal state containing a single system block.
+ */
+internal fun fakeTerminalState(): TerminalState =
+    TerminalState(
+        blocks =
+            listOf(
+                TerminalBlock.System(
+                    id = 1,
+                    timestamp = System.currentTimeMillis(),
+                    text = "ZeroClaw Terminal v0.0.29 \u2014 Type /help for commands",
+                ),
+            ),
+        isLoading = false,
+        pendingImages = emptyList(),
+        isProcessingImages = false,
     )
 
 /**
