@@ -15,7 +15,7 @@ use crate::error::FfiError;
 use crate::gateway_client;
 
 /// Aggregated cost summary across session, day, and month.
-#[derive(Debug, Clone, uniffi::Record)]
+#[derive(Debug, Clone, serde::Serialize, uniffi::Record)]
 pub struct FfiCostSummary {
     /// Total cost for the current session in USD.
     pub session_cost_usd: f64,
@@ -32,7 +32,7 @@ pub struct FfiCostSummary {
 }
 
 /// Budget check result.
-#[derive(Debug, Clone, uniffi::Enum)]
+#[derive(Debug, Clone, serde::Serialize, uniffi::Enum)]
 pub enum FfiBudgetStatus {
     /// Within budget limits.
     Allowed,

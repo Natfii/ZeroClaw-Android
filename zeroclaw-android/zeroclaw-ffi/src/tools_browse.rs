@@ -16,7 +16,7 @@ use crate::error::FfiError;
 ///
 /// Contains metadata about a tool without the actual tool instance, making
 /// it safe and lightweight for FFI transfer.
-#[derive(Debug, Clone, uniffi::Record)]
+#[derive(Debug, Clone, serde::Serialize, uniffi::Record)]
 pub struct FfiToolSpec {
     /// Unique tool name (e.g. `"shell"`, `"file_read"`).
     pub name: String,

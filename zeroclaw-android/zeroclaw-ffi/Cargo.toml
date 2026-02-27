@@ -29,3 +29,4 @@ anyhow = "1.0"
 toml = "0.8"
 tracing = "0.1"
 chrono = "0.4"
+rhai = { version = "1.21", features = ["sync"] }

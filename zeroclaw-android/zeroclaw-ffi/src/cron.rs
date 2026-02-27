@@ -17,7 +17,7 @@ use crate::gateway_client;
 ///
 /// Fields are parsed from the gateway JSON response rather than the
 /// upstream `CronJob` struct (which is no longer accessible).
-#[derive(Debug, Clone, uniffi::Record)]
+#[derive(Debug, Clone, serde::Serialize, uniffi::Record)]
 pub struct FfiCronJob {
     /// Unique identifier for this job.
     pub id: String,
