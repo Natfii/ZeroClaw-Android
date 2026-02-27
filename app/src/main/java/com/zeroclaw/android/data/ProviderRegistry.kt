@@ -89,7 +89,7 @@ object ProviderRegistry {
                 modelListFormat = ModelListFormat.OPENAI_COMPATIBLE,
                 keyCreationUrl = "https://platform.openai.com/api-keys",
                 keyPrefix = "sk-",
-                keyPrefixHint = "Keys start with sk-",
+                keyPrefixHint = "Keys start with sk- (usually sk-proj-...)",
                 helpText = "Requires billing. Free \$5 credit for new accounts",
             ),
             ProviderInfo(
