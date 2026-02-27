@@ -14,6 +14,7 @@ import com.zeroclaw.android.ZeroClawApplication
 import com.zeroclaw.android.model.AppSettings
 import com.zeroclaw.android.model.LogSeverity
 import com.zeroclaw.android.model.ProcessedImage
+import com.zeroclaw.android.model.RefreshCommand
 import com.zeroclaw.android.model.TerminalEntry
 import com.zeroclaw.android.util.ErrorSanitizer
 import com.zeroclaw.android.util.ImageProcessor
@@ -225,6 +226,7 @@ class TerminalViewModel(
                         rawResult.trim().ifBlank { EMPTY_RESPONSE_FALLBACK }
                     }
                 repository.append(content = displayResult, entryType = ENTRY_TYPE_RESPONSE)
+                emitRefreshIfNeeded(expression)
             } catch (e: FfiException) {
                 val sanitized = ErrorSanitizer.sanitizeForUi(e)
                 logRepository.append(LogSeverity.ERROR, TAG, "REPL eval failed: $sanitized")
@@ -351,6 +353,7 @@ class TerminalViewModel(
                     rawResult.trim().ifBlank { EMPTY_RESPONSE_FALLBACK }
                 }
             repository.append(content = displayResult, entryType = ENTRY_TYPE_RESPONSE)
+            emitRefreshIfNeeded(expression)
         } catch (e: FfiException) {
             val sanitized = ErrorSanitizer.sanitizeForUi(e)
             logRepository.append(LogSeverity.ERROR, TAG, "REPL eval failed: $sanitized")
@@ -419,6 +422,31 @@ class TerminalViewModel(
         val imageArray = images.joinToString(", ") { "\"${it.base64Data}\"" }
         val mimeArray = images.joinToString(", ") { "\"${it.mimeType}\"" }
         return "send_vision(\"$escapedText\", [$imageArray], [$mimeArray])"
+    }
+
+    /**
+     * Emits a [RefreshCommand] to trigger immediate data refresh in other
+     * ViewModels after a successful mutating REPL command.
+     *
+     * @param expression The Rhai expression that was successfully evaluated.
+     */
+    private fun emitRefreshIfNeeded(expression: String) {
+        val command =
+            when {
+                expression.startsWith("cron_add(") ||
+                    expression.startsWith("cron_oneshot(") ||
+                    expression.startsWith("cron_remove(") ||
+                    expression.startsWith("cron_pause(") ||
+                    expression.startsWith("cron_resume(") -> RefreshCommand.Cron
+                expression.startsWith("send(") ||
+                    expression.startsWith("send_vision(") -> RefreshCommand.Cost
+                expression.startsWith("skill_install(") ||
+                    expression.startsWith("skill_remove(") -> RefreshCommand.Health
+                else -> null
+            }
+        if (command != null) {
+            app.refreshCommands.tryEmit(command)
+        }
     }
 
     /** Constants for [TerminalViewModel]. */

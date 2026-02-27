@@ -45,6 +45,7 @@ import com.zeroclaw.android.data.repository.RoomPluginRepository
 import com.zeroclaw.android.data.repository.RoomTerminalEntryRepository
 import com.zeroclaw.android.data.repository.SettingsRepository
 import com.zeroclaw.android.data.repository.TerminalEntryRepository
+import com.zeroclaw.android.model.RefreshCommand
 import com.zeroclaw.android.service.CostBridge
 import com.zeroclaw.android.service.CronBridge
 import com.zeroclaw.android.service.DaemonServiceBridge
@@ -62,6 +63,8 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import okhttp3.ConnectionPool
 import okhttp3.OkHttpClient
@@ -169,6 +172,19 @@ class ZeroClawApplication :
     /** App-wide session lock manager observing the process lifecycle. */
     lateinit var sessionLockManager: SessionLockManager
         private set
+
+    /**
+     * Event bus for triggering immediate data refresh across ViewModels.
+     *
+     * The terminal REPL emits commands here after mutating operations
+     * (cron add, skill install, etc.) so that the Dashboard and other
+     * screens update without waiting for the next poll cycle.
+     */
+    val refreshCommands: MutableSharedFlow<RefreshCommand> =
+        MutableSharedFlow(
+            extraBufferCapacity = 1,
+            onBufferOverflow = BufferOverflow.DROP_OLDEST,
+        )
 
     /**
      * Shared [OkHttpClient] for all HTTP callers within the app.
