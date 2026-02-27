@@ -104,15 +104,17 @@ class TerminalScreenTest {
 
     @Test
     fun errorBlock_showsErrorPrefix() {
-        val state = fakeTerminalState().copy(
-            blocks = listOf(
-                TerminalBlock.Error(
-                    id = 2,
-                    timestamp = System.currentTimeMillis(),
-                    message = "Connection refused",
-                ),
-            ),
-        )
+        val state =
+            fakeTerminalState().copy(
+                blocks =
+                    listOf(
+                        TerminalBlock.Error(
+                            id = 2,
+                            timestamp = System.currentTimeMillis(),
+                            message = "Connection refused",
+                        ),
+                    ),
+            )
         composeTestRule.setContent {
             TerminalContent(
                 state = state,

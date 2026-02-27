@@ -28,12 +28,13 @@ class TerminalViewModelTest {
         @Test
         @DisplayName("maps input entry to Input block")
         fun `maps input entry to Input block`() {
-            val entry = TerminalEntry(
-                id = 1,
-                content = "/status",
-                entryType = "input",
-                timestamp = 1000L,
-            )
+            val entry =
+                TerminalEntry(
+                    id = 1,
+                    content = "/status",
+                    entryType = "input",
+                    timestamp = 1000L,
+                )
             val block = TerminalViewModel.toBlock(entry)
             assertTrue(block is TerminalBlock.Input)
             assertEquals("/status", (block as TerminalBlock.Input).text)
@@ -44,12 +45,13 @@ class TerminalViewModelTest {
         @Test
         @DisplayName("maps response entry to Response block")
         fun `maps response entry to Response block`() {
-            val entry = TerminalEntry(
-                id = 2,
-                content = "Daemon is running",
-                entryType = "response",
-                timestamp = 2000L,
-            )
+            val entry =
+                TerminalEntry(
+                    id = 2,
+                    content = "Daemon is running",
+                    entryType = "response",
+                    timestamp = 2000L,
+                )
             val block = TerminalViewModel.toBlock(entry)
             assertTrue(block is TerminalBlock.Response)
             assertEquals("Daemon is running", (block as TerminalBlock.Response).content)
@@ -59,12 +61,13 @@ class TerminalViewModelTest {
         @DisplayName("maps JSON response to Structured block")
         fun `maps JSON response to Structured block`() {
             val json = """{"daemon_running": true, "uptime": 3600}"""
-            val entry = TerminalEntry(
-                id = 3,
-                content = json,
-                entryType = "response",
-                timestamp = 3000L,
-            )
+            val entry =
+                TerminalEntry(
+                    id = 3,
+                    content = json,
+                    entryType = "response",
+                    timestamp = 3000L,
+                )
             val block = TerminalViewModel.toBlock(entry)
             assertTrue(block is TerminalBlock.Structured)
             assertEquals(json, (block as TerminalBlock.Structured).json)
@@ -74,12 +77,13 @@ class TerminalViewModelTest {
         @DisplayName("maps array response to Structured block")
         fun `maps array response to Structured block`() {
             val json = """[{"name": "skill-1"}]"""
-            val entry = TerminalEntry(
-                id = 4,
-                content = json,
-                entryType = "response",
-                timestamp = 4000L,
-            )
+            val entry =
+                TerminalEntry(
+                    id = 4,
+                    content = json,
+                    entryType = "response",
+                    timestamp = 4000L,
+                )
             val block = TerminalViewModel.toBlock(entry)
             assertTrue(block is TerminalBlock.Structured)
         }
@@ -87,12 +91,13 @@ class TerminalViewModelTest {
         @Test
         @DisplayName("maps error entry to Error block")
         fun `maps error entry to Error block`() {
-            val entry = TerminalEntry(
-                id = 5,
-                content = "Connection refused",
-                entryType = "error",
-                timestamp = 5000L,
-            )
+            val entry =
+                TerminalEntry(
+                    id = 5,
+                    content = "Connection refused",
+                    entryType = "error",
+                    timestamp = 5000L,
+                )
             val block = TerminalViewModel.toBlock(entry)
             assertTrue(block is TerminalBlock.Error)
             assertEquals("Connection refused", (block as TerminalBlock.Error).message)
@@ -101,12 +106,13 @@ class TerminalViewModelTest {
         @Test
         @DisplayName("maps system entry to System block")
         fun `maps system entry to System block`() {
-            val entry = TerminalEntry(
-                id = 6,
-                content = "ZeroClaw Terminal v0.0.29",
-                entryType = "system",
-                timestamp = 6000L,
-            )
+            val entry =
+                TerminalEntry(
+                    id = 6,
+                    content = "ZeroClaw Terminal v0.0.29",
+                    entryType = "system",
+                    timestamp = 6000L,
+                )
             val block = TerminalViewModel.toBlock(entry)
             assertTrue(block is TerminalBlock.System)
             assertEquals("ZeroClaw Terminal v0.0.29", (block as TerminalBlock.System).text)
@@ -115,12 +121,13 @@ class TerminalViewModelTest {
         @Test
         @DisplayName("maps unknown entry type to System block")
         fun `maps unknown entry type to System block`() {
-            val entry = TerminalEntry(
-                id = 7,
-                content = "Unknown type",
-                entryType = "unknown",
-                timestamp = 7000L,
-            )
+            val entry =
+                TerminalEntry(
+                    id = 7,
+                    content = "Unknown type",
+                    entryType = "unknown",
+                    timestamp = 7000L,
+                )
             val block = TerminalViewModel.toBlock(entry)
             assertTrue(block is TerminalBlock.System)
         }
@@ -128,13 +135,14 @@ class TerminalViewModelTest {
         @Test
         @DisplayName("maps input entry with image URIs to Input block with image names")
         fun `maps input entry with image URIs to Input block with image names`() {
-            val entry = TerminalEntry(
-                id = 8,
-                content = "describe this",
-                entryType = "input",
-                timestamp = 8000L,
-                imageUris = listOf("content://media/external/images/photo.jpg"),
-            )
+            val entry =
+                TerminalEntry(
+                    id = 8,
+                    content = "describe this",
+                    entryType = "input",
+                    timestamp = 8000L,
+                    imageUris = listOf("content://media/external/images/photo.jpg"),
+                )
             val block = TerminalViewModel.toBlock(entry)
             assertTrue(block is TerminalBlock.Input)
             val inputBlock = block as TerminalBlock.Input

@@ -57,9 +57,9 @@ class TerminalViewModel(
         settingsRepository.settings
             .stateIn(viewModelScope, SharingStarted.Eagerly, AppSettings())
 
-    private val _isLoading = MutableStateFlow(false)
-    private val _pendingImages = MutableStateFlow<List<ProcessedImage>>(emptyList())
-    private val _isProcessingImages = MutableStateFlow(false)
+    private val loadingState = MutableStateFlow(false)
+    private val pendingImagesState = MutableStateFlow<List<ProcessedImage>>(emptyList())
+    private val processingImagesState = MutableStateFlow(false)
     private val _history = MutableStateFlow<List<String>>(emptyList())
     private val _historyIndex = MutableStateFlow(NO_HISTORY_SELECTION)
 
@@ -67,9 +67,9 @@ class TerminalViewModel(
     val state: StateFlow<TerminalState> =
         combine(
             repository.entries,
-            _isLoading,
-            _pendingImages,
-            _isProcessingImages,
+            loadingState,
+            pendingImagesState,
+            processingImagesState,
         ) { entries, loading, images, processingImages ->
             TerminalState(
                 blocks = entries.map(::toBlock),
@@ -104,7 +104,7 @@ class TerminalViewModel(
      */
     fun submitInput(text: String) {
         val trimmed = text.trim()
-        if (trimmed.isEmpty() && _pendingImages.value.isEmpty()) return
+        if (trimmed.isEmpty() && pendingImagesState.value.isEmpty()) return
 
         appendToHistory(trimmed)
         _historyIndex.value = NO_HISTORY_SELECTION
@@ -126,11 +126,12 @@ class TerminalViewModel(
         val items = _history.value
         if (items.isEmpty()) return null
         val current = _historyIndex.value
-        val newIndex = if (current == NO_HISTORY_SELECTION) {
-            items.lastIndex
-        } else {
-            (current - 1).coerceAtLeast(0)
-        }
+        val newIndex =
+            if (current == NO_HISTORY_SELECTION) {
+                items.lastIndex
+            } else {
+                (current - 1).coerceAtLeast(0)
+            }
         _historyIndex.value = newIndex
         return items[newIndex]
     }
@@ -165,14 +166,14 @@ class TerminalViewModel(
     fun attachImages(uris: List<Uri>) {
         if (uris.isEmpty()) return
         viewModelScope.launch {
-            _isProcessingImages.value = true
+            processingImagesState.value = true
             try {
                 val contentResolver = app.contentResolver
                 val processed = ImageProcessor.process(contentResolver, uris)
-                val current = _pendingImages.value
-                _pendingImages.value = (current + processed).take(MAX_IMAGES)
+                val current = pendingImagesState.value
+                pendingImagesState.value = (current + processed).take(MAX_IMAGES)
             } finally {
-                _isProcessingImages.value = false
+                processingImagesState.value = false
             }
         }
     }
@@ -183,9 +184,9 @@ class TerminalViewModel(
      * @param index Zero-based index into the pending images list.
      */
     fun removeImage(index: Int) {
-        val current = _pendingImages.value
+        val current = pendingImagesState.value
         if (index in current.indices) {
-            _pendingImages.value = current.toMutableList().apply { removeAt(index) }
+            pendingImagesState.value = current.toMutableList().apply { removeAt(index) }
         }
     }
 
@@ -204,22 +205,25 @@ class TerminalViewModel(
         displayText: String,
         expression: String,
     ) {
-        _isLoading.value = true
+        loadingState.value = true
         viewModelScope.launch {
             repository.append(content = displayText, entryType = ENTRY_TYPE_INPUT)
             try {
-                val rawResult = withContext(Dispatchers.IO) {
-                    evalRepl(expression)
-                }
+                val rawResult =
+                    withContext(Dispatchers.IO) {
+                        evalRepl(expression)
+                    }
                 val cleaned = stripToolCallTags(rawResult)
-                val result = if (cachedSettings.value.stripThinkingTags) {
-                    stripThinkingTags(cleaned)
-                } else {
-                    cleaned
-                }
-                val displayResult = result.ifBlank {
-                    rawResult.trim().ifBlank { EMPTY_RESPONSE_FALLBACK }
-                }
+                val result =
+                    if (cachedSettings.value.stripThinkingTags) {
+                        stripThinkingTags(cleaned)
+                    } else {
+                        cleaned
+                    }
+                val displayResult =
+                    result.ifBlank {
+                        rawResult.trim().ifBlank { EMPTY_RESPONSE_FALLBACK }
+                    }
                 repository.append(content = displayResult, entryType = ENTRY_TYPE_RESPONSE)
             } catch (e: FfiException) {
                 val sanitized = ErrorSanitizer.sanitizeForUi(e)
@@ -230,7 +234,7 @@ class TerminalViewModel(
                 logRepository.append(LogSeverity.ERROR, TAG, "REPL eval failed: $sanitized")
                 repository.append(content = sanitized, entryType = ENTRY_TYPE_ERROR)
             } finally {
-                _isLoading.value = false
+                loadingState.value = false
             }
         }
     }
@@ -238,7 +242,7 @@ class TerminalViewModel(
     /**
      * Wraps a chat message in a Rhai `send()` or `send_vision()` call and evaluates it.
      *
-     * When [_pendingImages] is non-empty, builds a `send_vision(text, images, mimes)`
+     * When [pendingImagesState] is non-empty, builds a `send_vision(text, images, mimes)`
      * expression with base64-encoded image data. Otherwise builds a simple
      * `send(text)` expression.
      *
@@ -249,17 +253,18 @@ class TerminalViewModel(
         displayText: String,
         escapedText: String,
     ) {
-        val images = _pendingImages.value
-        _pendingImages.value = emptyList()
+        val images = pendingImagesState.value
+        pendingImagesState.value = emptyList()
 
-        val expression = if (images.isNotEmpty()) {
-            buildVisionExpression(escapedText, images)
-        } else {
-            "send(\"$escapedText\")"
-        }
+        val expression =
+            if (images.isNotEmpty()) {
+                buildVisionExpression(escapedText, images)
+            } else {
+                "send(\"$escapedText\")"
+            }
 
         val inputImageUris = images.map { it.originalUri }
-        _isLoading.value = true
+        loadingState.value = true
         viewModelScope.launch {
             repository.append(
                 content = displayText,
@@ -288,21 +293,23 @@ class TerminalViewModel(
     private fun showHelp() {
         viewModelScope.launch {
             repository.append(content = "/help", entryType = ENTRY_TYPE_INPUT)
-            val helpText = buildString {
-                appendLine("Available commands:")
-                appendLine()
-                for (command in CommandRegistry.commands) {
-                    val usage = if (command.usage.isNotEmpty()) {
-                        " ${command.usage}"
-                    } else {
-                        ""
+            val helpText =
+                buildString {
+                    appendLine("Available commands:")
+                    appendLine()
+                    for (command in CommandRegistry.commands) {
+                        val usage =
+                            if (command.usage.isNotEmpty()) {
+                                " ${command.usage}"
+                            } else {
+                                ""
+                            }
+                        appendLine("  /${command.name}$usage")
+                        appendLine("    ${command.description}")
                     }
-                    appendLine("  /${command.name}$usage")
-                    appendLine("    ${command.description}")
+                    appendLine()
+                    append("Any other input is sent as a chat message.")
                 }
-                appendLine()
-                append("Any other input is sent as a chat message.")
-            }
             repository.append(content = helpText, entryType = ENTRY_TYPE_SYSTEM)
         }
     }
@@ -328,18 +335,21 @@ class TerminalViewModel(
     @Suppress("TooGenericExceptionCaught")
     private suspend fun executeRhaiExpression(expression: String) {
         try {
-            val rawResult = withContext(Dispatchers.IO) {
-                evalRepl(expression)
-            }
+            val rawResult =
+                withContext(Dispatchers.IO) {
+                    evalRepl(expression)
+                }
             val cleaned = stripToolCallTags(rawResult)
-            val result = if (cachedSettings.value.stripThinkingTags) {
-                stripThinkingTags(cleaned)
-            } else {
-                cleaned
-            }
-            val displayResult = result.ifBlank {
-                rawResult.trim().ifBlank { EMPTY_RESPONSE_FALLBACK }
-            }
+            val result =
+                if (cachedSettings.value.stripThinkingTags) {
+                    stripThinkingTags(cleaned)
+                } else {
+                    cleaned
+                }
+            val displayResult =
+                result.ifBlank {
+                    rawResult.trim().ifBlank { EMPTY_RESPONSE_FALLBACK }
+                }
             repository.append(content = displayResult, entryType = ENTRY_TYPE_RESPONSE)
         } catch (e: FfiException) {
             val sanitized = ErrorSanitizer.sanitizeForUi(e)
@@ -350,7 +360,7 @@ class TerminalViewModel(
             logRepository.append(LogSeverity.ERROR, TAG, "REPL eval failed: $sanitized")
             repository.append(content = sanitized, entryType = ENTRY_TYPE_ERROR)
         } finally {
-            _isLoading.value = false
+            loadingState.value = false
         }
     }
 
@@ -360,16 +370,17 @@ class TerminalViewModel(
     @Suppress("TooGenericExceptionCaught")
     private fun addWelcomeMessage() {
         viewModelScope.launch {
-            val version = try {
-                getVersion()
-            } catch (e: Exception) {
-                logRepository.append(
-                    LogSeverity.WARN,
-                    TAG,
-                    "Failed to read version: ${e.message}",
-                )
-                "unknown"
-            }
+            val version =
+                try {
+                    getVersion()
+                } catch (e: Exception) {
+                    logRepository.append(
+                        LogSeverity.WARN,
+                        TAG,
+                        "Failed to read version: ${e.message}",
+                    )
+                    "unknown"
+                }
             repository.append(
                 content = "ZeroClaw Terminal v$version — Type /help for commands",
                 entryType = ENTRY_TYPE_SYSTEM,
@@ -473,8 +484,7 @@ class TerminalViewModel(
          * @param text Raw model response.
          * @return Response with thinking blocks removed and whitespace trimmed.
          */
-        fun stripThinkingTags(text: String): String =
-            text.replace(THINKING_TAG_REGEX, "").trim()
+        fun stripThinkingTags(text: String): String = text.replace(THINKING_TAG_REGEX, "").trim()
 
         /**
          * Removes tool-call markup from a model response.
@@ -486,8 +496,7 @@ class TerminalViewModel(
          * @param text Raw model response.
          * @return Response with tool-call blocks removed and whitespace trimmed.
          */
-        fun stripToolCallTags(text: String): String =
-            text.replace(TOOL_CALL_TAG_REGEX, "").trim()
+        fun stripToolCallTags(text: String): String = text.replace(TOOL_CALL_TAG_REGEX, "").trim()
 
         /**
          * Maps a persisted [TerminalEntry] to a display [TerminalBlock].
@@ -500,14 +509,16 @@ class TerminalViewModel(
          */
         fun toBlock(entry: TerminalEntry): TerminalBlock =
             when (entry.entryType) {
-                ENTRY_TYPE_INPUT -> TerminalBlock.Input(
-                    id = entry.id,
-                    timestamp = entry.timestamp,
-                    text = entry.content,
-                    imageNames = entry.imageUris.map { uri ->
-                        uri.substringAfterLast('/')
-                    },
-                )
+                ENTRY_TYPE_INPUT ->
+                    TerminalBlock.Input(
+                        id = entry.id,
+                        timestamp = entry.timestamp,
+                        text = entry.content,
+                        imageNames =
+                            entry.imageUris.map { uri ->
+                                uri.substringAfterLast('/')
+                            },
+                    )
                 ENTRY_TYPE_RESPONSE -> {
                     val trimmed = entry.content.trimStart()
                     if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
@@ -524,16 +535,18 @@ class TerminalViewModel(
                         )
                     }
                 }
-                ENTRY_TYPE_ERROR -> TerminalBlock.Error(
-                    id = entry.id,
-                    timestamp = entry.timestamp,
-                    message = entry.content,
-                )
-                else -> TerminalBlock.System(
-                    id = entry.id,
-                    timestamp = entry.timestamp,
-                    text = entry.content,
-                )
+                ENTRY_TYPE_ERROR ->
+                    TerminalBlock.Error(
+                        id = entry.id,
+                        timestamp = entry.timestamp,
+                        message = entry.content,
+                    )
+                else ->
+                    TerminalBlock.System(
+                        id = entry.id,
+                        timestamp = entry.timestamp,
+                        text = entry.content,
+                    )
             }
     }
 }
