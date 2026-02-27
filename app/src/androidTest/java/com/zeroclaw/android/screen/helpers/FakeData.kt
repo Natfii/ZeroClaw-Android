@@ -12,7 +12,6 @@ import com.zeroclaw.android.model.ActivityType
 import com.zeroclaw.android.model.Agent
 import com.zeroclaw.android.model.ApiKey
 import com.zeroclaw.android.model.AppSettings
-import com.zeroclaw.android.model.ChatMessage
 import com.zeroclaw.android.model.CheckStatus
 import com.zeroclaw.android.model.CostSummary
 import com.zeroclaw.android.model.CronJob
@@ -26,7 +25,6 @@ import com.zeroclaw.android.model.PluginCategory
 import com.zeroclaw.android.model.ProcessedImage
 import com.zeroclaw.android.model.ServiceState
 import com.zeroclaw.android.ui.screen.agents.AgentsState
-import com.zeroclaw.android.ui.screen.console.ConsoleState
 import com.zeroclaw.android.ui.screen.dashboard.DashboardState
 import com.zeroclaw.android.ui.screen.onboarding.OnboardingState
 import com.zeroclaw.android.ui.screen.plugins.PluginsState
@@ -144,31 +142,6 @@ internal fun fakeAgentsState(): AgentsState =
                 ),
             ),
         searchQuery = "",
-    )
-
-/**
- * Creates a default [ConsoleState] with sample messages.
- *
- * @return A console state with one user and one daemon message.
- */
-internal fun fakeConsoleState(): ConsoleState =
-    ConsoleState(
-        messages =
-            listOf(
-                ChatMessage(
-                    id = 1,
-                    content = "Hello",
-                    isFromUser = true,
-                ),
-                ChatMessage(
-                    id = 2,
-                    content = "Hello! How can I help?",
-                    isFromUser = false,
-                ),
-            ),
-        isLoading = false,
-        pendingImages = emptyList(),
-        isProcessingImages = false,
     )
 
 /**
