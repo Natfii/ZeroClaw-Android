@@ -51,6 +51,18 @@ fn build_engine() -> Engine {
     let mut engine = Engine::new_raw();
     engine.register_global_module(CorePackage::new().as_shared_module());
 
+    // ── Sandbox limits (defence-in-depth) ────────────────────────
+    //
+    // `Engine::new_raw()` already excludes filesystem, network, and OS
+    // access. These limits prevent resource exhaustion from malicious or
+    // accidental user expressions (infinite loops, huge allocations).
+    engine.set_max_operations(100_000);
+    engine.set_max_expr_depths(32, 16);
+    engine.set_max_string_size(64 * 1024);
+    engine.set_max_array_size(1_024);
+    engine.set_max_map_size(256);
+    engine.set_max_call_levels(16);
+
     // ── Lifecycle ────────────────────────────────────────────────
 
     engine.register_fn("status", || -> Result<String, Box<EvalAltResult>> {
@@ -455,5 +467,24 @@ mod tests {
     fn test_dynamic_to_string_float() {
         let result = dynamic_to_string(Dynamic::from_float(1.23));
         assert!(result.starts_with("1.23"));
+    }
+
+    #[test]
+    fn test_sandbox_blocks_infinite_loop() {
+        let result = eval_repl_inner("loop { }".into());
+        assert!(
+            result.is_err(),
+            "infinite loop must be terminated by sandbox"
+        );
+    }
+
+    #[test]
+    fn test_sandbox_blocks_deep_recursion() {
+        let expr = r"fn recurse(n) { recurse(n + 1) } recurse(0)";
+        let result = eval_repl_inner(expr.into());
+        assert!(
+            result.is_err(),
+            "deep recursion must be terminated by sandbox"
+        );
     }
 }
