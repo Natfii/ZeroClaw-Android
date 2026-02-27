@@ -17,6 +17,7 @@ import com.zeroclaw.android.model.LogEntry
 import com.zeroclaw.android.model.LogSeverity
 import com.zeroclaw.android.model.Plugin
 import com.zeroclaw.android.model.PluginCategory
+import com.zeroclaw.android.model.TerminalEntry
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -240,6 +241,36 @@ private fun deserializeConfigMap(json: String): Map<String, String> =
 private fun deserializeSeverity(name: String): LogSeverity =
     runCatching { LogSeverity.valueOf(name) }
         .getOrDefault(LogSeverity.INFO)
+
+/**
+ * Converts a [TerminalEntryEntity] to its domain [TerminalEntry] model.
+ *
+ * @receiver The Room entity to convert.
+ * @return The equivalent domain model with deserialized image URIs.
+ */
+fun TerminalEntryEntity.toModel(): TerminalEntry =
+    TerminalEntry(
+        id = id,
+        content = content,
+        entryType = entryType,
+        timestamp = timestamp,
+        imageUris = deserializeImageUris(imageUris),
+    )
+
+/**
+ * Converts a [TerminalEntry] domain model to its [TerminalEntryEntity] for persistence.
+ *
+ * @receiver The domain model to convert.
+ * @return The equivalent Room entity with serialized image URIs.
+ */
+fun TerminalEntry.toEntity(): TerminalEntryEntity =
+    TerminalEntryEntity(
+        id = id,
+        content = content,
+        entryType = entryType,
+        timestamp = timestamp,
+        imageUris = if (imageUris.isEmpty()) "[]" else mapperJson.encodeToString(imageUris),
+    )
 
 /**
  * Converts a [ConnectedChannelEntity] to its domain [ConnectedChannel] model.

@@ -41,8 +41,10 @@ import com.zeroclaw.android.data.repository.RoomAgentRepository
 import com.zeroclaw.android.data.repository.RoomChannelConfigRepository
 import com.zeroclaw.android.data.repository.RoomChatMessageRepository
 import com.zeroclaw.android.data.repository.RoomLogRepository
+import com.zeroclaw.android.data.repository.RoomTerminalEntryRepository
 import com.zeroclaw.android.data.repository.RoomPluginRepository
 import com.zeroclaw.android.data.repository.SettingsRepository
+import com.zeroclaw.android.data.repository.TerminalEntryRepository
 import com.zeroclaw.android.service.CostBridge
 import com.zeroclaw.android.service.CronBridge
 import com.zeroclaw.android.service.DaemonServiceBridge
@@ -129,6 +131,10 @@ class ZeroClawApplication :
     lateinit var chatMessageRepository: ChatMessageRepository
         private set
 
+    /** Terminal REPL entry repository backed by Room. */
+    lateinit var terminalEntryRepository: TerminalEntryRepository
+        private set
+
     /** Bridge for structured health detail FFI calls. */
     lateinit var healthBridge: HealthBridge
         private set
@@ -206,6 +212,8 @@ class ZeroClawApplication :
         pluginRepository = RoomPluginRepository(database.pluginDao())
         channelConfigRepository = createChannelConfigRepository()
         chatMessageRepository = RoomChatMessageRepository(database.chatMessageDao(), ioScope)
+        terminalEntryRepository =
+            RoomTerminalEntryRepository(database.terminalEntryDao(), ioScope)
         healthBridge = HealthBridge()
         costBridge = CostBridge()
         cronBridge = CronBridge()

@@ -18,12 +18,14 @@ import com.zeroclaw.android.data.local.dao.ChatMessageDao
 import com.zeroclaw.android.data.local.dao.ConnectedChannelDao
 import com.zeroclaw.android.data.local.dao.LogEntryDao
 import com.zeroclaw.android.data.local.dao.PluginDao
+import com.zeroclaw.android.data.local.dao.TerminalEntryDao
 import com.zeroclaw.android.data.local.entity.ActivityEventEntity
 import com.zeroclaw.android.data.local.entity.AgentEntity
 import com.zeroclaw.android.data.local.entity.ChatMessageEntity
 import com.zeroclaw.android.data.local.entity.ConnectedChannelEntity
 import com.zeroclaw.android.data.local.entity.LogEntryEntity
 import com.zeroclaw.android.data.local.entity.PluginEntity
+import com.zeroclaw.android.data.local.entity.TerminalEntryEntity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
@@ -48,8 +50,9 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
         ActivityEventEntity::class,
         ConnectedChannelEntity::class,
         ChatMessageEntity::class,
+        TerminalEntryEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = true,
 )
 abstract class ZeroClawDatabase : RoomDatabase() {
@@ -70,6 +73,9 @@ abstract class ZeroClawDatabase : RoomDatabase() {
 
     /** Data access object for daemon console chat message operations. */
     abstract fun chatMessageDao(): ChatMessageDao
+
+    /** Data access object for terminal REPL entry operations. */
+    abstract fun terminalEntryDao(): TerminalEntryDao
 
     /** Factory and constants for [ZeroClawDatabase]. */
     companion object {
@@ -154,6 +160,24 @@ abstract class ZeroClawDatabase : RoomDatabase() {
                 }
             }
 
+        /** Migration from schema version 7 to 8: adds the terminal_entries table. */
+        private val MIGRATION_7_8 =
+            object : Migration(7, 8) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL(
+                        """
+                        CREATE TABLE IF NOT EXISTS `terminal_entries` (
+                            `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                            `content` TEXT NOT NULL,
+                            `entry_type` TEXT NOT NULL,
+                            `timestamp` INTEGER NOT NULL,
+                            `image_uris` TEXT NOT NULL DEFAULT '[]'
+                        )
+                        """.trimIndent(),
+                    )
+                }
+            }
+
         /**
          * Ordered array of schema migrations.
          *
@@ -168,6 +192,7 @@ abstract class ZeroClawDatabase : RoomDatabase() {
                 MIGRATION_4_5,
                 MIGRATION_5_6,
                 MIGRATION_6_7,
+                MIGRATION_7_8,
             )
 
         /**
