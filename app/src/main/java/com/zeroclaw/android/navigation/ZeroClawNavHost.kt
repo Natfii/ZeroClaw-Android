@@ -33,7 +33,7 @@ import com.zeroclaw.android.ui.component.PinEntrySheet
 import com.zeroclaw.android.ui.screen.agents.AddAgentScreen
 import com.zeroclaw.android.ui.screen.agents.AgentDetailScreen
 import com.zeroclaw.android.ui.screen.agents.AgentsScreen
-import com.zeroclaw.android.ui.screen.console.ConsoleScreen
+import com.zeroclaw.android.ui.screen.terminal.TerminalScreen
 import com.zeroclaw.android.ui.screen.dashboard.DashboardScreen
 import com.zeroclaw.android.ui.screen.onboarding.OnboardingScreen
 import com.zeroclaw.android.ui.screen.plugins.PluginDetailScreen
@@ -188,8 +188,8 @@ fun ZeroClawNavHost(
             )
         }
 
-        composable<ConsoleRoute> {
-            ConsoleScreen(edgeMargin = edgeMargin)
+        composable<TerminalRoute> {
+            TerminalScreen(edgeMargin = edgeMargin)
         }
 
         composable<SettingsRoute> {

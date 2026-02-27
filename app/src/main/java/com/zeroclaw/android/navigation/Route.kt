@@ -103,9 +103,9 @@ data class ChannelDetailRoute(
     val channelType: String? = null,
 )
 
-/** Global daemon console screen. */
+/** Interactive terminal REPL screen. */
 @Serializable
-data object ConsoleRoute
+data object TerminalRoute
 
 /** ZeroClaw Doctor diagnostics screen. */
 @Serializable
