@@ -154,6 +154,8 @@ dependencies {
     implementation(libs.room.ktx)
     implementation(libs.sqlcipher)
     implementation(libs.okhttp)
+    implementation(libs.nanohttpd)
+    implementation(libs.browser)
     implementation(libs.work.runtime.ktx)
     implementation(libs.camera.core)
     implementation(libs.camera.camera2)
