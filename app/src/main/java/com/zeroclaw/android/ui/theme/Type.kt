@@ -29,10 +29,11 @@ val ZeroClawTypography = Typography()
  * a typeface designed for developers with increased letter height, distinct
  * character forms for ambiguous glyphs (0/O, 1/l/I), and coding ligatures.
  */
-val JetBrainsMonoFamily = FontFamily(
-    Font(R.font.jetbrains_mono_regular, FontWeight.Normal),
-    Font(R.font.jetbrains_mono_bold, FontWeight.Bold),
-)
+val JetBrainsMonoFamily =
+    FontFamily(
+        Font(R.font.jetbrains_mono_regular, FontWeight.Normal),
+        Font(R.font.jetbrains_mono_bold, FontWeight.Bold),
+    )
 
 /**
  * Base M3 type scale instance used to derive [TerminalTypography] styles.
@@ -50,14 +51,15 @@ private val BaseTypography = Typography()
  * and line heights for Android 14+ nonlinear font scaling. Display and
  * headline styles are omitted because terminal screens do not use them.
  */
-val TerminalTypography = Typography(
-    bodyLarge = BaseTypography.bodyLarge.copy(fontFamily = JetBrainsMonoFamily),
-    bodyMedium = BaseTypography.bodyMedium.copy(fontFamily = JetBrainsMonoFamily),
-    bodySmall = BaseTypography.bodySmall.copy(fontFamily = JetBrainsMonoFamily),
-    labelLarge = BaseTypography.labelLarge.copy(fontFamily = JetBrainsMonoFamily),
-    labelMedium = BaseTypography.labelMedium.copy(fontFamily = JetBrainsMonoFamily),
-    labelSmall = BaseTypography.labelSmall.copy(fontFamily = JetBrainsMonoFamily),
-    titleLarge = BaseTypography.titleLarge.copy(fontFamily = JetBrainsMonoFamily),
-    titleMedium = BaseTypography.titleMedium.copy(fontFamily = JetBrainsMonoFamily),
-    titleSmall = BaseTypography.titleSmall.copy(fontFamily = JetBrainsMonoFamily),
-)
+val TerminalTypography =
+    Typography(
+        bodyLarge = BaseTypography.bodyLarge.copy(fontFamily = JetBrainsMonoFamily),
+        bodyMedium = BaseTypography.bodyMedium.copy(fontFamily = JetBrainsMonoFamily),
+        bodySmall = BaseTypography.bodySmall.copy(fontFamily = JetBrainsMonoFamily),
+        labelLarge = BaseTypography.labelLarge.copy(fontFamily = JetBrainsMonoFamily),
+        labelMedium = BaseTypography.labelMedium.copy(fontFamily = JetBrainsMonoFamily),
+        labelSmall = BaseTypography.labelSmall.copy(fontFamily = JetBrainsMonoFamily),
+        titleLarge = BaseTypography.titleLarge.copy(fontFamily = JetBrainsMonoFamily),
+        titleMedium = BaseTypography.titleMedium.copy(fontFamily = JetBrainsMonoFamily),
+        titleSmall = BaseTypography.titleSmall.copy(fontFamily = JetBrainsMonoFamily),
+    )

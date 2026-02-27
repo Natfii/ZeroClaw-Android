@@ -41,8 +41,8 @@ import com.zeroclaw.android.data.repository.RoomAgentRepository
 import com.zeroclaw.android.data.repository.RoomChannelConfigRepository
 import com.zeroclaw.android.data.repository.RoomChatMessageRepository
 import com.zeroclaw.android.data.repository.RoomLogRepository
-import com.zeroclaw.android.data.repository.RoomTerminalEntryRepository
 import com.zeroclaw.android.data.repository.RoomPluginRepository
+import com.zeroclaw.android.data.repository.RoomTerminalEntryRepository
 import com.zeroclaw.android.data.repository.SettingsRepository
 import com.zeroclaw.android.data.repository.TerminalEntryRepository
 import com.zeroclaw.android.service.CostBridge
