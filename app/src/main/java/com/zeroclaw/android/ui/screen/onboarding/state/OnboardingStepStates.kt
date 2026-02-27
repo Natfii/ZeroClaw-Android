@@ -11,6 +11,15 @@ import com.zeroclaw.android.model.ChannelType
 import java.util.TimeZone
 
 /**
+ * State for the welcome step.
+ *
+ * @property acknowledged Whether the user has acknowledged the welcome screen.
+ */
+data class WelcomeStepState(
+    val acknowledged: Boolean = false,
+)
+
+/**
  * State for the provider configuration step.
  *
  * Tracks the selected provider, API key, base URL, model selection,

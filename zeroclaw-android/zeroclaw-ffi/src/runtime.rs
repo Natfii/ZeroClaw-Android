@@ -389,15 +389,19 @@ pub(crate) fn get_status_inner() -> Result<String, FfiError> {
 /// POSTs `{"message": "<msg>"}` to `http://127.0.0.1:{port}/webhook`
 /// and returns the agent's response string.
 ///
+/// Routes through the full agent loop ([`zeroclaw::agent::process_message`])
+/// rather than the stateless gateway webhook. This provides:
+/// - Memory recall (relevant past context injected before each turn)
+/// - Tool access (shell, file, memory, etc.)
+/// - Proper system prompt with workspace identity files
+///
 /// # Errors
 ///
 /// Returns [`FfiError::StateError`] if the daemon is not running,
 /// [`FfiError::StateCorrupted`] if the daemon mutex is poisoned,
-/// or [`FfiError::SpawnError`] on HTTP or parse failure.
+/// or [`FfiError::SpawnError`] if agent processing fails.
 pub(crate) fn send_message_inner(message: String) -> Result<String, FfiError> {
     const MAX_MESSAGE_BYTES: usize = 1_048_576;
-    // Ten minutes — generous timeout for large local models (e.g. 70B+ on CPU).
-    const GATEWAY_TIMEOUT_SECS: u64 = 600;
     if message.len() > MAX_MESSAGE_BYTES {
         return Err(FfiError::ConfigError {
             detail: format!(
@@ -408,55 +412,13 @@ pub(crate) fn send_message_inner(message: String) -> Result<String, FfiError> {
     }
 
     let runtime = get_or_create_runtime()?;
-
-    let gateway_port = get_gateway_port()?;
-
-    let url = format!("http://127.0.0.1:{gateway_port}/webhook");
+    let config = with_daemon_config(Config::clone)?;
 
     runtime.block_on(async {
-        let client = reqwest::Client::builder()
-            .timeout(Duration::from_secs(GATEWAY_TIMEOUT_SECS))
-            .build()
-            .map_err(|e| FfiError::SpawnError {
-                detail: format!("failed to build HTTP client: {e}"),
-            })?;
-        let response = client
-            .post(&url)
-            .json(&serde_json::json!({ "message": message }))
-            .send()
+        zeroclaw::agent::process_message(config, &message)
             .await
             .map_err(|e| FfiError::SpawnError {
-                detail: format!("gateway request failed: {e}"),
-            })?;
-
-        let status = response.status();
-        if !status.is_success() {
-            let body_text = response.text().await.unwrap_or_default();
-            let detail_hint = extract_gateway_error(&body_text);
-            let hint = if status.as_u16() == 408 {
-                " (model may need more time to respond — try a smaller prompt or faster model)"
-            } else {
-                ""
-            };
-            let body_suffix = if detail_hint.is_empty() {
-                String::new()
-            } else {
-                format!(": {detail_hint}")
-            };
-            return Err(FfiError::SpawnError {
-                detail: format!("gateway returned status {status}{hint}{body_suffix}"),
-            });
-        }
-
-        let body: serde_json::Value = response.json().await.map_err(|e| FfiError::SpawnError {
-            detail: format!("failed to parse gateway response: {e}"),
-        })?;
-
-        body["response"]
-            .as_str()
-            .map(String::from)
-            .ok_or_else(|| FfiError::SpawnError {
-                detail: "gateway response missing 'response' field".to_string(),
+                detail: format!("agent processing failed: {e}"),
             })
     })
 }
@@ -533,14 +495,6 @@ where
             backoff = backoff.saturating_mul(2).min(max_backoff);
         }
     })
-}
-
-/// Extracts the `"error"` field from a gateway JSON error response body.
-fn extract_gateway_error(body: &str) -> String {
-    serde_json::from_str::<serde_json::Value>(body)
-        .ok()
-        .and_then(|v| v["error"].as_str().map(String::from))
-        .unwrap_or_default()
 }
 
 /// Validates a TOML config string without starting the daemon.
