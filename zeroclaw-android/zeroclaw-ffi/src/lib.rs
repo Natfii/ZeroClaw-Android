@@ -22,6 +22,7 @@ mod ffi_health;
 mod gateway_client;
 mod health;
 mod memory_browse;
+mod repl;
 mod runtime;
 mod skills;
 mod tools_browse;
@@ -735,6 +736,26 @@ pub fn send_vision_message(
 #[uniffi::export]
 pub fn memory_count() -> Result<u32, FfiError> {
     catch_unwind(memory_browse::memory_count_inner).unwrap_or_else(|e| {
+        Err(FfiError::InternalPanic {
+            detail: panic_detail(&e),
+        })
+    })
+}
+
+/// Evaluates a Rhai expression against the embedded REPL engine.
+///
+/// The REPL engine has all gateway functions registered as native Rhai
+/// calls. Structured return values are serialised to JSON; unit results
+/// become `"ok"`; primitives are converted to strings.
+///
+/// # Errors
+///
+/// Returns [`FfiError::StateCorrupted`] if the engine mutex is poisoned,
+/// [`FfiError::SpawnError`] if the Rhai evaluation fails, or
+/// [`FfiError::InternalPanic`] if native code panics.
+#[uniffi::export]
+pub fn eval_repl(expression: String) -> Result<String, FfiError> {
+    catch_unwind(AssertUnwindSafe(|| repl::eval_repl_inner(expression))).unwrap_or_else(|e| {
         Err(FfiError::InternalPanic {
             detail: panic_detail(&e),
         })
