@@ -2,6 +2,7 @@
 target/
 **/*.rs.bk
 *.pdb
+.cargo/config.toml
 
 # Android / Gradle
 *.iml

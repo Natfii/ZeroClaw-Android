@@ -17,7 +17,7 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 cd "$PROJECT_DIR"
 
 export JAVA_HOME="${JAVA_HOME:-/c/Program Files/Eclipse Adoptium/jdk-17.0.18.8-hotspot}"
-export ANDROID_HOME="${ANDROID_HOME:-/c/Users/Natal/AppData/Local/Android/Sdk}"
+export ANDROID_HOME="${ANDROID_HOME:-$HOME/AppData/Local/Android/Sdk}"
 export PATH="$HOME/.cargo/bin:$JAVA_HOME/bin:$PATH"
 
 # Extract current version from Cargo.toml

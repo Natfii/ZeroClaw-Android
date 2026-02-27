@@ -10,8 +10,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 cd "$PROJECT_DIR"
 
-export JAVA_HOME="/c/Program Files/Eclipse Adoptium/jdk-17.0.18.8-hotspot"
-export ANDROID_HOME="/c/Users/Natal/AppData/Local/Android/Sdk"
+export JAVA_HOME="${JAVA_HOME:-/c/Program Files/Eclipse Adoptium/jdk-17.0.18.8-hotspot}"
+export ANDROID_HOME="${ANDROID_HOME:-$HOME/AppData/Local/Android/Sdk}"
 export PATH="$HOME/.cargo/bin:$JAVA_HOME/bin:$PATH"
 
 LM_STUDIO_HOST="${LM_STUDIO_HOST:-localhost:1234}"
@@ -54,7 +54,7 @@ run_suite_with_retry() {
 }
 
 # Unit tests (JVM + Rust)
-run_suite "Rust unit tests" /c/Users/Natal/.cargo/bin/cargo.exe test -p zeroclaw-ffi --manifest-path "$PROJECT_DIR/zeroclaw-android/Cargo.toml"
+run_suite "Rust unit tests" $HOME/.cargo/bin/cargo.exe test -p zeroclaw-ffi --manifest-path "$PROJECT_DIR/zeroclaw-android/Cargo.toml"
 run_suite "Kotlin unit tests" ./gradlew :app:testDebugUnitTest :lib:testDebugUnitTest
 
 # Compose screen tests (needs emulator)
