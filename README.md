@@ -30,6 +30,7 @@ The onboarding wizard walks you through all of this on first launch.
 ## Features
 
 - **32 providers** -- OpenAI, Anthropic, Gemini, Groq, DeepSeek, Mistral, Ollama, LM Studio, vLLM, LocalAI, OpenRouter, Together AI, Cohere, Perplexity, xAI, Novita, Telnyx, and more. Plus custom OpenAI-compatible and Anthropic-compatible endpoints.
+- **Terminal REPL** -- command-line interface with slash commands for every gateway operation, powered by a Rhai scripting engine in Rust. Autocomplete, command history, image attachments, and raw Rhai expressions for power users.
 - **Plugin browser** -- extend agents with tools for web search, code execution, file access, MQTT, and webhooks
 - **Encrypted key storage** -- AES-256-GCM via Android Keystore, hardware-backed on StrongBox devices, biometric unlock to reveal
 - **Battery-optimized** -- `START_STICKY` foreground service with OEM battery killer detection, auto-restart on boot, network transition handling
@@ -38,6 +39,73 @@ The onboarding wizard walks you through all of this on first launch.
 - **Rust core** -- ZeroClaw's router runs natively via UniFFI, with `catch_unwind` at every FFI boundary. No JNI crashes.
 
 <img src="https://github.com/user-attachments/assets/9712875d-5650-43a4-9646-8aa4d4175291" alt="On Boarding" width="30%" /> <img src="https://github.com/user-attachments/assets/ae198cdc-2130-4b25-8e69-114468653777" alt="Nav" width="37.5%" /> <img src="https://github.com/user-attachments/assets/4f1dc8bb-8cf7-4ce3-8321-860060ab98f6" alt="Nav" width="30%" /> 
+
+## Terminal REPL
+
+The Terminal replaces the old Console with a command-line interface for interacting with the ZeroClaw daemon. Type natural language to chat with your agent, or use slash commands to access every gateway operation directly.
+
+### How it works
+
+```
+You type:     /cost daily 2026 2 27
+Kotlin:       translates to Rhai expression "cost_daily(2026, 2, 27)"
+Rust (FFI):   eval_repl() evaluates the expression in the Rhai engine
+Rhai engine:  calls the registered cost_daily() function
+Result:       JSON string returned to Kotlin for rich terminal rendering
+```
+
+Plain text (anything not starting with `/`) is routed as a chat message through the agent, same as before.
+
+### Slash commands
+
+| Command | Description |
+|---|---|
+| `/status` | Show daemon status |
+| `/version` | Show ZeroClaw version |
+| `/health [component]` | Health summary or component detail |
+| `/doctor` | Run diagnostic checks |
+| `/cost` | Total cost summary |
+| `/cost daily <y> <m> <d>` | Cost for a specific day |
+| `/cost monthly <y> <m>` | Cost for a specific month |
+| `/budget <amount>` | Check spend against budget |
+| `/events [limit]` | Show recent events |
+| `/cron` | List all cron jobs |
+| `/cron add <expr> <cmd>` | Add a recurring job |
+| `/cron oneshot <delay> <cmd>` | Add a one-shot delayed job |
+| `/cron get/pause/resume/remove <id>` | Manage individual jobs |
+| `/skills` | List installed skills |
+| `/skills install/remove/tools <arg>` | Manage skills |
+| `/tools` | List available tools |
+| `/memories [category]` | List memories |
+| `/memory recall <query>` | Search memories |
+| `/memory forget <key>` | Delete a memory |
+| `/memory count` | Total memory count |
+| `/help` | Show available commands |
+| `/clear` | Clear terminal history |
+
+### Image support
+
+Attach images through the input bar to send vision messages. Staged images appear as text labels (terminal aesthetic), and the attached files are passed to the vision API alongside your message.
+
+### Raw Rhai expressions
+
+Power users can type Rhai expressions directly for scripting:
+
+```
+let x = cost_daily(2026, 2, 27); x.total
+```
+
+The Rhai engine has access to all 33 gateway functions, so any combination of calls works.
+
+### Terminal design
+
+- **JetBrains Mono** font for readability
+- **Dark surface** (`surfaceContainerLowest`) even in light theme
+- **Braille spinner** (`⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏`) while awaiting responses, with static fallback in battery saver mode
+- **Autocomplete** popup filters commands as you type
+- **Command history** persisted in Room, accessible by swiping up on the input field
+- **Screen reader support** with semantic annotations on all terminal blocks, live regions for status changes, and linearized content descriptions
+- **Font scaling** to 200% without clipping (all sizing in `sp`, no fixed-height containers)
 
 ## Why a Phone?
 
@@ -134,7 +202,7 @@ Kotlin/Compose UI on top, Rust engine underneath, connected through Mozilla UniF
 <details>
 <summary>Architecture Details</summary>
 
-**FFI surface** -- 5 functions cross the Rust-Kotlin boundary:
+**FFI surface** -- 34 functions cross the Rust-Kotlin boundary. The core lifecycle functions:
 
 | Function                                      | Description                                     |
 | --------------------------------------------- | ----------------------------------------------- |
@@ -143,6 +211,9 @@ Kotlin/Compose UI on top, Rust engine underneath, connected through Mozilla UniF
 | `get_status()`                              | Returns JSON health snapshot                    |
 | `send_message(msg)`                         | Send a message to the gateway, returns response |
 | `get_version()`                             | Returns native library version string           |
+| `eval_repl(expression)`                     | Evaluate a Rhai expression against the engine   |
+
+Plus 28 additional functions for cost tracking, cron scheduling, events, health diagnostics, memory, skills, tools, and vision. The Terminal REPL's `eval_repl` function wraps all of these behind a single Rhai scripting engine entry point.
 
 **Key implementation details:**
 
