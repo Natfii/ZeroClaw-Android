@@ -13,6 +13,9 @@ enum class ProviderAuthType {
     /** Provider requires only an API key. */
     API_KEY_ONLY,
 
+    /** Provider accepts either an API key or OAuth login. */
+    API_KEY_OR_OAUTH,
+
     /** Provider requires only a base URL (e.g. local Ollama). */
     URL_ONLY,
 
@@ -83,6 +86,7 @@ enum class ModelListFormat {
  * @property keyPrefix Expected prefix for client-side key format validation (e.g. "sk-").
  * @property keyPrefixHint Human-readable hint shown when the key does not match [keyPrefix].
  * @property helpText Provider-specific onboarding note displayed below the provider dropdown.
+ * @property oauthClientId OAuth client ID for providers supporting OAuth login, empty otherwise.
  */
 data class ProviderInfo(
     val id: String,
@@ -99,4 +103,5 @@ data class ProviderInfo(
     val keyPrefix: String = "",
     val keyPrefixHint: String = "",
     val helpText: String = "",
+    val oauthClientId: String = "",
 )

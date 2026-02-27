@@ -32,7 +32,7 @@ camerax = "1.4.1"
 mlkit-barcode = "17.3.0"
 sqlcipher = "4.6.1"
 nanohttpd = "2.3.1"
-browser = "1.9.0"
+browser = "1.8.0"
 
 [libraries]
 compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "compose-bom" }

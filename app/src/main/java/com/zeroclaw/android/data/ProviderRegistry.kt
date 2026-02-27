@@ -71,14 +71,14 @@ object ProviderRegistry {
             ProviderInfo(
                 id = "openai",
                 displayName = "OpenAI",
-                authType = ProviderAuthType.API_KEY_ONLY,
+                authType = ProviderAuthType.API_KEY_OR_OAUTH,
                 suggestedModels =
                     listOf(
-                        "gpt-4o",
-                        "gpt-4o-mini",
-                        "o1",
-                        "o1-mini",
-                        "o3-mini",
+                        "gpt-5.2",
+                        "gpt-5-mini",
+                        "gpt-5-nano",
+                        "o3",
+                        "o4-mini",
                         "gpt-4.1",
                         "gpt-4.1-mini",
                         "gpt-4.1-nano",
@@ -91,6 +91,7 @@ object ProviderRegistry {
                 keyPrefix = "sk-",
                 keyPrefixHint = "Keys start with sk- (usually sk-proj-...)",
                 helpText = "Requires billing. Free \$5 credit for new accounts",
+                oauthClientId = "app_EMoamEEZ73f0CkXaXp7hrann",
             ),
             ProviderInfo(
                 id = "anthropic",
