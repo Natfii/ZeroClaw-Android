@@ -14,14 +14,12 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.zeroclaw.android.data.local.dao.ActivityEventDao
 import com.zeroclaw.android.data.local.dao.AgentDao
-import com.zeroclaw.android.data.local.dao.ChatMessageDao
 import com.zeroclaw.android.data.local.dao.ConnectedChannelDao
 import com.zeroclaw.android.data.local.dao.LogEntryDao
 import com.zeroclaw.android.data.local.dao.PluginDao
 import com.zeroclaw.android.data.local.dao.TerminalEntryDao
 import com.zeroclaw.android.data.local.entity.ActivityEventEntity
 import com.zeroclaw.android.data.local.entity.AgentEntity
-import com.zeroclaw.android.data.local.entity.ChatMessageEntity
 import com.zeroclaw.android.data.local.entity.ConnectedChannelEntity
 import com.zeroclaw.android.data.local.entity.LogEntryEntity
 import com.zeroclaw.android.data.local.entity.PluginEntity
@@ -49,10 +47,9 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
         LogEntryEntity::class,
         ActivityEventEntity::class,
         ConnectedChannelEntity::class,
-        ChatMessageEntity::class,
         TerminalEntryEntity::class,
     ],
-    version = 8,
+    version = 9,
     exportSchema = true,
 )
 abstract class ZeroClawDatabase : RoomDatabase() {
@@ -70,9 +67,6 @@ abstract class ZeroClawDatabase : RoomDatabase() {
 
     /** Data access object for connected channel operations. */
     abstract fun connectedChannelDao(): ConnectedChannelDao
-
-    /** Data access object for daemon console chat message operations. */
-    abstract fun chatMessageDao(): ChatMessageDao
 
     /** Data access object for terminal REPL entry operations. */
     abstract fun terminalEntryDao(): TerminalEntryDao
@@ -178,6 +172,14 @@ abstract class ZeroClawDatabase : RoomDatabase() {
                 }
             }
 
+        /** Migration from schema version 8 to 9: drops the deprecated chat_messages table. */
+        private val MIGRATION_8_9 =
+            object : Migration(8, 9) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL("DROP TABLE IF EXISTS `chat_messages`")
+                }
+            }
+
         /**
          * Ordered array of schema migrations.
          *
@@ -193,6 +195,7 @@ abstract class ZeroClawDatabase : RoomDatabase() {
                 MIGRATION_5_6,
                 MIGRATION_6_7,
                 MIGRATION_7_8,
+                MIGRATION_8_9,
             )
 
         /**

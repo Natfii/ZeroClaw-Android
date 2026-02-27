@@ -11,7 +11,6 @@ import com.zeroclaw.android.model.ActivityType
 import com.zeroclaw.android.model.Agent
 import com.zeroclaw.android.model.ChannelConfig
 import com.zeroclaw.android.model.ChannelType
-import com.zeroclaw.android.model.ChatMessage
 import com.zeroclaw.android.model.ConnectedChannel
 import com.zeroclaw.android.model.LogEntry
 import com.zeroclaw.android.model.LogSeverity
@@ -162,36 +161,6 @@ fun ActivityEvent.toEntity(): ActivityEventEntity =
         timestamp = timestamp,
         type = type.name,
         message = message,
-    )
-
-/**
- * Converts a [ChatMessageEntity] to its domain [ChatMessage] model.
- *
- * @receiver The Room entity to convert.
- * @return The equivalent domain model with deserialized image URIs.
- */
-fun ChatMessageEntity.toModel(): ChatMessage =
-    ChatMessage(
-        id = id,
-        content = content,
-        isFromUser = isFromUser,
-        timestamp = timestamp,
-        imageUris = deserializeImageUris(imagesJson),
-    )
-
-/**
- * Converts a [ChatMessage] domain model to its [ChatMessageEntity] for persistence.
- *
- * @receiver The domain model to convert.
- * @return The equivalent Room entity with serialized image URIs.
- */
-fun ChatMessage.toEntity(): ChatMessageEntity =
-    ChatMessageEntity(
-        id = id,
-        timestamp = timestamp,
-        content = content,
-        isFromUser = isFromUser,
-        imagesJson = if (imageUris.isEmpty()) null else mapperJson.encodeToString(imageUris),
     )
 
 /**

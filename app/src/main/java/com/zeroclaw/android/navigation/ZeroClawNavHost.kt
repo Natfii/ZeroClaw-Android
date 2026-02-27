@@ -103,7 +103,7 @@ fun ZeroClawNavHost(
                         action = ZeroClawDaemonService.ACTION_STOP
                     }
                 context.startService(stopIntent)
-                app.chatMessageRepository.clear()
+                app.terminalEntryRepository.clear()
                 navController.navigate(DashboardRoute) {
                     popUpTo(navController.graph.startDestinationId) { inclusive = false }
                     launchSingleTop = true
