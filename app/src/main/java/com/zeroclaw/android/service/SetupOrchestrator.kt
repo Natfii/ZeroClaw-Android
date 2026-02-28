@@ -92,6 +92,7 @@ class SetupOrchestrator(
 
         if (!stepValidateConfig(configToml)) return
         if (!stepScaffoldWorkspace(agentName, userName, timezone, communicationStyle)) return
+        stopDaemonIfRunning()
         if (!stepStartDaemon(context, configToml, host, port)) return
         if (!stepAwaitDaemonHealth()) return
         stepAwaitChannels(expectedChannels)
@@ -152,6 +153,29 @@ class SetupOrchestrator(
      */
     fun reset() {
         _progress.value = SetupProgress()
+    }
+
+    /**
+     * Stops the daemon if it is currently running.
+     *
+     * Called before starting a fresh daemon to avoid a "daemon already
+     * running" error when the user re-runs the setup wizard from settings.
+     * Failures are logged but not propagated since the daemon may not be
+     * running at all.
+     */
+    @Suppress("TooGenericExceptionCaught")
+    private suspend fun stopDaemonIfRunning() {
+        try {
+            val status = daemonBridge.pollStatus()
+            if (status.running) {
+                Log.d(TAG, "Daemon already running, stopping before fresh setup")
+                daemonBridge.stop()
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "Pre-setup daemon stop check failed (non-fatal): ${e.message}")
+        }
     }
 
     /**

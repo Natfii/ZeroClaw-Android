@@ -1112,7 +1112,6 @@ class OnboardingCoordinator(
             settingsRepository.setLockEnabled(_lockEnabled.value)
         }
 
-        onboardingRepository.markComplete()
         onDone()
     }
 

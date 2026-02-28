@@ -77,6 +77,7 @@ class SetupViewModel(
             } finally {
                 secretBuffers.forEach { it.fill(0) }
             }
+            app.onboardingRepository.markComplete()
             onComplete()
         }
     }
