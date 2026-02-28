@@ -451,7 +451,7 @@ pub(crate) fn session_start_inner() -> Result<(), FfiError> {
     // `load_skills_with_config` or name the `Skill` type directly.
     // Pass an empty slice -- skill prompt injection still works via
     // workspace file scanning inside `build_system_prompt_with_mode`.
-    let system_prompt = zeroclaw::channels::build_system_prompt_with_mode(
+    let mut system_prompt = zeroclaw::channels::build_system_prompt_with_mode(
         &config.workspace_dir,
         &model,
         &tool_desc_refs,
@@ -461,6 +461,12 @@ pub(crate) fn session_start_inner() -> Result<(), FfiError> {
         native_tools,
         config.skills.prompt_injection_mode,
     );
+
+    // Upstream AIEOS only renders agent identity fields; Android onboarding
+    // also stores user_name, timezone, and communication_style inside the
+    // identity JSON object. Extract and append them so the model knows who
+    // it is talking to.
+    append_android_identity_extras(&mut system_prompt, &config.identity);
 
     let history = vec![ChatMessage::system(&system_prompt)];
 
@@ -1018,6 +1024,66 @@ async fn run_agent_loop(
     Err(AgentLoopOutcome::Error(format!(
         "Agent exceeded maximum tool iterations ({DEFAULT_MAX_TOOL_ITERATIONS})"
     )))
+}
+
+// ── Android identity extras ─────────────────────────────────────────────
+
+/// Appends Android-specific identity fields to the system prompt.
+///
+/// The upstream AIEOS renderer only outputs agent identity (name, bio,
+/// personality). Android onboarding also stores `user_name`, `timezone`,
+/// and `communication_style` inside the `identity` JSON object. These
+/// fields are silently dropped by serde because they don't exist in the
+/// upstream `IdentitySection` struct.
+///
+/// This function parses the raw `aieos_inline` JSON, extracts those
+/// extra fields, and appends a "## User Context" section to the prompt.
+fn append_android_identity_extras(
+    prompt: &mut String,
+    identity_config: &zeroclaw::config::IdentityConfig,
+) {
+    use std::fmt::Write;
+
+    let Some(ref inline) = identity_config.aieos_inline else {
+        return;
+    };
+
+    let Ok(root) = serde_json::from_str::<serde_json::Value>(inline) else {
+        return;
+    };
+
+    let identity_obj = match root.get("identity") {
+        Some(v) => v,
+        None => &root,
+    };
+
+    let user_name = identity_obj
+        .get("user_name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    let timezone = identity_obj
+        .get("timezone")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    let comm_style = identity_obj
+        .get("communication_style")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+
+    if user_name.is_empty() && timezone.is_empty() && comm_style.is_empty() {
+        return;
+    }
+
+    prompt.push_str("\n## User Context\n\n");
+    if !user_name.is_empty() {
+        let _ = writeln!(prompt, "**User's name:** {user_name}");
+    }
+    if !timezone.is_empty() {
+        let _ = writeln!(prompt, "**Timezone:** {timezone}");
+    }
+    if !comm_style.is_empty() {
+        let _ = writeln!(prompt, "**Preferred communication style:** {comm_style}");
+    }
 }
 
 // ── Memory context ──────────────────────────────────────────────────────
@@ -1936,5 +2002,47 @@ mod tests {
             }
             other => panic!("expected StateError, got {other:?}"),
         }
+    }
+
+    // ── append_android_identity_extras tests ────────────────────────
+
+    #[test]
+    fn test_android_identity_extras_user_name() {
+        let config = zeroclaw::config::IdentityConfig {
+            format: "aieos".into(),
+            aieos_path: None,
+            aieos_inline: Some(
+                r#"{"identity":{"names":{"first":"Nova"},"user_name":"Alice","timezone":"US/Eastern","communication_style":"casual"}}"#.into(),
+            ),
+        };
+        let mut prompt = String::from("## Identity\n\n**Name:** Nova\n");
+        append_android_identity_extras(&mut prompt, &config);
+        assert!(prompt.contains("**User's name:** Alice"));
+        assert!(prompt.contains("**Timezone:** US/Eastern"));
+        assert!(prompt.contains("**Preferred communication style:** casual"));
+    }
+
+    #[test]
+    fn test_android_identity_extras_empty_inline() {
+        let config = zeroclaw::config::IdentityConfig {
+            format: "aieos".into(),
+            aieos_path: None,
+            aieos_inline: None,
+        };
+        let mut prompt = String::from("base prompt");
+        append_android_identity_extras(&mut prompt, &config);
+        assert_eq!(prompt, "base prompt");
+    }
+
+    #[test]
+    fn test_android_identity_extras_no_extra_fields() {
+        let config = zeroclaw::config::IdentityConfig {
+            format: "aieos".into(),
+            aieos_path: None,
+            aieos_inline: Some(r#"{"identity":{"names":{"first":"Nova"}}}"#.into()),
+        };
+        let mut prompt = String::from("base prompt");
+        append_android_identity_extras(&mut prompt, &config);
+        assert_eq!(prompt, "base prompt");
     }
 }
