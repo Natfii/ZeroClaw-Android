@@ -76,6 +76,7 @@ import com.zeroclaw.android.model.isOAuthToken
 import com.zeroclaw.android.ui.component.EmptyState
 import com.zeroclaw.android.ui.component.ErrorCard
 import com.zeroclaw.android.ui.component.MaskedText
+import com.zeroclaw.android.ui.component.SetupBottomSheet
 import com.zeroclaw.android.ui.component.setup.ValidationIndicator
 import kotlinx.coroutines.launch
 
@@ -135,6 +136,7 @@ fun ApiKeysScreen(
     val corruptCount by apiKeysViewModel.corruptKeyCount.collectAsStateWithLifecycle()
     val unusedKeyIds by apiKeysViewModel.unusedKeyIds.collectAsStateWithLifecycle()
     val unreachableKeyIds by apiKeysViewModel.unreachableKeyIds.collectAsStateWithLifecycle()
+    val showSheet by apiKeysViewModel.showHotReloadSheet.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
@@ -146,6 +148,13 @@ fun ApiKeysScreen(
             snackbarHostState.showSnackbar(message)
             apiKeysViewModel.dismissSnackbar()
         }
+    }
+
+    if (showSheet) {
+        SetupBottomSheet(
+            progressFlow = apiKeysViewModel.hotReloadProgress,
+            onDismiss = apiKeysViewModel::dismissHotReloadSheet,
+        )
     }
 
     ApiKeysContent(
