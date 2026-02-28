@@ -139,15 +139,18 @@ fun TerminalScreen(
     modifier: Modifier = Modifier,
 ) {
     val state by terminalViewModel.state.collectAsStateWithLifecycle()
+    val streamingState by terminalViewModel.streamingState.collectAsStateWithLifecycle()
     val app = LocalContext.current.applicationContext as ZeroClawApplication
     val serviceState by app.daemonBridge.serviceState.collectAsStateWithLifecycle()
 
     TerminalContent(
         state = state,
+        streamingState = streamingState,
         serviceState = serviceState,
         onSubmit = terminalViewModel::submitInput,
         onAttachImages = terminalViewModel::attachImages,
         onRemoveImage = terminalViewModel::removeImage,
+        onCancelAgent = terminalViewModel::cancelAgentTurn,
         edgeMargin = edgeMargin,
         modifier = modifier,
     )
@@ -157,24 +160,29 @@ fun TerminalScreen(
  * Stateless terminal content composable for testing.
  *
  * Renders the terminal scrollback buffer, input bar, pending image
- * strip, and autocomplete overlay. All state is passed in as
- * parameters for deterministic previews and unit tests.
+ * strip, autocomplete overlay, and live agent streaming card. All
+ * state is passed in as parameters for deterministic previews and
+ * unit tests.
  *
  * @param state Aggregated terminal state snapshot.
+ * @param streamingState Live agent session streaming state.
  * @param serviceState Current daemon service lifecycle state.
  * @param onSubmit Callback to submit user input text.
  * @param onAttachImages Callback to attach images from URIs.
  * @param onRemoveImage Callback to remove a pending image by index.
+ * @param onCancelAgent Callback to cancel the active agent turn.
  * @param edgeMargin Horizontal padding based on window width size class.
  * @param modifier Modifier applied to the root layout.
  */
 @Composable
 internal fun TerminalContent(
     state: TerminalState,
+    streamingState: StreamingState,
     serviceState: ServiceState,
     onSubmit: (String) -> Unit,
     onAttachImages: (List<Uri>) -> Unit,
     onRemoveImage: (Int) -> Unit,
+    onCancelAgent: () -> Unit,
     edgeMargin: Dp,
     modifier: Modifier = Modifier,
 ) {
@@ -193,6 +201,13 @@ internal fun TerminalContent(
                 onAttachImages(uris)
             }
         }
+
+    val isAgentActive =
+        streamingState.phase != StreamingPhase.IDLE &&
+            streamingState.phase != StreamingPhase.COMPLETE &&
+            streamingState.phase != StreamingPhase.CANCELLED &&
+            streamingState.phase != StreamingPhase.ERROR
+    val isInputDisabled = state.isLoading || isAgentActive
 
     val stableOnRemove: (Int) -> Unit = remember { { index -> onRemoveImage(index) } }
 
@@ -216,8 +231,8 @@ internal fun TerminalContent(
         }
     }
 
-    LaunchedEffect(state.blocks.size) {
-        if (state.blocks.isNotEmpty()) {
+    LaunchedEffect(state.blocks.size, streamingState.phase) {
+        if (state.blocks.isNotEmpty() || isAgentActive) {
             if (isPowerSave) {
                 listState.scrollToItem(0)
             } else {
@@ -248,7 +263,36 @@ internal fun TerminalContent(
                         .padding(horizontal = edgeMargin),
                 verticalArrangement = Arrangement.spacedBy(BLOCK_SPACING_DP.dp),
             ) {
-                if (state.isLoading) {
+                if (isAgentActive) {
+                    if (streamingState.responseText.isNotEmpty()) {
+                        item(key = "streaming-response", contentType = "streaming") {
+                            StreamingResponseBlock(
+                                text = streamingState.responseText,
+                                modifier =
+                                    Modifier.padding(
+                                        horizontal = AUTOCOMPLETE_ITEM_H_PAD_DP.dp,
+                                        vertical = SMALL_SPACING_DP.dp,
+                                    ),
+                            )
+                        }
+                    }
+
+                    item(key = "thinking-card", contentType = "thinking") {
+                        ThinkingCard(
+                            thinkingText = streamingState.thinkingText,
+                            visible = true,
+                            onCancel = onCancelAgent,
+                            activeTools = streamingState.activeTools,
+                            toolResults = streamingState.toolResults,
+                            progressMessage = streamingState.progressMessage,
+                            modifier =
+                                Modifier.padding(
+                                    horizontal = AUTOCOMPLETE_ITEM_H_PAD_DP.dp,
+                                    vertical = SMALL_SPACING_DP.dp,
+                                ),
+                        )
+                    }
+                } else if (state.isLoading) {
                     item(key = "spinner", contentType = "spinner") {
                         BrailleSpinner(
                             label = "Thinking\u2026",
@@ -313,7 +357,7 @@ internal fun TerminalContent(
                         ),
                     )
                 },
-                isLoading = state.isLoading,
+                isLoading = isInputDisabled,
                 hasImages = state.pendingImages.isNotEmpty(),
                 modifier =
                     Modifier.padding(
@@ -629,6 +673,36 @@ private fun PendingImageChip(
             )
         }
     }
+}
+
+/**
+ * Streaming response block that renders progressively growing text.
+ *
+ * Styled identically to [TerminalBlock.Response] blocks but rendered
+ * inline during the streaming phase. When the turn completes, this block
+ * disappears and a persisted [TerminalBlock.Response] replaces it in
+ * the scrollback.
+ *
+ * @param text Accumulated response tokens so far.
+ * @param modifier Modifier applied to the text block.
+ */
+@Composable
+private fun StreamingResponseBlock(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
+    Text(
+        text = text,
+        style = TerminalTypography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurface,
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .semantics {
+                    contentDescription = "Streaming response"
+                    liveRegion = LiveRegionMode.Polite
+                },
+    )
 }
 
 /**

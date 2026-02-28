@@ -21,8 +21,13 @@ import com.zeroclaw.android.model.TerminalEntry
 import com.zeroclaw.android.util.ErrorSanitizer
 import com.zeroclaw.android.util.ImageProcessor
 import com.zeroclaw.ffi.FfiException
+import com.zeroclaw.ffi.FfiSessionListener
 import com.zeroclaw.ffi.evalRepl
 import com.zeroclaw.ffi.getVersion
+import com.zeroclaw.ffi.sessionCancel
+import com.zeroclaw.ffi.sessionDestroy
+import com.zeroclaw.ffi.sessionSend
+import com.zeroclaw.ffi.sessionStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -31,6 +36,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -66,6 +72,7 @@ class TerminalViewModel(
     private val loadingState = MutableStateFlow(false)
     private val pendingImagesState = MutableStateFlow<List<ProcessedImage>>(emptyList())
     private val processingImagesState = MutableStateFlow(false)
+    private val _streamingState = MutableStateFlow(StreamingState.idle())
     private val _history = MutableStateFlow<List<String>>(emptyList())
     private val _historyIndex = MutableStateFlow(NO_HISTORY_SELECTION)
 
@@ -91,8 +98,47 @@ class TerminalViewModel(
     /** Current position in the input history, or -1 when not navigating. */
     val historyIndex: StateFlow<Int> = _historyIndex.asStateFlow()
 
+    /** Observable streaming state for the live agent session. */
+    val streamingState: StateFlow<StreamingState> = _streamingState.asStateFlow()
+
     init {
         addWelcomeMessage()
+        initAgentSession()
+    }
+
+    /**
+     * Initialises the live agent session on a background thread.
+     *
+     * Calls [sessionStart] on [Dispatchers.IO]. Failures are logged but
+     * do not prevent the terminal from operating in Rhai-only mode.
+     */
+    @Suppress("TooGenericExceptionCaught")
+    private fun initAgentSession() {
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    sessionStart()
+                }
+            } catch (e: Exception) {
+                logRepository.append(
+                    LogSeverity.WARN,
+                    TAG,
+                    "Agent session init failed: ${e.message}",
+                )
+            }
+        }
+    }
+
+    /**
+     * Tears down the agent session when the ViewModel is destroyed.
+     */
+    @Suppress("TooGenericExceptionCaught")
+    override fun onCleared() {
+        super.onCleared()
+        try {
+            sessionDestroy()
+        } catch (_: Exception) {
+        }
     }
 
     /**
@@ -247,11 +293,12 @@ class TerminalViewModel(
     }
 
     /**
-     * Wraps a chat message in a Rhai `send()` or `send_vision()` call and evaluates it.
+     * Dispatches a chat message through the agent session or Rhai bridge.
      *
-     * When [pendingImagesState] is non-empty, builds a `send_vision(text, images, mimes)`
-     * expression with base64-encoded image data. Otherwise builds a simple
-     * `send(text)` expression.
+     * Plain text messages are routed through the live agent session via
+     * [executeAgentTurn]. Vision requests (with attached images) are still
+     * evaluated through the Rhai `send_vision()` bridge because
+     * `session_send_vision` is not yet implemented on the FFI side.
      *
      * @param displayText The original user input shown in the scrollback.
      * @param escapedText The Rhai-escaped message text.
@@ -279,15 +326,69 @@ class TerminalViewModel(
                 return@launch
             }
 
-            val expression =
-                if (images.isNotEmpty()) {
-                    buildVisionExpression(escapedText, images)
-                } else {
-                    "send(\"$escapedText\")"
-                }
+            if (images.isNotEmpty()) {
+                val expression = buildVisionExpression(escapedText, images)
+                loadingState.value = true
+                executeRhaiExpression(expression)
+            } else {
+                executeAgentTurn(displayText)
+            }
+        }
+    }
 
-            loadingState.value = true
-            executeRhaiExpression(expression)
+    /**
+     * Executes a user message through the live agent session.
+     *
+     * Sends the message to the Rust-side agent loop via [sessionSend].
+     * Progress events are delivered to [_streamingState] through the
+     * [KotlinSessionListener] callback. On completion, the full response
+     * is persisted to the terminal repository.
+     *
+     * The caller is responsible for persisting the user input entry and
+     * verifying that a chat provider is configured before calling this
+     * method. See [executeChatMessage] for the call-site contract.
+     *
+     * @param message The message text to send to the agent.
+     */
+    @Suppress("TooGenericExceptionCaught")
+    private fun executeAgentTurn(message: String) {
+        viewModelScope.launch {
+            _streamingState.update { StreamingState(phase = StreamingPhase.THINKING) }
+
+            try {
+                withContext(Dispatchers.IO) {
+                    sessionSend(message, KotlinSessionListener())
+                }
+            } catch (e: FfiException) {
+                val sanitized = ErrorSanitizer.sanitizeForUi(e)
+                _streamingState.update {
+                    StreamingState(phase = StreamingPhase.ERROR, errorMessage = sanitized)
+                }
+                logRepository.append(LogSeverity.ERROR, TAG, "Agent turn failed: $sanitized")
+                repository.append(content = sanitized, entryType = ENTRY_TYPE_ERROR)
+            } catch (e: Exception) {
+                val sanitized = ErrorSanitizer.sanitizeForUi(e)
+                _streamingState.update {
+                    StreamingState(phase = StreamingPhase.ERROR, errorMessage = sanitized)
+                }
+                logRepository.append(LogSeverity.ERROR, TAG, "Agent turn failed: $sanitized")
+                repository.append(content = sanitized, entryType = ENTRY_TYPE_ERROR)
+            }
+        }
+    }
+
+    /**
+     * Cancels the currently running agent turn.
+     *
+     * Signals the Rust-side cancellation token. The [KotlinSessionListener]
+     * will receive [FfiSessionListener.onCancelled] and transition the
+     * streaming state to [StreamingPhase.CANCELLED].
+     */
+    @Suppress("TooGenericExceptionCaught")
+    fun cancelAgentTurn() {
+        try {
+            sessionCancel()
+        } catch (_: Exception) {
         }
     }
 
@@ -499,6 +600,137 @@ class TerminalViewModel(
             }
         if (command != null) {
             app.refreshCommands.tryEmit(command)
+        }
+    }
+
+    /**
+     * Callback adapter that translates FFI session events into
+     * [StreamingState] updates and terminal repository entries.
+     *
+     * All methods are called from the tokio runtime thread. State updates
+     * use [MutableStateFlow.update] which is thread-safe.
+     */
+    private inner class KotlinSessionListener : FfiSessionListener {
+        override fun onThinking(text: String) {
+            _streamingState.update { current ->
+                current.copy(
+                    phase = StreamingPhase.THINKING,
+                    thinkingText = current.thinkingText + text,
+                )
+            }
+        }
+
+        override fun onResponseChunk(text: String) {
+            _streamingState.update { current ->
+                current.copy(
+                    phase = StreamingPhase.RESPONDING,
+                    responseText = current.responseText + text,
+                )
+            }
+        }
+
+        override fun onToolStart(
+            name: String,
+            argumentsHint: String,
+        ) {
+            _streamingState.update { current ->
+                current.copy(
+                    phase = StreamingPhase.TOOL_EXECUTING,
+                    activeTools = current.activeTools + ToolProgress(name, argumentsHint),
+                )
+            }
+        }
+
+        override fun onToolResult(
+            name: String,
+            success: Boolean,
+            durationSecs: ULong,
+        ) {
+            _streamingState.update { current ->
+                current.copy(
+                    activeTools = current.activeTools.filter { it.name != name },
+                    toolResults =
+                        current.toolResults +
+                            ToolResultEntry(
+                                name = name,
+                                success = success,
+                                durationSecs = durationSecs.toLong(),
+                            ),
+                )
+            }
+        }
+
+        override fun onToolOutput(
+            name: String,
+            output: String,
+        ) {
+            _streamingState.update { current ->
+                val updated =
+                    current.toolResults.map { entry ->
+                        if (entry.name == name && entry.output.isEmpty()) {
+                            entry.copy(output = output)
+                        } else {
+                            entry
+                        }
+                    }
+                current.copy(toolResults = updated)
+            }
+        }
+
+        override fun onProgress(message: String) {
+            _streamingState.update { current ->
+                current.copy(progressMessage = message)
+            }
+        }
+
+        override fun onCompaction(summary: String) {
+            _streamingState.update { current ->
+                current.copy(phase = StreamingPhase.COMPACTING, progressMessage = summary)
+            }
+        }
+
+        override fun onComplete(fullResponse: String) {
+            val stripped =
+                if (cachedSettings.value.stripThinkingTags) {
+                    stripThinkingTags(fullResponse)
+                } else {
+                    fullResponse
+                }
+            val display = stripped.ifBlank { EMPTY_RESPONSE_FALLBACK }
+
+            viewModelScope.launch {
+                repository.append(content = display, entryType = ENTRY_TYPE_RESPONSE)
+            }
+
+            _streamingState.update { StreamingState(phase = StreamingPhase.COMPLETE) }
+
+            app.refreshCommands.tryEmit(RefreshCommand.Cost)
+        }
+
+        override fun onError(error: String) {
+            val sanitized = ErrorSanitizer.sanitizeMessage(error)
+
+            viewModelScope.launch {
+                repository.append(content = sanitized, entryType = ENTRY_TYPE_ERROR)
+                logRepository.append(LogSeverity.ERROR, TAG, "Agent session error: $sanitized")
+            }
+
+            _streamingState.update {
+                StreamingState(phase = StreamingPhase.ERROR, errorMessage = sanitized)
+            }
+        }
+
+        override fun onCancelled() {
+            viewModelScope.launch {
+                repository.append(
+                    content = "Request cancelled.",
+                    entryType = ENTRY_TYPE_SYSTEM,
+                )
+            }
+
+            _streamingState.update {
+                StreamingState(phase = StreamingPhase.CANCELLED)
+            }
         }
     }
 
