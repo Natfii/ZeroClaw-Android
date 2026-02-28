@@ -76,6 +76,7 @@ import kotlinx.coroutines.launch
  * - [ACTION_START] to start the daemon and enter the foreground.
  * - [ACTION_STOP] to stop the daemon and remove the foreground notification.
  * - [ACTION_RETRY] to reset the retry counter and attempt startup again.
+ * - [ACTION_OAUTH_HOLD] to hold the foreground during OAuth flows.
  */
 @Suppress("TooManyFunctions")
 class ZeroClawDaemonService : Service() {
@@ -132,6 +133,7 @@ class ZeroClawDaemonService : Service() {
             ACTION_START -> handleStartFromSettings()
             ACTION_STOP -> handleStop()
             ACTION_RETRY -> handleRetry()
+            ACTION_OAUTH_HOLD -> handleOAuthHold()
             null -> handleStickyRestart()
         }
         return START_STICKY
@@ -481,6 +483,41 @@ class ZeroClawDaemonService : Service() {
     }
 
     /**
+     * Holds the foreground service during an OAuth authentication flow.
+     *
+     * Posts a minimal foreground notification to prevent the Android
+     * cached-app freezer (Android 12+) from freezing the process while
+     * the user is authenticating in an external Custom Tab or browser.
+     * Without this hold, the loopback OAuth callback server would be
+     * frozen and unable to receive the redirect.
+     *
+     * A safety timeout of [OAUTH_HOLD_TIMEOUT_MS] (120 seconds) ensures
+     * the service does not remain in foreground indefinitely if the OAuth
+     * flow is abandoned.
+     */
+    private fun handleOAuthHold() {
+        if (bridge.serviceState.value == ServiceState.RUNNING) {
+            Log.d(TAG, "Daemon already running, OAuth hold is a no-op")
+            return
+        }
+        val notification =
+            notificationManager.buildNotification(ServiceState.STARTING)
+        startForeground(
+            DaemonNotificationManager.NOTIFICATION_ID,
+            notification,
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
+        )
+        serviceScope.launch {
+            delay(OAUTH_HOLD_TIMEOUT_MS)
+            if (bridge.serviceState.value != ServiceState.RUNNING) {
+                Log.w(TAG, "OAuth hold timed out after ${OAUTH_HOLD_TIMEOUT_MS}ms")
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
+            }
+        }
+    }
+
+    /**
      * Handles a [START_STICKY] restart where the system delivers a null
      * intent after process death.
      *
@@ -800,6 +837,16 @@ class ZeroClawDaemonService : Service() {
         /** Intent action to retry daemon startup after a failure. */
         const val ACTION_RETRY = "com.zeroclaw.android.action.RETRY_DAEMON"
 
+        /**
+         * Intent action to hold the foreground service during OAuth flows.
+         *
+         * Starts a lightweight foreground notification to prevent the
+         * Android cached-app freezer (Android 12+) from freezing the
+         * process while the user is authenticating in a Custom Tab.
+         * The hold has a [OAUTH_HOLD_TIMEOUT_MS] safety timeout.
+         */
+        const val ACTION_OAUTH_HOLD = "com.zeroclaw.android.action.OAUTH_HOLD"
+
         private const val TAG = "ZeroClawDaemonService"
         private const val POLL_INTERVAL_FOREGROUND_MS = 5_000L
         private const val POLL_INTERVAL_BACKGROUND_MS = 60_000L
@@ -807,6 +854,7 @@ class ZeroClawDaemonService : Service() {
         private const val WAKE_LOCK_TIMEOUT_MS = 180_000L
         private const val RESTART_DELAY_MS = 5_000L
         private const val RESTART_REQUEST_CODE = 42
+        private const val OAUTH_HOLD_TIMEOUT_MS = 120_000L
         private val VALID_PORT_RANGE = 1..65535
     }
 }

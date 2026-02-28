@@ -106,7 +106,7 @@ sealed interface ConnectionTestState {
  *
  * @param application Application context for accessing the API key repository.
  */
-@Suppress("TooManyFunctions")
+@Suppress("TooManyFunctions", "LargeClass")
 class ApiKeysViewModel(
     application: Application,
 ) : AndroidViewModel(application) {
@@ -1318,5 +1318,4 @@ internal fun mapConnectionError(e: Throwable): String {
  * @param csv Comma-separated string (may be blank).
  * @return List of trimmed non-blank tokens; empty list if [csv] is blank.
  */
-private fun splitCsv(csv: String): List<String> =
-    csv.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+private fun splitCsv(csv: String): List<String> = csv.split(",").map { it.trim() }.filter { it.isNotEmpty() }
