@@ -42,11 +42,12 @@ class OAuthRefreshException(
 ) : Exception(message, cause)
 
 /**
- * Refreshes Anthropic OAuth access tokens using the refresh endpoint.
+ * Refreshes OAuth access tokens for Anthropic and OpenAI providers.
  *
  * Anthropic OAuth refresh tokens are single-use: each successful refresh
- * issues a new (access token, refresh token) pair. Callers must persist
- * both returned tokens immediately.
+ * issues a new (access token, refresh token) pair. OpenAI may or may not
+ * return a new refresh token; when absent the existing token is reused.
+ * Callers must persist all returned tokens immediately.
  */
 class OAuthTokenRefresher(
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
@@ -58,20 +59,29 @@ class OAuthTokenRefresher(
      * IO dispatcher internally.
      *
      * @param refreshToken The current single-use refresh token.
+     * @param provider Provider identifier (e.g. "anthropic", "openai").
+     *   Defaults to "anthropic" for backward compatibility.
      * @return A [RefreshResult] containing the new tokens and expiry.
      * @throws OAuthRefreshException if the refresh request fails.
      */
     @Suppress("TooGenericExceptionCaught")
-    suspend fun refresh(refreshToken: String): RefreshResult =
+    suspend fun refresh(
+        refreshToken: String,
+        provider: String = "anthropic",
+    ): RefreshResult =
         withContext(ioDispatcher) {
             val body =
                 JSONObject()
                     .apply {
                         put("grant_type", "refresh_token")
                         put("refresh_token", refreshToken)
+                        if (provider == "openai") {
+                            put("client_id", OPENAI_CLIENT_ID)
+                        }
                     }.toString()
 
-            val url = URL(REFRESH_URL)
+            val refreshUrl = refreshUrlForProvider(provider)
+            val url = URL(refreshUrl)
             val conn = url.openConnection() as HttpURLConnection
             try {
                 conn.requestMethod = "POST"
@@ -105,7 +115,7 @@ class OAuthTokenRefresher(
                 val expiresInSeconds = json.optLong("expires_in", 0L)
                 RefreshResult(
                     accessToken = json.getString("access_token"),
-                    refreshToken = json.getString("refresh_token"),
+                    refreshToken = json.optString("refresh_token", refreshToken),
                     expiresAt = System.currentTimeMillis() + expiresInSeconds * MILLIS_PER_SECOND,
                 )
             } catch (e: OAuthRefreshException) {
@@ -119,11 +129,28 @@ class OAuthTokenRefresher(
 
     private val httpOkRange = 200..299
 
-    /** Constants for [OAuthTokenRefresher]. */
+    /** Constants and helpers for [OAuthTokenRefresher]. */
     companion object {
-        private const val REFRESH_URL = "https://claude.ai/api/oauth/token"
+        private const val ANTHROPIC_REFRESH_URL = "https://claude.ai/api/oauth/token"
+        private const val OPENAI_REFRESH_URL = "https://auth.openai.com/oauth/token"
+        private const val OPENAI_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann"
         private const val CONNECT_TIMEOUT_MS = 10_000
         private const val READ_TIMEOUT_MS = 15_000
         private const val MILLIS_PER_SECOND = 1000L
+
+        /**
+         * Returns the OAuth token refresh URL for the given [provider].
+         *
+         * Recognized providers: "openai". All other values (including
+         * "anthropic") fall back to the Anthropic refresh endpoint.
+         *
+         * @param provider Provider identifier.
+         * @return The refresh endpoint URL.
+         */
+        fun refreshUrlForProvider(provider: String): String =
+            when (provider) {
+                "openai" -> OPENAI_REFRESH_URL
+                else -> ANTHROPIC_REFRESH_URL
+            }
     }
 }
