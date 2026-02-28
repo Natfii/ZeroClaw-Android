@@ -871,10 +871,7 @@ pub fn session_start() -> Result<(), FfiError> {
 /// [`FfiError::InternalPanic`] if native code panics.
 #[uniffi::export]
 pub fn session_seed(messages: Vec<session::SessionMessage>) -> Result<(), FfiError> {
-    catch_unwind(AssertUnwindSafe(|| {
-        session::session_seed_inner(messages)
-    }))
-    .unwrap_or_else(|e| {
+    catch_unwind(AssertUnwindSafe(|| session::session_seed_inner(messages))).unwrap_or_else(|e| {
         Err(FfiError::InternalPanic {
             detail: panic_detail(&e),
         })
