@@ -109,6 +109,10 @@ class OnboardingCoordinatorTest {
             assertEquals(ValidationResult.Idle, state.validationResult)
             assertTrue(state.availableModels.isEmpty())
             assertFalse(state.isLoadingModels)
+            assertFalse(state.isOAuthInProgress)
+            assertEquals("", state.oauthEmail)
+            assertEquals("", state.oauthRefreshToken)
+            assertEquals(0L, state.oauthExpiresAt)
         }
 
         @Test

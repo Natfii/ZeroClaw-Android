@@ -104,6 +104,48 @@ pub(crate) fn with_daemon_config<T>(f: impl FnOnce(&Config) -> T) -> Result<T, F
     Ok(f(&state.config))
 }
 
+/// Returns an owned clone of the running daemon's [`Config`].
+///
+/// Acquires the daemon mutex briefly to clone the config, then releases it.
+/// Used by session setup to snapshot config without holding the lock during
+/// long-running operations like provider creation and prompt building.
+///
+/// # Errors
+///
+/// Returns [`FfiError::StateError`] if the daemon is not running,
+/// or [`FfiError::StateCorrupted`] if the daemon mutex is poisoned.
+pub(crate) fn clone_daemon_config() -> Result<Config, FfiError> {
+    with_daemon_config(Config::clone)
+}
+
+/// Returns a cloned `Arc<dyn Memory>` from the running daemon.
+///
+/// Acquires the daemon mutex briefly to clone the `Arc`, then releases it.
+/// The returned `Arc` can be used independently without holding the lock,
+/// which is important for session operations that need long-lived memory
+/// access without blocking other daemon state queries.
+///
+/// # Errors
+///
+/// Returns [`FfiError::StateError`] if the daemon is not running or
+/// the memory backend was not initialised during daemon startup,
+/// or [`FfiError::StateCorrupted`] if the daemon mutex is poisoned.
+#[allow(dead_code)] // Used by session_send_inner, wired in Task 9
+pub(crate) fn clone_daemon_memory() -> Result<Arc<dyn zeroclaw::memory::Memory>, FfiError> {
+    let guard = daemon_mutex()
+        .lock()
+        .map_err(|_| FfiError::StateCorrupted {
+            detail: "daemon mutex poisoned".into(),
+        })?;
+    let state = guard.as_ref().ok_or_else(|| FfiError::StateError {
+        detail: "daemon not running".into(),
+    })?;
+    let memory = state.memory.as_ref().ok_or_else(|| FfiError::StateError {
+        detail: "memory backend not available".into(),
+    })?;
+    Ok(Arc::clone(memory))
+}
+
 /// Runs a closure with a reference to the memory backend and the tokio
 /// runtime handle.
 ///
@@ -594,4 +636,82 @@ fn has_supervised_channels(config: &Config) -> bool {
         || config.channels_config.clawdtalk.is_some()
         || config.channels_config.linq.is_some()
         || config.channels_config.webhook.is_some()
+}
+
+/// Returns the names of all channels with non-null config sections in
+/// the running daemon's parsed TOML.
+///
+/// Mirrors [`has_supervised_channels`] but returns the individual
+/// channel names instead of a single boolean. Used by the Android UI
+/// for per-channel progress tracking during daemon startup.
+///
+/// # Errors
+///
+/// Returns [`FfiError::StateError`] if the daemon is not running,
+/// or [`FfiError::StateCorrupted`] if the daemon mutex is poisoned.
+pub(crate) fn get_configured_channel_names_inner() -> Result<Vec<String>, FfiError> {
+    with_daemon_config(|config| {
+        let mut names = Vec::new();
+        if config.channels_config.telegram.is_some() {
+            names.push("telegram".to_string());
+        }
+        if config.channels_config.discord.is_some() {
+            names.push("discord".to_string());
+        }
+        if config.channels_config.slack.is_some() {
+            names.push("slack".to_string());
+        }
+        if config.channels_config.mattermost.is_some() {
+            names.push("mattermost".to_string());
+        }
+        if config.channels_config.imessage.is_some() {
+            names.push("imessage".to_string());
+        }
+        if config.channels_config.matrix.is_some() {
+            names.push("matrix".to_string());
+        }
+        if config.channels_config.signal.is_some() {
+            names.push("signal".to_string());
+        }
+        if config.channels_config.whatsapp.is_some() {
+            names.push("whatsapp".to_string());
+        }
+        if config.channels_config.wati.is_some() {
+            names.push("wati".to_string());
+        }
+        if config.channels_config.nextcloud_talk.is_some() {
+            names.push("nextcloud_talk".to_string());
+        }
+        if config.channels_config.email.is_some() {
+            names.push("email".to_string());
+        }
+        if config.channels_config.irc.is_some() {
+            names.push("irc".to_string());
+        }
+        if config.channels_config.lark.is_some() {
+            names.push("lark".to_string());
+        }
+        if config.channels_config.feishu.is_some() {
+            names.push("feishu".to_string());
+        }
+        if config.channels_config.dingtalk.is_some() {
+            names.push("dingtalk".to_string());
+        }
+        if config.channels_config.qq.is_some() {
+            names.push("qq".to_string());
+        }
+        if config.channels_config.nostr.is_some() {
+            names.push("nostr".to_string());
+        }
+        if config.channels_config.clawdtalk.is_some() {
+            names.push("clawdtalk".to_string());
+        }
+        if config.channels_config.linq.is_some() {
+            names.push("linq".to_string());
+        }
+        if config.channels_config.webhook.is_some() {
+            names.push("webhook".to_string());
+        }
+        names
+    })
 }

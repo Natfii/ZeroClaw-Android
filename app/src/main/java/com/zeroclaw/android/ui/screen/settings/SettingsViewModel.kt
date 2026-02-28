@@ -619,10 +619,15 @@ class SettingsViewModel(
     /**
      * Resets onboarding completion state so the setup wizard is shown again.
      *
-     * Existing settings and API keys are preserved.
+     * Clears the AIEOS identity JSON so the wizard generates a fresh
+     * identity document. Existing API keys and other settings are preserved.
      */
     fun resetOnboarding() {
-        viewModelScope.launch { onboardingRepository.reset() }
+        viewModelScope.launch {
+            repository.setIdentityJson("")
+            daemonBridge.markRestartRequired()
+            onboardingRepository.reset()
+        }
     }
 
     /** Constants for [SettingsViewModel]. */

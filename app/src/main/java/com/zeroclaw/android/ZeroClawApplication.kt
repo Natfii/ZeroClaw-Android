@@ -24,11 +24,11 @@ import coil3.request.crossfade
 import com.zeroclaw.android.data.SecurePrefsProvider
 import com.zeroclaw.android.data.StorageHealth
 import com.zeroclaw.android.data.local.ZeroClawDatabase
+import com.zeroclaw.android.data.oauth.AuthProfileWriter
 import com.zeroclaw.android.data.repository.ActivityRepository
 import com.zeroclaw.android.data.repository.AgentRepository
 import com.zeroclaw.android.data.repository.ApiKeyRepository
 import com.zeroclaw.android.data.repository.ChannelConfigRepository
-import com.zeroclaw.android.data.repository.ChatMessageRepository
 import com.zeroclaw.android.data.repository.DataStoreOnboardingRepository
 import com.zeroclaw.android.data.repository.DataStoreSettingsRepository
 import com.zeroclaw.android.data.repository.EncryptedApiKeyRepository
@@ -39,10 +39,12 @@ import com.zeroclaw.android.data.repository.PluginRepository
 import com.zeroclaw.android.data.repository.RoomActivityRepository
 import com.zeroclaw.android.data.repository.RoomAgentRepository
 import com.zeroclaw.android.data.repository.RoomChannelConfigRepository
-import com.zeroclaw.android.data.repository.RoomChatMessageRepository
 import com.zeroclaw.android.data.repository.RoomLogRepository
 import com.zeroclaw.android.data.repository.RoomPluginRepository
+import com.zeroclaw.android.data.repository.RoomTerminalEntryRepository
 import com.zeroclaw.android.data.repository.SettingsRepository
+import com.zeroclaw.android.data.repository.TerminalEntryRepository
+import com.zeroclaw.android.model.RefreshCommand
 import com.zeroclaw.android.service.CostBridge
 import com.zeroclaw.android.service.CronBridge
 import com.zeroclaw.android.service.DaemonServiceBridge
@@ -60,6 +62,9 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import okhttp3.ConnectionPool
 import okhttp3.OkHttpClient
@@ -125,8 +130,8 @@ class ZeroClawApplication :
     lateinit var channelConfigRepository: ChannelConfigRepository
         private set
 
-    /** Daemon console chat message repository backed by Room. */
-    lateinit var chatMessageRepository: ChatMessageRepository
+    /** Terminal REPL entry repository backed by Room. */
+    lateinit var terminalEntryRepository: TerminalEntryRepository
         private set
 
     /** Bridge for structured health detail FFI calls. */
@@ -163,6 +168,19 @@ class ZeroClawApplication :
     /** App-wide session lock manager observing the process lifecycle. */
     lateinit var sessionLockManager: SessionLockManager
         private set
+
+    /**
+     * Event bus for triggering immediate data refresh across ViewModels.
+     *
+     * The terminal REPL emits commands here after mutating operations
+     * (cron add, skill install, etc.) so that the Dashboard and other
+     * screens update without waiting for the next poll cycle.
+     */
+    val refreshCommands: MutableSharedFlow<RefreshCommand> =
+        MutableSharedFlow(
+            extraBufferCapacity = 1,
+            onBufferOverflow = BufferOverflow.DROP_OLDEST,
+        )
 
     /**
      * Shared [OkHttpClient] for all HTTP callers within the app.
@@ -205,7 +223,8 @@ class ZeroClawApplication :
         agentRepository = RoomAgentRepository(database.agentDao())
         pluginRepository = RoomPluginRepository(database.pluginDao())
         channelConfigRepository = createChannelConfigRepository()
-        chatMessageRepository = RoomChatMessageRepository(database.chatMessageDao(), ioScope)
+        terminalEntryRepository =
+            RoomTerminalEntryRepository(database.terminalEntryDao(), ioScope)
         healthBridge = HealthBridge()
         costBridge = CostBridge()
         cronBridge = CronBridge()
@@ -218,6 +237,7 @@ class ZeroClawApplication :
         sessionLockManager = SessionLockManager(settingsRepository.settings, ioScope)
         ProcessLifecycleOwner.get().lifecycle.addObserver(sessionLockManager)
 
+        migrateStaleOAuthEntries(ioScope)
         schedulePluginSyncIfEnabled(ioScope)
     }
 
@@ -241,6 +261,66 @@ class ZeroClawApplication :
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to verify crate version: ${e.message}")
+        }
+    }
+
+    /**
+     * Migrates stale OAuth API key entries from `openai` to `openai-codex`.
+     *
+     * Before this fix, the OAuth login flow incorrectly stored ChatGPT
+     * tokens under the `openai` provider. The `openai` provider sends
+     * requests to `api.openai.com` (standard API), while OAuth tokens
+     * must be routed through the `openai-codex` provider which targets
+     * `chatgpt.com/backend-api/codex/responses`.
+     *
+     * This migration runs once per launch. It finds any `openai` entries
+     * with a non-empty [ApiKey.refreshToken][com.zeroclaw.android.model.ApiKey.refreshToken]
+     * (indicating OAuth), re-saves them as `openai-codex`, writes the
+     * corresponding [AuthProfileWriter] file for the Rust [AuthService],
+     * and updates the default provider setting.
+     *
+     * @param scope Background scope for the migration coroutine.
+     */
+    @Suppress("TooGenericExceptionCaught")
+    private fun migrateStaleOAuthEntries(scope: CoroutineScope) {
+        scope.launch {
+            try {
+                val allKeys = apiKeyRepository.keys.first()
+                val staleOAuthKeys =
+                    allKeys.filter { it.provider == STALE_OAUTH_PROVIDER && it.refreshToken.isNotEmpty() }
+                if (staleOAuthKeys.isEmpty()) return@launch
+
+                for (staleKey in staleOAuthKeys) {
+                    val migrated =
+                        staleKey.copy(
+                            provider = CODEX_PROVIDER,
+                            key = "",
+                        )
+                    apiKeyRepository.save(migrated)
+
+                    if (staleKey.expiresAt > 0L) {
+                        AuthProfileWriter.writeCodexProfile(
+                            context = this@ZeroClawApplication,
+                            accessToken = staleKey.key,
+                            refreshToken = staleKey.refreshToken,
+                            expiresAtMs = staleKey.expiresAt,
+                        )
+                    }
+                }
+
+                val currentSettings = settingsRepository.settings.first()
+                if (currentSettings.defaultProvider == STALE_OAUTH_PROVIDER) {
+                    settingsRepository.setDefaultProvider(CODEX_PROVIDER)
+                }
+
+                Log.i(
+                    TAG,
+                    "Migrated ${staleOAuthKeys.size} stale OAuth key(s) from" +
+                        " $STALE_OAUTH_PROVIDER to $CODEX_PROVIDER",
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "OAuth migration failed: ${e.message}")
+            }
         }
     }
 
@@ -363,6 +443,8 @@ class ZeroClawApplication :
     companion object {
         private const val TAG = "ZeroClawApp"
         private const val CHANNEL_SECRETS_PREFS = "zeroclaw_channel_secrets"
+        private const val STALE_OAUTH_PROVIDER = "openai"
+        private const val CODEX_PROVIDER = "openai-codex"
         private const val MEMORY_CACHE_PERCENT = 0.15
         private const val DISK_CACHE_MAX_BYTES = 64L * 1024 * 1024
         private const val MAX_IDLE_CONNECTIONS = 5

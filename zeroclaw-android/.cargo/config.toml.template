@@ -1,0 +1,10 @@
+# Copy to config.toml and replace <ANDROID_SDK> with your Android SDK path.
+# Example: C:/Users/YourName/AppData/Local/Android/Sdk
+# Gobley handles this automatically for Gradle builds; this file is only
+# needed for standalone cargo commands (clippy, test) that target Android.
+
+[target.aarch64-linux-android]
+linker = "<ANDROID_SDK>/ndk/27.2.12479018/toolchains/llvm/prebuilt/windows-x86_64/bin/aarch64-linux-android26-clang.cmd"
+
+[target.x86_64-linux-android]
+linker = "<ANDROID_SDK>/ndk/27.2.12479018/toolchains/llvm/prebuilt/windows-x86_64/bin/x86_64-linux-android26-clang.cmd"

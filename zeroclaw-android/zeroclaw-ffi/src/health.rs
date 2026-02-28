@@ -12,7 +12,7 @@
 use crate::error::FfiError;
 
 /// Per-component health status.
-#[derive(Debug, Clone, uniffi::Record)]
+#[derive(Debug, Clone, serde::Serialize, uniffi::Record)]
 pub struct FfiComponentHealth {
     /// Component name (e.g. "gateway", "scheduler").
     pub name: String,
@@ -25,7 +25,7 @@ pub struct FfiComponentHealth {
 }
 
 /// Full daemon health detail with per-component breakdown.
-#[derive(Debug, Clone, uniffi::Record)]
+#[derive(Debug, Clone, serde::Serialize, uniffi::Record)]
 pub struct FfiHealthDetail {
     /// Whether the daemon process is currently running.
     pub daemon_running: bool,

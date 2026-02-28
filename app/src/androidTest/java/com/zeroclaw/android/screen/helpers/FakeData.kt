@@ -12,7 +12,6 @@ import com.zeroclaw.android.model.ActivityType
 import com.zeroclaw.android.model.Agent
 import com.zeroclaw.android.model.ApiKey
 import com.zeroclaw.android.model.AppSettings
-import com.zeroclaw.android.model.ChatMessage
 import com.zeroclaw.android.model.CheckStatus
 import com.zeroclaw.android.model.CostSummary
 import com.zeroclaw.android.model.CronJob
@@ -26,13 +25,14 @@ import com.zeroclaw.android.model.PluginCategory
 import com.zeroclaw.android.model.ProcessedImage
 import com.zeroclaw.android.model.ServiceState
 import com.zeroclaw.android.ui.screen.agents.AgentsState
-import com.zeroclaw.android.ui.screen.console.ConsoleState
 import com.zeroclaw.android.ui.screen.dashboard.DashboardState
 import com.zeroclaw.android.ui.screen.onboarding.OnboardingState
 import com.zeroclaw.android.ui.screen.plugins.PluginsState
 import com.zeroclaw.android.ui.screen.plugins.SyncUiState
 import com.zeroclaw.android.ui.screen.settings.apikeys.ApiKeysState
 import com.zeroclaw.android.ui.screen.settings.doctor.DoctorState
+import com.zeroclaw.android.ui.screen.terminal.TerminalBlock
+import com.zeroclaw.android.ui.screen.terminal.TerminalState
 import com.zeroclaw.android.viewmodel.DaemonUiState
 
 /**
@@ -147,31 +147,6 @@ internal fun fakeAgentsState(): AgentsState =
     )
 
 /**
- * Creates a default [ConsoleState] with sample messages.
- *
- * @return A console state with one user and one daemon message.
- */
-internal fun fakeConsoleState(): ConsoleState =
-    ConsoleState(
-        messages =
-            listOf(
-                ChatMessage(
-                    id = 1,
-                    content = "Hello",
-                    isFromUser = true,
-                ),
-                ChatMessage(
-                    id = 2,
-                    content = "Hello! How can I help?",
-                    isFromUser = false,
-                ),
-            ),
-        isLoading = false,
-        pendingImages = emptyList(),
-        isProcessingImages = false,
-    )
-
-/**
  * Creates a default [PluginsState] with sample plugins.
  *
  * @return A plugins state on the Installed tab with one plugin.
@@ -283,6 +258,26 @@ internal fun fakeProcessedImage(): ProcessedImage =
         height = 100,
         originalUri = "content://test/image1",
         displayName = "test-image.jpg",
+    )
+
+/**
+ * Creates a default [TerminalState] with a welcome system block.
+ *
+ * @return A terminal state containing a single system block.
+ */
+internal fun fakeTerminalState(): TerminalState =
+    TerminalState(
+        blocks =
+            listOf(
+                TerminalBlock.System(
+                    id = 1,
+                    timestamp = System.currentTimeMillis(),
+                    text = "ZeroClaw Terminal v0.0.29 \u2014 Type /help for commands",
+                ),
+            ),
+        isLoading = false,
+        pendingImages = emptyList(),
+        isProcessingImages = false,
     )
 
 /**

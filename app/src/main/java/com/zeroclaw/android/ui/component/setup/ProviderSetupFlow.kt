@@ -12,26 +12,41 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Verified
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
 import com.zeroclaw.android.data.ProviderRegistry
 import com.zeroclaw.android.data.validation.ValidationResult
 import com.zeroclaw.android.model.DiscoveredServer
+import com.zeroclaw.android.model.ProviderAuthType
 import com.zeroclaw.android.ui.component.ModelSuggestionField
 import com.zeroclaw.android.ui.component.ProviderCredentialForm
 import com.zeroclaw.android.ui.theme.ZeroClawTheme
@@ -52,6 +67,32 @@ private val HintSpacing = 8.dp
 
 /** Spacing between the validate button icon and label. */
 private val ButtonIconSpacing = 4.dp
+
+/** Size of the circular progress indicator inside the OAuth login button. */
+private val OAuthProgressSize = 18.dp
+
+/** Size of the ChatGPT logo icon in the OAuth login button. */
+private val OAuthLogoSize = 20.dp
+
+/** Pixel size for the ChatGPT logo Coil request (20dp at 4x density). */
+private const val OAUTH_LOGO_PX = 80
+
+/** Google Favicon API URL for the ChatGPT logo. */
+private const val CHATGPT_FAVICON_URL =
+    "https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON" +
+        "&fallback_opts=TYPE,SIZE,URL&url=https://chatgpt.com&size=128"
+
+/** Stroke width for the OAuth progress indicator. */
+private val OAuthProgressStroke = 2.dp
+
+/** Internal padding for the OAuth connected chip. */
+private val ChipPadding = 12.dp
+
+/** Size of the check icon inside the OAuth connected chip. */
+private val ChipIconSize = 20.dp
+
+/** Spacing between the icon and text columns in the OAuth connected chip. */
+private val ChipIconTextSpacing = 8.dp
 
 /**
  * Reusable provider setup form combining credential entry, validation, and model selection.
@@ -89,6 +130,15 @@ private val ButtonIconSpacing = 4.dp
  * @param isLiveModelData Whether [availableModels] represents real-time data.
  * @param onServerSelected Optional callback invoked when a server is picked from
  *   the network scan sheet for local providers.
+ * @param isOAuthInProgress Whether an OAuth login flow is currently running.
+ * @param oauthEmail Display email or label for the connected OAuth session,
+ *   or empty string when not connected.
+ * @param onOAuthLogin Optional callback to initiate the OAuth login flow.
+ *   When non-null and the provider supports [ProviderAuthType.API_KEY_OR_OAUTH],
+ *   the "Login with ChatGPT" button is rendered.
+ * @param onOAuthDisconnect Optional callback to disconnect the current OAuth session.
+ * @param scrollable Whether the root [Column] applies its own vertical scroll. Set to
+ *   false when embedding inside an already-scrollable parent to avoid nested scrolling.
  */
 @Composable
 fun ProviderSetupFlow(
@@ -108,16 +158,29 @@ fun ProviderSetupFlow(
     isLoadingModels: Boolean = false,
     isLiveModelData: Boolean = false,
     onServerSelected: ((DiscoveredServer) -> Unit)? = null,
+    isOAuthInProgress: Boolean = false,
+    oauthEmail: String = "",
+    onOAuthLogin: (() -> Unit)? = null,
+    onOAuthDisconnect: (() -> Unit)? = null,
+    scrollable: Boolean = true,
 ) {
     val providerInfo = ProviderRegistry.findById(selectedProvider)
     val suggestedModels = providerInfo?.suggestedModels.orEmpty()
     val consoleTarget = ExternalAppLauncher.providerConsoleTarget(selectedProvider)
+    val isOAuthConnected = oauthEmail.isNotEmpty()
     val validateEnabled =
         selectedProvider.isNotBlank() &&
             (apiKey.isNotBlank() || baseUrl.isNotBlank())
 
+    val columnModifier =
+        if (scrollable) {
+            modifier.verticalScroll(rememberScrollState())
+        } else {
+            modifier
+        }
+
     Column(
-        modifier = modifier.verticalScroll(rememberScrollState()),
+        modifier = columnModifier,
     ) {
         ProviderCredentialForm(
             selectedProviderId = selectedProvider,
@@ -127,19 +190,89 @@ fun ProviderSetupFlow(
             onApiKeyChanged = onApiKeyChanged,
             onBaseUrlChanged = onBaseUrlChanged,
             onServerSelected = onServerSelected,
+            oauthConnected = isOAuthConnected,
             modifier = Modifier.fillMaxWidth(),
         )
 
+        if (providerInfo?.authType == ProviderAuthType.API_KEY_OR_OAUTH &&
+            onOAuthLogin != null
+        ) {
+            Spacer(modifier = Modifier.height(FieldSpacing))
+
+            if (oauthEmail.isNotEmpty()) {
+                OAuthConnectedChip(
+                    email = oauthEmail,
+                    onDisconnect = onOAuthDisconnect ?: {},
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            } else {
+                Button(
+                    onClick = onOAuthLogin,
+                    enabled = !isOAuthInProgress,
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .semantics {
+                                contentDescription =
+                                    "Login with ChatGPT"
+                            },
+                ) {
+                    if (isOAuthInProgress) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(OAuthProgressSize),
+                            strokeWidth = OAuthProgressStroke,
+                            color = MaterialTheme.colorScheme.onPrimary,
+                        )
+                        Spacer(modifier = Modifier.width(ButtonIconSpacing))
+                    } else {
+                        val context = LocalContext.current
+                        val logoRequest =
+                            remember {
+                                ImageRequest
+                                    .Builder(context)
+                                    .data(CHATGPT_FAVICON_URL)
+                                    .size(OAUTH_LOGO_PX, OAUTH_LOGO_PX)
+                                    .build()
+                            }
+                        AsyncImage(
+                            model = logoRequest,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier =
+                                Modifier
+                                    .size(OAuthLogoSize)
+                                    .clip(CircleShape),
+                        )
+                        Spacer(modifier = Modifier.width(ButtonIconSpacing))
+                    }
+                    Text(
+                        text =
+                            if (isOAuthInProgress) {
+                                "Logging in\u2026"
+                            } else {
+                                "Login with ChatGPT"
+                            },
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(FieldSpacing))
+
+                OAuthDividerRow(modifier = Modifier.fillMaxWidth())
+            }
+        }
+
         Spacer(modifier = Modifier.height(FieldSpacing))
 
-        ActionRow(
-            consoleTarget = consoleTarget,
-            validateEnabled = validateEnabled,
-            validationResult = validationResult,
-            onValidate = onValidate,
-        )
+        if (!isOAuthConnected) {
+            ActionRow(
+                consoleTarget = consoleTarget,
+                validateEnabled = validateEnabled,
+                validationResult = validationResult,
+                onValidate = onValidate,
+            )
 
-        Spacer(modifier = Modifier.height(TitleSpacing))
+            Spacer(modifier = Modifier.height(TitleSpacing))
+        }
 
         ValidationIndicator(
             result = validationResult,
@@ -222,6 +355,86 @@ private fun ActionRow(
             )
             Spacer(modifier = Modifier.width(ButtonIconSpacing))
             Text(text = if (isLoading) "Validating\u2026" else "Validate")
+        }
+    }
+}
+
+/**
+ * Horizontal divider with centered "or use API key" text.
+ *
+ * Rendered below the "Login with ChatGPT" button to indicate the
+ * alternative API-key authentication path.
+ *
+ * @param modifier Modifier applied to the root [Row].
+ */
+@Composable
+private fun OAuthDividerRow(modifier: Modifier = Modifier) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier,
+    ) {
+        HorizontalDivider(modifier = Modifier.weight(1f))
+        Text(
+            text = "or use API key",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = FieldSpacing),
+        )
+        HorizontalDivider(modifier = Modifier.weight(1f))
+    }
+}
+
+/**
+ * Compact chip showing the connected OAuth session with a disconnect action.
+ *
+ * Displays a [CheckCircle][Icons.Default.CheckCircle] icon, the connected
+ * account label, a "Connected via ChatGPT" subtitle, and a "Disconnect"
+ * [TextButton].
+ *
+ * @param email Display label for the connected OAuth account.
+ * @param onDisconnect Callback invoked when the user taps "Disconnect".
+ * @param modifier Modifier applied to the root [Surface].
+ */
+@Composable
+private fun OAuthConnectedChip(
+    email: String,
+    onDisconnect: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        shape = MaterialTheme.shapes.small,
+        modifier = modifier,
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(ChipPadding),
+        ) {
+            Icon(
+                imageVector = Icons.Default.CheckCircle,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.size(ChipIconSize),
+            )
+            Spacer(modifier = Modifier.width(ChipIconTextSpacing))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = email,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color =
+                        MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+                Text(
+                    text = "Connected via ChatGPT",
+                    style = MaterialTheme.typography.bodySmall,
+                    color =
+                        MaterialTheme.colorScheme.onSecondaryContainer
+                            .copy(alpha = 0.7f),
+                )
+            }
+            TextButton(onClick = onDisconnect) {
+                Text("Disconnect")
+            }
         }
     }
 }
@@ -349,6 +562,72 @@ private fun PreviewDark() {
                 onApiKeyChanged = {},
                 onBaseUrlChanged = {},
                 onModelChanged = {},
+                showSkipHint = true,
+            )
+        }
+    }
+}
+
+@Preview(name = "Provider Setup - OAuth Login")
+@Composable
+private fun PreviewOAuthLogin() {
+    ZeroClawTheme {
+        Surface {
+            ProviderSetupFlow(
+                selectedProvider = "openai",
+                apiKey = "",
+                baseUrl = "",
+                selectedModel = "",
+                onProviderChanged = {},
+                onApiKeyChanged = {},
+                onBaseUrlChanged = {},
+                onModelChanged = {},
+                onOAuthLogin = {},
+                showSkipHint = true,
+            )
+        }
+    }
+}
+
+@Preview(name = "Provider Setup - OAuth In Progress")
+@Composable
+private fun PreviewOAuthInProgress() {
+    ZeroClawTheme {
+        Surface {
+            ProviderSetupFlow(
+                selectedProvider = "openai",
+                apiKey = "",
+                baseUrl = "",
+                selectedModel = "",
+                onProviderChanged = {},
+                onApiKeyChanged = {},
+                onBaseUrlChanged = {},
+                onModelChanged = {},
+                isOAuthInProgress = true,
+                onOAuthLogin = {},
+                showSkipHint = true,
+            )
+        }
+    }
+}
+
+@Preview(name = "Provider Setup - OAuth Connected")
+@Composable
+private fun PreviewOAuthConnected() {
+    ZeroClawTheme {
+        Surface {
+            ProviderSetupFlow(
+                selectedProvider = "openai",
+                apiKey = "",
+                baseUrl = "",
+                selectedModel = "gpt-4o",
+                onProviderChanged = {},
+                onApiKeyChanged = {},
+                onBaseUrlChanged = {},
+                onModelChanged = {},
+                oauthEmail = "ChatGPT Login",
+                onOAuthLogin = {},
+                onOAuthDisconnect = {},
                 showSkipHint = true,
             )
         }

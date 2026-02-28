@@ -18,6 +18,7 @@ import com.zeroclaw.android.model.DaemonStatus
 import com.zeroclaw.android.model.HealthDetail
 import com.zeroclaw.android.model.KeyRejectionEvent
 import com.zeroclaw.android.model.MemoryConflict
+import com.zeroclaw.android.model.RefreshCommand
 import com.zeroclaw.android.model.ServiceState
 import com.zeroclaw.android.service.CostBridge
 import com.zeroclaw.android.service.CronBridge
@@ -222,6 +223,12 @@ class DaemonViewModel(
                 _keyRejectionEvent.value = event
             }
         }
+
+        viewModelScope.launch {
+            app.refreshCommands.collect { command ->
+                handleRefreshCommand(command)
+            }
+        }
     }
 
     /**
@@ -285,6 +292,29 @@ class DaemonViewModel(
      */
     fun dismissMemoryHealthWarning() {
         bridge.dismissMemoryHealthWarning()
+    }
+
+    /**
+     * Handles a refresh command by immediately fetching the relevant data.
+     *
+     * @param command The refresh command to handle.
+     */
+    @Suppress("TooGenericExceptionCaught")
+    private fun handleRefreshCommand(command: RefreshCommand) {
+        viewModelScope.launch {
+            try {
+                when (command) {
+                    RefreshCommand.Cron ->
+                        _cronJobs.value = cronBridge.listJobs()
+                    RefreshCommand.Cost ->
+                        _costSummary.value = costBridge.getCostSummary()
+                    RefreshCommand.Health ->
+                        _healthDetail.value = healthBridge.getHealthDetail()
+                }
+            } catch (_: Exception) {
+                /** Refresh failure is non-fatal; the next poll cycle will retry. */
+            }
+        }
     }
 
     @Suppress("TooGenericExceptionCaught")

@@ -33,7 +33,6 @@ import com.zeroclaw.android.ui.component.PinEntrySheet
 import com.zeroclaw.android.ui.screen.agents.AddAgentScreen
 import com.zeroclaw.android.ui.screen.agents.AgentDetailScreen
 import com.zeroclaw.android.ui.screen.agents.AgentsScreen
-import com.zeroclaw.android.ui.screen.console.ConsoleScreen
 import com.zeroclaw.android.ui.screen.dashboard.DashboardScreen
 import com.zeroclaw.android.ui.screen.onboarding.OnboardingScreen
 import com.zeroclaw.android.ui.screen.plugins.PluginDetailScreen
@@ -70,6 +69,8 @@ import com.zeroclaw.android.ui.screen.settings.gateway.QrScannerScreen
 import com.zeroclaw.android.ui.screen.settings.logs.LogViewerScreen
 import com.zeroclaw.android.ui.screen.settings.memory.MemoryBrowserScreen
 import com.zeroclaw.android.ui.screen.settings.tools.ToolsBrowserScreen
+import com.zeroclaw.android.ui.screen.setup.SetupScreen
+import com.zeroclaw.android.ui.screen.terminal.TerminalScreen
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -103,7 +104,7 @@ fun ZeroClawNavHost(
                         action = ZeroClawDaemonService.ACTION_STOP
                     }
                 context.startService(stopIntent)
-                app.chatMessageRepository.clear()
+                app.terminalEntryRepository.clear()
                 navController.navigate(DashboardRoute) {
                     popUpTo(navController.graph.startDestinationId) { inclusive = false }
                     launchSingleTop = true
@@ -188,8 +189,8 @@ fun ZeroClawNavHost(
             )
         }
 
-        composable<ConsoleRoute> {
-            ConsoleScreen(edgeMargin = edgeMargin)
+        composable<TerminalRoute> {
+            TerminalScreen(edgeMargin = edgeMargin)
         }
 
         composable<SettingsRoute> {
@@ -524,8 +525,18 @@ fun ZeroClawNavHost(
         composable<OnboardingRoute> {
             OnboardingScreen(
                 onComplete = {
-                    navController.navigate(DashboardRoute) {
+                    navController.navigate(SetupRoute) {
                         popUpTo(OnboardingRoute) { inclusive = true }
+                    }
+                },
+            )
+        }
+
+        composable<SetupRoute> {
+            SetupScreen(
+                onComplete = {
+                    navController.navigate(DashboardRoute) {
+                        popUpTo(SetupRoute) { inclusive = true }
                     }
                 },
             )

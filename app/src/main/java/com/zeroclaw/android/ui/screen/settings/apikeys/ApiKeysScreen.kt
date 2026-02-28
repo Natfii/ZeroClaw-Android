@@ -72,9 +72,11 @@ import com.zeroclaw.android.data.validation.ProviderValidator
 import com.zeroclaw.android.data.validation.ValidationResult
 import com.zeroclaw.android.model.ApiKey
 import com.zeroclaw.android.model.KeyStatus
+import com.zeroclaw.android.model.isOAuthToken
 import com.zeroclaw.android.ui.component.EmptyState
 import com.zeroclaw.android.ui.component.ErrorCard
 import com.zeroclaw.android.ui.component.MaskedText
+import com.zeroclaw.android.ui.component.SetupBottomSheet
 import com.zeroclaw.android.ui.component.setup.ValidationIndicator
 import kotlinx.coroutines.launch
 
@@ -134,6 +136,7 @@ fun ApiKeysScreen(
     val corruptCount by apiKeysViewModel.corruptKeyCount.collectAsStateWithLifecycle()
     val unusedKeyIds by apiKeysViewModel.unusedKeyIds.collectAsStateWithLifecycle()
     val unreachableKeyIds by apiKeysViewModel.unreachableKeyIds.collectAsStateWithLifecycle()
+    val showSheet by apiKeysViewModel.showHotReloadSheet.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
@@ -145,6 +148,13 @@ fun ApiKeysScreen(
             snackbarHostState.showSnackbar(message)
             apiKeysViewModel.dismissSnackbar()
         }
+    }
+
+    if (showSheet) {
+        SetupBottomSheet(
+            progressFlow = apiKeysViewModel.hotReloadProgress,
+            onDismiss = apiKeysViewModel::dismissHotReloadSheet,
+        )
     }
 
     ApiKeysContent(
@@ -771,10 +781,18 @@ private fun ApiKeyItem(
                 }
             }
             Spacer(modifier = Modifier.height(4.dp))
-            MaskedText(
-                text = apiKey.key,
-                revealed = isRevealed,
-            )
+            if (apiKey.isOAuthToken) {
+                Text(
+                    text = "ChatGPT Login",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                MaskedText(
+                    text = apiKey.key,
+                    revealed = isRevealed,
+                )
+            }
             if (apiKey.expiresAt > 0L) {
                 Spacer(modifier = Modifier.height(4.dp))
                 ExpiryLabel(expiresAt = apiKey.expiresAt)

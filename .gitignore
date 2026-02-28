@@ -2,6 +2,7 @@
 target/
 **/*.rs.bk
 *.pdb
+.cargo/config.toml
 
 # Android / Gradle
 *.iml
@@ -38,6 +39,7 @@ app/src/main/jniLibs/
 
 # Design documents (local only)
 docs/
+doc/plans/
 
 # Hook scripts (local machine paths)
 scripts/hooks/

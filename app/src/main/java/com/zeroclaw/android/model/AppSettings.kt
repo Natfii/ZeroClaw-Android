@@ -243,7 +243,7 @@ data class AppSettings(
         const val DEFAULT_HOST = "127.0.0.1"
 
         /** Default gateway bind port. */
-        const val DEFAULT_PORT = 3000
+        const val DEFAULT_PORT = 42617
 
         /** Default inference temperature. */
         const val DEFAULT_TEMPERATURE = 0.7f
@@ -275,10 +275,10 @@ data class AppSettings(
             "/etc,/root,~/.ssh,~/.gnupg,~/.aws,~/.config"
 
         /** Default max agent actions per hour. */
-        const val DEFAULT_MAX_ACTIONS_PER_HOUR = 20
+        const val DEFAULT_MAX_ACTIONS_PER_HOUR = 100
 
         /** Default max cost per day in cents. */
-        const val DEFAULT_MAX_COST_PER_DAY_CENTS = 500
+        const val DEFAULT_MAX_COST_PER_DAY_CENTS = 1000
 
         /** Default gateway pairing rate limit per minute. */
         const val DEFAULT_PAIR_RATE_LIMIT = 10
@@ -350,10 +350,10 @@ data class AppSettings(
         const val DEFAULT_RESOURCES_MAX_MEMORY_MB = 512
 
         /** Default resource limit: max CPU time in seconds. */
-        const val DEFAULT_RESOURCES_MAX_CPU_TIME_SECS = 300
+        const val DEFAULT_RESOURCES_MAX_CPU_TIME_SECS = 60
 
         /** Default resource limit: max subprocesses. */
-        const val DEFAULT_RESOURCES_MAX_SUBPROCESSES = 32
+        const val DEFAULT_RESOURCES_MAX_SUBPROCESSES = 10
 
         /** Default OTP method. */
         const val DEFAULT_OTP_METHOD = "totp"
@@ -375,7 +375,7 @@ data class AppSettings(
         const val DEFAULT_PROXY_SCOPE = "zeroclaw"
 
         /** Default reliability backoff duration in milliseconds. */
-        const val DEFAULT_RELIABILITY_BACKOFF_MS = 1000
+        const val DEFAULT_RELIABILITY_BACKOFF_MS = 500
     }
 }
 

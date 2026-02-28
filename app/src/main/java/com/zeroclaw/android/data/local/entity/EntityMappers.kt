@@ -11,12 +11,12 @@ import com.zeroclaw.android.model.ActivityType
 import com.zeroclaw.android.model.Agent
 import com.zeroclaw.android.model.ChannelConfig
 import com.zeroclaw.android.model.ChannelType
-import com.zeroclaw.android.model.ChatMessage
 import com.zeroclaw.android.model.ConnectedChannel
 import com.zeroclaw.android.model.LogEntry
 import com.zeroclaw.android.model.LogSeverity
 import com.zeroclaw.android.model.Plugin
 import com.zeroclaw.android.model.PluginCategory
+import com.zeroclaw.android.model.TerminalEntry
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -164,36 +164,6 @@ fun ActivityEvent.toEntity(): ActivityEventEntity =
     )
 
 /**
- * Converts a [ChatMessageEntity] to its domain [ChatMessage] model.
- *
- * @receiver The Room entity to convert.
- * @return The equivalent domain model with deserialized image URIs.
- */
-fun ChatMessageEntity.toModel(): ChatMessage =
-    ChatMessage(
-        id = id,
-        content = content,
-        isFromUser = isFromUser,
-        timestamp = timestamp,
-        imageUris = deserializeImageUris(imagesJson),
-    )
-
-/**
- * Converts a [ChatMessage] domain model to its [ChatMessageEntity] for persistence.
- *
- * @receiver The domain model to convert.
- * @return The equivalent Room entity with serialized image URIs.
- */
-fun ChatMessage.toEntity(): ChatMessageEntity =
-    ChatMessageEntity(
-        id = id,
-        timestamp = timestamp,
-        content = content,
-        isFromUser = isFromUser,
-        imagesJson = if (imageUris.isEmpty()) null else mapperJson.encodeToString(imageUris),
-    )
-
-/**
  * Deserializes a JSON string to a list of [ChannelConfig].
  *
  * @param json JSON-encoded channel configuration list.
@@ -240,6 +210,36 @@ private fun deserializeConfigMap(json: String): Map<String, String> =
 private fun deserializeSeverity(name: String): LogSeverity =
     runCatching { LogSeverity.valueOf(name) }
         .getOrDefault(LogSeverity.INFO)
+
+/**
+ * Converts a [TerminalEntryEntity] to its domain [TerminalEntry] model.
+ *
+ * @receiver The Room entity to convert.
+ * @return The equivalent domain model with deserialized image URIs.
+ */
+fun TerminalEntryEntity.toModel(): TerminalEntry =
+    TerminalEntry(
+        id = id,
+        content = content,
+        entryType = entryType,
+        timestamp = timestamp,
+        imageUris = deserializeImageUris(imageUris),
+    )
+
+/**
+ * Converts a [TerminalEntry] domain model to its [TerminalEntryEntity] for persistence.
+ *
+ * @receiver The domain model to convert.
+ * @return The equivalent Room entity with serialized image URIs.
+ */
+fun TerminalEntry.toEntity(): TerminalEntryEntity =
+    TerminalEntryEntity(
+        id = id,
+        content = content,
+        entryType = entryType,
+        timestamp = timestamp,
+        imageUris = if (imageUris.isEmpty()) "[]" else mapperJson.encodeToString(imageUris),
+    )
 
 /**
  * Converts a [ConnectedChannelEntity] to its domain [ConnectedChannel] model.

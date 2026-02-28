@@ -60,12 +60,12 @@ enum class TopLevelDestination(
         route = PluginsRoute,
     ),
 
-    /** Global daemon console for sending messages to the gateway. */
-    CONSOLE(
+    /** Interactive terminal REPL for commands and scripting. */
+    TERMINAL(
         selectedIcon = Icons.Filled.Terminal,
         unselectedIcon = Icons.Outlined.Terminal,
-        label = "Console",
-        route = ConsoleRoute,
+        label = "Terminal",
+        route = TerminalRoute,
     ),
 
     /** Application settings and configuration. */

@@ -13,6 +13,7 @@ import com.zeroclaw.android.model.MemoryConflict
 import com.zeroclaw.android.model.MemoryHealthResult
 import com.zeroclaw.android.model.ServiceState
 import com.zeroclaw.ffi.FfiException
+import com.zeroclaw.ffi.getConfiguredChannelNames
 import com.zeroclaw.ffi.getStatus
 import com.zeroclaw.ffi.scaffoldWorkspace
 import com.zeroclaw.ffi.sendMessage
@@ -358,6 +359,23 @@ class DaemonServiceBridge(
             )
         }
     }
+
+    /**
+     * Returns the list of channel names configured in the running daemon.
+     *
+     * Safe to call from the main thread; the underlying **blocking** FFI
+     * call is dispatched to [ioDispatcher] and typically completes in
+     * under 10ms as it only reads in-process configuration state.
+     *
+     * Requires a running daemon; throws [FfiException] with a
+     * [FfiException.StateException] variant when called while the daemon
+     * is stopped.
+     *
+     * @return List of channel name strings (e.g. `["discord", "gateway"]`).
+     * @throws FfiException if the native layer reports an error.
+     */
+    @Throws(FfiException::class)
+    suspend fun configuredChannelNames(): List<String> = withContext(ioDispatcher) { getConfiguredChannelNames() }
 
     /**
      * Ensures the workspace directory exists and migrates legacy files.

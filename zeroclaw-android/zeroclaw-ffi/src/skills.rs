@@ -18,7 +18,7 @@ use crate::error::FfiError;
 /// Fields are populated by scanning `skill.toml` manifests from the
 /// workspace directory, since the upstream `Skill` type is no longer
 /// accessible from outside the crate.
-#[derive(Debug, Clone, uniffi::Record)]
+#[derive(Debug, Clone, serde::Serialize, uniffi::Record)]
 pub struct FfiSkill {
     /// Display name of the skill.
     pub name: String,
@@ -37,7 +37,7 @@ pub struct FfiSkill {
 }
 
 /// A single tool defined by a skill.
-#[derive(Debug, Clone, uniffi::Record)]
+#[derive(Debug, Clone, serde::Serialize, uniffi::Record)]
 pub struct FfiSkillTool {
     /// Unique tool name within the skill.
     pub name: String,

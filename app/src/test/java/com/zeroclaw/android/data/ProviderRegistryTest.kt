@@ -28,7 +28,7 @@ class ProviderRegistryTest {
         assertNotNull(openai)
         assertEquals("openai", openai!!.id)
         assertEquals("OpenAI", openai.displayName)
-        assertEquals(ProviderAuthType.API_KEY_ONLY, openai.authType)
+        assertEquals(ProviderAuthType.API_KEY_OR_OAUTH, openai.authType)
         assertTrue(openai.suggestedModels.isNotEmpty())
     }
 
@@ -289,5 +289,14 @@ class ProviderRegistryTest {
                 "$id local provider should have empty keyPrefix",
             )
         }
+    }
+
+    @Test
+    @DisplayName("openai provider supports oauth")
+    fun `openai provider supports oauth`() {
+        val openai = ProviderRegistry.findById("openai")
+        assertNotNull(openai)
+        assertEquals(ProviderAuthType.API_KEY_OR_OAUTH, openai!!.authType)
+        assertEquals("app_EMoamEEZ73f0CkXaXp7hrann", openai.oauthClientId)
     }
 }

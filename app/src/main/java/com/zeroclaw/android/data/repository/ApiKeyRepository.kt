@@ -151,7 +151,7 @@ interface ApiKeyRepository {
         val key = getByProvider(provider) ?: return null
         if (!key.isOAuthToken || !key.isExpired()) return key
         return try {
-            val result = OAuthTokenRefresher().refresh(key.refreshToken)
+            val result = OAuthTokenRefresher().refresh(key.refreshToken, key.provider)
             val refreshed =
                 key.copy(
                     key = result.accessToken,

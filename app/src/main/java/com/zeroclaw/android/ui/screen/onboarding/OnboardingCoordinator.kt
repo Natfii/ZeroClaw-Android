@@ -9,11 +9,19 @@
 package com.zeroclaw.android.ui.screen.onboarding
 
 import android.app.Application
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import androidx.browser.customtabs.CustomTabsIntent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.zeroclaw.android.ZeroClawApplication
 import com.zeroclaw.android.data.ProviderRegistry
 import com.zeroclaw.android.data.channel.ChannelSetupSpecs
+import com.zeroclaw.android.data.oauth.AuthProfileWriter
+import com.zeroclaw.android.data.oauth.OAuthCallbackServer
+import com.zeroclaw.android.data.oauth.OpenAiOAuthManager
+import com.zeroclaw.android.data.oauth.PkceState
 import com.zeroclaw.android.data.remote.ModelFetcher
 import com.zeroclaw.android.data.validation.ChannelValidator
 import com.zeroclaw.android.data.validation.ProviderValidator
@@ -23,6 +31,8 @@ import com.zeroclaw.android.model.ApiKey
 import com.zeroclaw.android.model.ChannelType
 import com.zeroclaw.android.model.ConnectedChannel
 import com.zeroclaw.android.model.ModelListFormat
+import com.zeroclaw.android.model.ServiceState
+import com.zeroclaw.android.service.ZeroClawDaemonService
 import com.zeroclaw.android.ui.component.setup.ConfigSummary
 import com.zeroclaw.android.ui.screen.onboarding.state.ActivationStepState
 import com.zeroclaw.android.ui.screen.onboarding.state.ChannelSelectionState
@@ -43,6 +53,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
@@ -77,7 +88,7 @@ private const val SHARING_TIMEOUT_MS = 5000L
  *
  * @param application Application context for accessing repositories.
  */
-@Suppress("LongParameterList", "CognitiveComplexMethod")
+@Suppress("LongParameterList", "CognitiveComplexMethod", "LargeClass")
 class OnboardingCoordinator(
     application: Application,
 ) : AndroidViewModel(application) {
@@ -127,6 +138,12 @@ class OnboardingCoordinator(
 
         /** Total number of onboarding steps. */
         const val TOTAL_STEPS = 9
+
+        /** Canonical provider ID for OpenAI API-key access. */
+        private const val OPENAI_PROVIDER = "openai"
+
+        /** Canonical provider ID for ChatGPT Codex OAuth access. */
+        private const val CODEX_PROVIDER = "openai-codex"
     }
 
     private val _pinHash = MutableStateFlow("")
@@ -319,6 +336,225 @@ class OnboardingCoordinator(
      */
     fun setModel(model: String) {
         _providerState.value = _providerState.value.copy(model = model)
+    }
+
+    /**
+     * Launches the full OpenAI OAuth 2.0 PKCE login flow.
+     *
+     * Generates PKCE state, starts a loopback callback server, opens a Chrome
+     * Custom Tab for the user to authenticate, and exchanges the returned
+     * authorization code for access and refresh tokens. On success, the
+     * provider state is updated with the OAuth tokens and a success
+     * validation result. On failure, the validation result is set to an
+     * appropriate error state.
+     *
+     * Safe to call from the main thread; all network operations run on
+     * background dispatchers.
+     *
+     * @param context Activity or application context used to launch the
+     *   Chrome Custom Tab.
+     */
+    @Suppress("TooGenericExceptionCaught")
+    fun startOAuthLogin(context: Context) {
+        viewModelScope.launch {
+            _providerState.update {
+                it.copy(isOAuthInProgress = true)
+            }
+            val pkce = OpenAiOAuthManager.generatePkceState()
+            var server: OAuthCallbackServer? = null
+            try {
+                holdForegroundForOAuth(context)
+                server = OAuthCallbackServer.startWithFallback()
+                val port = server.boundPort
+                val url = OpenAiOAuthManager.buildAuthorizeUrl(pkce, port)
+                CustomTabsIntent.Builder().build().launchUrl(context, Uri.parse(url))
+                handleOAuthCallback(server, pkce, port, context)
+            } catch (e: Exception) {
+                _providerState.update {
+                    it.copy(
+                        isOAuthInProgress = false,
+                        validationResult =
+                            ValidationResult.Offline(
+                                e.message ?: "OAuth login failed",
+                            ),
+                    )
+                }
+            } finally {
+                server?.stop()
+                releaseOAuthHold(context)
+            }
+        }
+    }
+
+    /**
+     * Processes the OAuth callback from the loopback server.
+     *
+     * Awaits the callback result, validates the CSRF state nonce, and
+     * exchanges the authorization code for tokens. Updates the provider
+     * state with the result.
+     *
+     * @param server The running callback server to await results from.
+     * @param pkce The PKCE state containing the expected state nonce and
+     *   code verifier for the token exchange.
+     * @param port The actual port the callback server is bound to.
+     * @param context Context for bringing the app back to the foreground.
+     */
+    private suspend fun handleOAuthCallback(
+        server: OAuthCallbackServer,
+        pkce: PkceState,
+        port: Int,
+        context: Context,
+    ) {
+        val callbackResult = server.awaitCallback()
+        bringAppToForeground(context)
+        if (callbackResult == null) {
+            _providerState.update {
+                it.copy(
+                    isOAuthInProgress = false,
+                    validationResult =
+                        ValidationResult.Failure("Login timed out"),
+                )
+            }
+            return
+        }
+
+        if (callbackResult.state != pkce.state) {
+            _providerState.update {
+                it.copy(
+                    isOAuthInProgress = false,
+                    validationResult =
+                        ValidationResult.Failure("Security validation failed"),
+                )
+            }
+            return
+        }
+
+        val tokens =
+            OpenAiOAuthManager.exchangeCodeForTokens(
+                code = callbackResult.code,
+                codeVerifier = pkce.codeVerifier,
+                port = port,
+            )
+        AuthProfileWriter.writeCodexProfile(
+            context = getApplication(),
+            accessToken = tokens.accessToken,
+            refreshToken = tokens.refreshToken,
+            expiresAtMs = tokens.expiresAt,
+        )
+        cleanupStaleOpenAiEntries()
+        migrateAgentsToCodex()
+        _providerState.update {
+            it.copy(
+                providerId = "openai-codex",
+                oauthRefreshToken = tokens.refreshToken,
+                oauthExpiresAt = tokens.expiresAt,
+                oauthEmail = "ChatGPT Login",
+                validationResult =
+                    ValidationResult.Success("OAuth login successful"),
+                isOAuthInProgress = false,
+            )
+        }
+    }
+
+    /**
+     * Clears all OAuth-related fields from the provider state.
+     *
+     * Resets the API key, refresh token, expiry, email, and validation
+     * result to their defaults. Used when the user disconnects their
+     * OAuth session during onboarding.
+     */
+    fun disconnectOAuth() {
+        AuthProfileWriter.removeCodexProfile(getApplication())
+        _providerState.update {
+            it.copy(
+                providerId = "openai",
+                apiKey = "",
+                oauthRefreshToken = "",
+                oauthExpiresAt = 0L,
+                oauthEmail = "",
+                validationResult = ValidationResult.Idle,
+            )
+        }
+    }
+
+    /**
+     * Starts the daemon service in OAuth-hold mode to prevent process freezing.
+     *
+     * Android 12+ freezes cached-app processes within seconds when no
+     * foreground service is active. This hold keeps the process alive while
+     * the user authenticates in a Custom Tab or 2FA app.
+     *
+     * @param context Context for starting the service.
+     */
+    private fun holdForegroundForOAuth(context: Context) {
+        val intent =
+            Intent(context, ZeroClawDaemonService::class.java).apply {
+                action = ZeroClawDaemonService.ACTION_OAUTH_HOLD
+            }
+        context.startForegroundService(intent)
+    }
+
+    /**
+     * Stops the OAuth-hold foreground service if the daemon is not running.
+     *
+     * @param context Context for stopping the service.
+     */
+    private fun releaseOAuthHold(context: Context) {
+        val app = getApplication<ZeroClawApplication>()
+        if (app.daemonBridge.serviceState.value != ServiceState.RUNNING) {
+            val intent =
+                Intent(context, ZeroClawDaemonService::class.java).apply {
+                    action = ZeroClawDaemonService.ACTION_STOP
+                }
+            context.startService(intent)
+        }
+    }
+
+    /**
+     * Brings the app to the foreground to dismiss the Custom Tab overlay.
+     *
+     * Uses the package launch intent with [Intent.FLAG_ACTIVITY_SINGLE_TOP]
+     * to resume the existing activity rather than creating a new one.
+     *
+     * @param context Context for launching the intent.
+     */
+    private fun bringAppToForeground(context: Context) {
+        val intent =
+            context.packageManager
+                .getLaunchIntentForPackage(context.packageName)
+                ?.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                ?: return
+        context.startActivity(intent)
+    }
+
+    /**
+     * Removes any existing "openai" API keys that have an empty key value.
+     *
+     * These are stale entries left over from previous OAuth attempts that
+     * created a key under the wrong provider ID. Called before saving the
+     * correct "openai-codex" key.
+     */
+    private suspend fun cleanupStaleOpenAiEntries() {
+        val allKeys = apiKeyRepository.keys.first()
+        allKeys
+            .filter { it.provider == OPENAI_PROVIDER && it.key.isBlank() }
+            .forEach { apiKeyRepository.delete(it.id) }
+    }
+
+    /**
+     * Migrates any agents using the "openai" provider to "openai-codex".
+     *
+     * When the user completes ChatGPT OAuth, agents that were created
+     * against the "openai" provider need to be re-pointed to "openai-codex"
+     * so the daemon uses the correct API endpoint and OAuth tokens.
+     */
+    private suspend fun migrateAgentsToCodex() {
+        val agents = agentRepository.agents.first()
+        agents
+            .filter { it.provider == OPENAI_PROVIDER }
+            .forEach { agent ->
+                agentRepository.save(agent.copy(provider = CODEX_PROVIDER))
+            }
     }
 
     /**
@@ -800,7 +1036,7 @@ class OnboardingCoordinator(
      *   calling [complete], because the coroutine needs to finish before the
      *   ViewModel scope is cancelled by a route pop.
      */
-    @Suppress("CognitiveComplexMethod", "LongMethod")
+    @Suppress("CognitiveComplexMethod", "CyclomaticComplexMethod", "LongMethod")
     private suspend fun completeInternal(onDone: () -> Unit) {
         val provider = _providerState.value.providerId
         val key = _providerState.value.apiKey
@@ -809,7 +1045,8 @@ class OnboardingCoordinator(
         val identity = _identityState.value
         val name = identity.agentName
 
-        if (authErrorForProvider(provider, key, url)) {
+        val isOAuthSession = _providerState.value.oauthEmail.isNotEmpty()
+        if (!isOAuthSession && authErrorForProvider(provider, key, url)) {
             _activationState.value =
                 _activationState.value.copy(
                     completeError =
@@ -819,16 +1056,10 @@ class OnboardingCoordinator(
             return
         }
 
-        if (provider.isNotBlank() && (key.isNotBlank() || url.isNotBlank())) {
-            val existingKey = apiKeyRepository.getByProvider(provider)
-            apiKeyRepository.save(
-                ApiKey(
-                    id = existingKey?.id ?: UUID.randomUUID().toString(),
-                    provider = provider,
-                    key = key,
-                    baseUrl = url,
-                ),
-            )
+        val hasCredentials =
+            key.isNotBlank() || url.isNotBlank() || isOAuthSession
+        if (provider.isNotBlank() && hasCredentials) {
+            saveProviderApiKey(provider, key, url)
         }
 
         if (name.isNotBlank() && provider.isNotBlank()) {
@@ -881,8 +1112,37 @@ class OnboardingCoordinator(
             settingsRepository.setLockEnabled(_lockEnabled.value)
         }
 
-        onboardingRepository.markComplete()
         onDone()
+    }
+
+    /**
+     * Persists the provider API key record for the selected provider.
+     *
+     * For OAuth sessions the key may be blank; the record is still saved
+     * so that the settings screen can display the connection and the
+     * [ConfigTomlBuilder] can reconstruct the TOML on daemon restart.
+     *
+     * @param provider Canonical provider ID.
+     * @param key Decrypted API key (may be blank for OAuth providers).
+     * @param url Base URL (may be blank for cloud providers).
+     */
+    private suspend fun saveProviderApiKey(
+        provider: String,
+        key: String,
+        url: String,
+    ) {
+        val existingKey = apiKeyRepository.getByProvider(provider)
+        val providerState = _providerState.value
+        apiKeyRepository.save(
+            ApiKey(
+                id = existingKey?.id ?: UUID.randomUUID().toString(),
+                provider = provider,
+                key = key,
+                baseUrl = url,
+                refreshToken = providerState.oauthRefreshToken,
+                expiresAt = providerState.oauthExpiresAt,
+            ),
+        )
     }
 
     /**

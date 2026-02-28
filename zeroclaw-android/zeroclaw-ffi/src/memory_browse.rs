@@ -16,7 +16,7 @@ use crate::error::FfiError;
 ///
 /// Maps to the upstream [`zeroclaw::memory::MemoryEntry`] but represents
 /// the category as a plain string for FFI simplicity.
-#[derive(Debug, Clone, uniffi::Record)]
+#[derive(Debug, Clone, serde::Serialize, uniffi::Record)]
 pub struct FfiMemoryEntry {
     /// Unique identifier of this memory entry.
     pub id: String,

@@ -69,7 +69,13 @@ fun ProviderDropdown(
         ProviderRegistry.findById(selectedProviderId)?.displayName
             ?: selectedProviderId.ifEmpty { "" }
 
-    val grouped = remember { ProviderRegistry.allByCategory() }
+    val grouped =
+        remember {
+            ProviderRegistry
+                .allByCategory()
+                .mapValues { (_, providers) -> providers.filter { !it.internal } }
+                .filterValues { it.isNotEmpty() }
+        }
     val filteredGrouped =
         remember(filterText) {
             if (filterText.isBlank()) {

@@ -32,6 +32,10 @@ data class WelcomeStepState(
  * @property validationResult Result of the most recent provider validation attempt.
  * @property availableModels Models fetched from the provider's API.
  * @property isLoadingModels Whether a model fetch is currently in progress.
+ * @property isOAuthInProgress Whether an OAuth login flow is currently running.
+ * @property oauthEmail Display email or label for the authenticated OAuth session.
+ * @property oauthRefreshToken OAuth refresh token for obtaining new access tokens.
+ * @property oauthExpiresAt Epoch milliseconds when the current OAuth access token expires.
  */
 data class ProviderStepState(
     val providerId: String = "",
@@ -41,6 +45,10 @@ data class ProviderStepState(
     val validationResult: ValidationResult = ValidationResult.Idle,
     val availableModels: List<String> = emptyList(),
     val isLoadingModels: Boolean = false,
+    val isOAuthInProgress: Boolean = false,
+    val oauthEmail: String = "",
+    val oauthRefreshToken: String = "",
+    val oauthExpiresAt: Long = 0L,
 )
 
 /**
