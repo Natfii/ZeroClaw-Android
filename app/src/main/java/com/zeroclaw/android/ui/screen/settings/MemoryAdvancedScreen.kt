@@ -79,7 +79,10 @@ fun MemoryAdvancedScreen(
         OutlinedTextField(
             value = settings.memoryArchiveAfterDays.toString(),
             onValueChange = { v ->
-                v.toIntOrNull()?.let { settingsViewModel.updateMemoryArchiveAfterDays(it) }
+                v
+                    .toIntOrNull()
+                    ?.coerceAtLeast(0)
+                    ?.let { settingsViewModel.updateMemoryArchiveAfterDays(it) }
             },
             label = { Text("Archive after (days)") },
             singleLine = true,
@@ -91,7 +94,10 @@ fun MemoryAdvancedScreen(
         OutlinedTextField(
             value = settings.memoryPurgeAfterDays.toString(),
             onValueChange = { v ->
-                v.toIntOrNull()?.let { settingsViewModel.updateMemoryPurgeAfterDays(it) }
+                v
+                    .toIntOrNull()
+                    ?.coerceAtLeast(0)
+                    ?.let { settingsViewModel.updateMemoryPurgeAfterDays(it) }
             },
             label = { Text("Purge after (days)") },
             singleLine = true,

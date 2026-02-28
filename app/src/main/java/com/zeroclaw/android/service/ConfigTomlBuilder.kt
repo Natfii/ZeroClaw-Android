@@ -310,13 +310,13 @@ data class GlobalTomlConfig(
         const val DEFAULT_MEMORY = "sqlite"
 
         /** Default max actions per hour. */
-        const val DEFAULT_MAX_ACTIONS = 20
+        const val DEFAULT_MAX_ACTIONS = 100
 
         /** Default max cost per day in cents. */
-        const val DEFAULT_MAX_COST_CENTS = 500
+        const val DEFAULT_MAX_COST_CENTS = 1000
 
         /** Default gateway port. */
-        const val DEFAULT_GATEWAY_PORT = 3000
+        const val DEFAULT_GATEWAY_PORT = 42617
 
         /** Default pair rate limit per minute. */
         const val DEFAULT_PAIR_RATE = 10
@@ -380,10 +380,10 @@ data class GlobalTomlConfig(
         const val DEFAULT_RESOURCES_MAX_MEMORY_MB = 512
 
         /** Default resource limit: max CPU time in seconds. */
-        const val DEFAULT_RESOURCES_MAX_CPU_TIME_SECS = 300
+        const val DEFAULT_RESOURCES_MAX_CPU_TIME_SECS = 60
 
         /** Default resource limit: max subprocesses. */
-        const val DEFAULT_RESOURCES_MAX_SUBPROCESSES = 32
+        const val DEFAULT_RESOURCES_MAX_SUBPROCESSES = 10
 
         /** Default OTP token TTL in seconds. */
         const val DEFAULT_OTP_TOKEN_TTL_SECS = 30
@@ -402,7 +402,7 @@ data class GlobalTomlConfig(
             )
 
         /** Default reliability backoff in milliseconds. */
-        const val DEFAULT_RELIABILITY_BACKOFF_MS = 1000
+        const val DEFAULT_RELIABILITY_BACKOFF_MS = 500
     }
 }
 
@@ -527,7 +527,7 @@ object ConfigTomlBuilder {
                 appendLine("enabled = true")
                 appendLine("daily_limit_usd = ${config.dailyLimitUsd}")
                 appendLine("monthly_limit_usd = ${config.monthlyLimitUsd}")
-                appendLine("warn_at_percent = ${config.costWarnAtPercent}")
+                appendLine("warn_at_percent = ${config.costWarnAtPercent.coerceAtLeast(0)}")
             }
 
             appendReliabilitySection(config)
@@ -573,7 +573,7 @@ object ConfigTomlBuilder {
         appendLine()
         appendLine("[reliability]")
         if (hasCustomRetries) {
-            appendLine("provider_retries = ${config.providerRetries}")
+            appendLine("provider_retries = ${config.providerRetries.coerceAtLeast(0)}")
         }
         if (hasFallbacks) {
             val list =
@@ -581,21 +581,36 @@ object ConfigTomlBuilder {
                     .joinToString(", ") { tomlString(it) }
             appendLine("fallback_providers = [$list]")
         }
-        if (config.reliabilityBackoffMs != GlobalTomlConfig.DEFAULT_RELIABILITY_BACKOFF_MS) {
-            appendLine("provider_backoff_ms = ${config.reliabilityBackoffMs}")
+        if (hasCustomBackoff) {
+            appendLine("provider_backoff_ms = ${config.reliabilityBackoffMs.coerceAtLeast(0)}")
         }
-        if (config.reliabilityApiKeysJson != "{}") {
-            try {
-                val keysObj = org.json.JSONObject(config.reliabilityApiKeysJson)
-                val iter = keysObj.keys()
-                while (iter.hasNext()) {
-                    val provider = iter.next()
-                    val key = keysObj.getString(provider)
-                    appendLine("api_keys.${tomlKey(provider)} = ${tomlString(key)}")
-                }
-            } catch (_: org.json.JSONException) {
-                // Ignore malformed JSON
+        appendReliabilityApiKeys(config.reliabilityApiKeysJson)
+    }
+
+    /**
+     * Parses the reliability API keys JSON and appends the flat array.
+     *
+     * Upstream `api_keys` is `Vec<String>` — a flat list of keys for
+     * round-robin rotation, not a provider-keyed map.
+     *
+     * @param json JSON object string mapping provider names to API keys.
+     */
+    private fun StringBuilder.appendReliabilityApiKeys(json: String) {
+        if (json == "{}") return
+        try {
+            val keysObj = org.json.JSONObject(json)
+            val keys = mutableListOf<String>()
+            val iter = keysObj.keys()
+            while (iter.hasNext()) {
+                val key = keysObj.getString(iter.next())
+                if (key.isNotBlank()) keys.add(key)
             }
+            if (keys.isNotEmpty()) {
+                val list = keys.joinToString(", ") { tomlString(it) }
+                appendLine("api_keys = [$list]")
+            }
+        } catch (_: org.json.JSONException) {
+            // Ignore malformed JSON
         }
     }
 
@@ -612,16 +627,16 @@ object ConfigTomlBuilder {
         appendLine()
         appendLine("[gateway]")
         appendLine("host = ${tomlString(config.gatewayHost)}")
-        appendLine("port = ${config.gatewayPort}")
+        appendLine("port = ${config.gatewayPort.coerceAtLeast(0)}")
         appendLine("require_pairing = ${config.gatewayRequirePairing}")
         appendLine("allow_public_bind = ${config.gatewayAllowPublicBind}")
         if (config.gatewayPairedTokens.isNotEmpty()) {
             val list = config.gatewayPairedTokens.joinToString(", ") { tomlString(it) }
             appendLine("paired_tokens = [$list]")
         }
-        appendLine("pair_rate_limit_per_minute = ${config.gatewayPairRateLimit}")
-        appendLine("webhook_rate_limit_per_minute = ${config.gatewayWebhookRateLimit}")
-        appendLine("idempotency_ttl_secs = ${config.gatewayIdempotencyTtl}")
+        appendLine("pair_rate_limit_per_minute = ${config.gatewayPairRateLimit.coerceAtLeast(0)}")
+        appendLine("webhook_rate_limit_per_minute = ${config.gatewayWebhookRateLimit.coerceAtLeast(0)}")
+        appendLine("idempotency_ttl_secs = ${config.gatewayIdempotencyTtl.coerceAtLeast(0)}")
     }
 
     /**
@@ -639,8 +654,8 @@ object ConfigTomlBuilder {
         appendLine("backend = ${tomlString(config.memoryBackend)}")
         appendLine("auto_save = ${config.memoryAutoSave}")
         appendLine("hygiene_enabled = ${config.memoryHygieneEnabled}")
-        appendLine("archive_after_days = ${config.memoryArchiveAfterDays}")
-        appendLine("purge_after_days = ${config.memoryPurgeAfterDays}")
+        appendLine("archive_after_days = ${config.memoryArchiveAfterDays.coerceAtLeast(0)}")
+        appendLine("purge_after_days = ${config.memoryPurgeAfterDays.coerceAtLeast(0)}")
         if (config.memoryEmbeddingProvider != "none") {
             appendLine("embedding_provider = ${tomlString(config.memoryEmbeddingProvider)}")
             if (config.memoryEmbeddingModel.isNotBlank()) {
@@ -673,8 +688,8 @@ object ConfigTomlBuilder {
             val list = config.forbiddenPaths.joinToString(", ") { tomlString(it) }
             appendLine("forbidden_paths = [$list]")
         }
-        appendLine("max_actions_per_hour = ${config.maxActionsPerHour}")
-        appendLine("max_cost_per_day_cents = ${config.maxCostPerDayCents}")
+        appendLine("max_actions_per_hour = ${config.maxActionsPerHour.coerceAtLeast(0)}")
+        appendLine("max_cost_per_day_cents = ${config.maxCostPerDayCents.coerceAtLeast(0)}")
         appendLine("require_approval_for_medium_risk = ${config.requireApprovalMediumRisk}")
         appendLine("block_high_risk_commands = ${config.blockHighRiskCommands}")
     }
@@ -738,8 +753,8 @@ object ConfigTomlBuilder {
         appendLine()
         appendLine("[scheduler]")
         appendLine("enabled = ${config.schedulerEnabled}")
-        appendLine("max_tasks = ${config.schedulerMaxTasks}")
-        appendLine("max_concurrent = ${config.schedulerMaxConcurrent}")
+        appendLine("max_tasks = ${config.schedulerMaxTasks.coerceAtLeast(0)}")
+        appendLine("max_concurrent = ${config.schedulerMaxConcurrent.coerceAtLeast(0)}")
     }
 
     /**
@@ -754,7 +769,7 @@ object ConfigTomlBuilder {
         appendLine()
         appendLine("[heartbeat]")
         appendLine("enabled = ${config.heartbeatEnabled}")
-        appendLine("interval_minutes = ${config.heartbeatIntervalMinutes}")
+        appendLine("interval_minutes = ${config.heartbeatIntervalMinutes.coerceAtLeast(0)}")
     }
 
     /**
@@ -884,7 +899,7 @@ object ConfigTomlBuilder {
         if (config.transcriptionLanguage.isNotBlank()) {
             appendLine("language = ${tomlString(config.transcriptionLanguage)}")
         }
-        appendLine("max_duration_secs = ${config.transcriptionMaxDurationSecs}")
+        appendLine("max_duration_secs = ${config.transcriptionMaxDurationSecs.coerceAtLeast(0)}")
     }
 
     /**
@@ -902,8 +917,8 @@ object ConfigTomlBuilder {
         if (!hasNonDefault) return
         appendLine()
         appendLine("[multimodal]")
-        appendLine("max_images = ${config.multimodalMaxImages}")
-        appendLine("max_image_size_mb = ${config.multimodalMaxImageSizeMb}")
+        appendLine("max_images = ${config.multimodalMaxImages.coerceAtLeast(0)}")
+        appendLine("max_image_size_mb = ${config.multimodalMaxImageSizeMb.coerceAtLeast(0)}")
         appendLine("allow_remote_fetch = ${config.multimodalAllowRemoteFetch}")
     }
 
@@ -964,10 +979,10 @@ object ConfigTomlBuilder {
             appendLine("blocked_domains = [$list]")
         }
         if (config.webFetchMaxResponseSize != GlobalTomlConfig.DEFAULT_WEB_FETCH_MAX_RESPONSE_SIZE) {
-            appendLine("max_response_size = ${config.webFetchMaxResponseSize}")
+            appendLine("max_response_size = ${config.webFetchMaxResponseSize.coerceAtLeast(0)}")
         }
         if (config.webFetchTimeoutSecs != GlobalTomlConfig.DEFAULT_WEB_FETCH_TIMEOUT_SECS) {
-            appendLine("timeout_secs = ${config.webFetchTimeoutSecs}")
+            appendLine("timeout_secs = ${config.webFetchTimeoutSecs.coerceAtLeast(0)}")
         }
     }
 
@@ -989,10 +1004,10 @@ object ConfigTomlBuilder {
             appendLine("brave_api_key = ${tomlString(config.webSearchBraveApiKey)}")
         }
         if (config.webSearchMaxResults != GlobalTomlConfig.DEFAULT_WEB_SEARCH_MAX_RESULTS) {
-            appendLine("max_results = ${config.webSearchMaxResults}")
+            appendLine("max_results = ${config.webSearchMaxResults.coerceAtLeast(0)}")
         }
         if (config.webSearchTimeoutSecs != GlobalTomlConfig.DEFAULT_WEB_SEARCH_TIMEOUT_SECS) {
-            appendLine("timeout_secs = ${config.webSearchTimeoutSecs}")
+            appendLine("timeout_secs = ${config.webSearchTimeoutSecs.coerceAtLeast(0)}")
         }
     }
 
@@ -1045,9 +1060,9 @@ object ConfigTomlBuilder {
 
         appendLine()
         appendLine("[security.resources]")
-        appendLine("max_memory_mb = ${config.securityResourcesMaxMemoryMb}")
-        appendLine("max_cpu_time_seconds = ${config.securityResourcesMaxCpuTimeSecs}")
-        appendLine("max_subprocesses = ${config.securityResourcesMaxSubprocesses}")
+        appendLine("max_memory_mb = ${config.securityResourcesMaxMemoryMb.coerceAtLeast(0)}")
+        appendLine("max_cpu_time_seconds = ${config.securityResourcesMaxCpuTimeSecs.coerceAtLeast(0)}")
+        appendLine("max_subprocesses = ${config.securityResourcesMaxSubprocesses.coerceAtLeast(0)}")
         appendLine("memory_monitoring = ${config.securityResourcesMemoryMonitoring}")
     }
 
@@ -1079,8 +1094,8 @@ object ConfigTomlBuilder {
         appendLine("[security.otp]")
         appendLine("enabled = true")
         appendLine("method = ${tomlString(config.securityOtpMethod)}")
-        appendLine("token_ttl_secs = ${config.securityOtpTokenTtlSecs}")
-        appendLine("cache_valid_secs = ${config.securityOtpCacheValidSecs}")
+        appendLine("token_ttl_secs = ${config.securityOtpTokenTtlSecs.coerceAtLeast(0)}")
+        appendLine("cache_valid_secs = ${config.securityOtpCacheValidSecs.coerceAtLeast(0)}")
         if (config.securityOtpGatedActions.isNotEmpty()) {
             val list = config.securityOtpGatedActions.joinToString(", ") { tomlString(it) }
             appendLine("gated_actions = [$list]")
@@ -1245,7 +1260,7 @@ object ConfigTomlBuilder {
                     appendLine("temperature = ${entry.temperature}")
                 }
                 if (entry.maxDepth != Agent.DEFAULT_MAX_DEPTH) {
-                    appendLine("max_depth = ${entry.maxDepth}")
+                    appendLine("max_depth = ${entry.maxDepth.coerceAtLeast(0)}")
                 }
             }
         }
