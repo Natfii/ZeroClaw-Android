@@ -11,9 +11,11 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.zeroclaw.android.ZeroClawApplication
+import com.zeroclaw.android.data.ProviderRegistry
 import com.zeroclaw.android.model.AppSettings
 import com.zeroclaw.android.model.LogSeverity
 import com.zeroclaw.android.model.ProcessedImage
+import com.zeroclaw.android.model.ProviderAuthType
 import com.zeroclaw.android.model.RefreshCommand
 import com.zeroclaw.android.model.TerminalEntry
 import com.zeroclaw.android.util.ErrorSanitizer
@@ -27,6 +29,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -53,6 +56,8 @@ class TerminalViewModel(
     private val repository = app.terminalEntryRepository
     private val logRepository = app.logRepository
     private val settingsRepository = app.settingsRepository
+    private val agentRepository = app.agentRepository
+    private val apiKeyRepository = app.apiKeyRepository
 
     private val cachedSettings: StateFlow<AppSettings> =
         settingsRepository.settings
@@ -258,22 +263,66 @@ class TerminalViewModel(
         val images = pendingImagesState.value
         pendingImagesState.value = emptyList()
 
-        val expression =
-            if (images.isNotEmpty()) {
-                buildVisionExpression(escapedText, images)
-            } else {
-                "send(\"$escapedText\")"
-            }
-
         val inputImageUris = images.map { it.originalUri }
-        loadingState.value = true
         viewModelScope.launch {
             repository.append(
                 content = displayText,
                 entryType = ENTRY_TYPE_INPUT,
                 imageUris = inputImageUris,
             )
+
+            if (!isChatProviderConfigured()) {
+                repository.append(
+                    content = NO_PROVIDER_WARNING,
+                    entryType = ENTRY_TYPE_SYSTEM,
+                )
+                return@launch
+            }
+
+            val expression =
+                if (images.isNotEmpty()) {
+                    buildVisionExpression(escapedText, images)
+                } else {
+                    "send(\"$escapedText\")"
+                }
+
+            loadingState.value = true
             executeRhaiExpression(expression)
+        }
+    }
+
+    /**
+     * Checks whether the first enabled agent has a usable chat provider.
+     *
+     * Mirrors the `resolveEffectiveDefaults` pattern from
+     * [ZeroClawDaemonService][com.zeroclaw.android.service.ZeroClawDaemonService].
+     * Providers with [ProviderAuthType.URL_ONLY], [ProviderAuthType.URL_AND_OPTIONAL_KEY],
+     * or [ProviderAuthType.NONE] are considered configured without an API key.
+     * Providers requiring a key ([ProviderAuthType.API_KEY_ONLY],
+     * [ProviderAuthType.API_KEY_OR_OAUTH]) are only considered configured when
+     * a non-blank key exists in the repository.
+     *
+     * @return True if a chat provider is ready for use.
+     */
+    private suspend fun isChatProviderConfigured(): Boolean {
+        val agents = agentRepository.agents.first()
+        val primary =
+            agents.firstOrNull {
+                it.isEnabled && it.provider.isNotBlank() && it.modelName.isNotBlank()
+            } ?: return false
+
+        val providerInfo = ProviderRegistry.findById(primary.provider) ?: return false
+        return when (providerInfo.authType) {
+            ProviderAuthType.URL_ONLY,
+            ProviderAuthType.URL_AND_OPTIONAL_KEY,
+            ProviderAuthType.NONE,
+            -> true
+            ProviderAuthType.API_KEY_ONLY,
+            ProviderAuthType.API_KEY_OR_OAUTH,
+            -> {
+                val key = apiKeyRepository.getByProvider(primary.provider)
+                key != null && key.key.isNotBlank()
+            }
         }
     }
 
@@ -384,10 +433,14 @@ class TerminalViewModel(
                     )
                     "unknown"
                 }
-            repository.append(
-                content = "ZeroClaw Terminal v$version — Type /help for commands",
-                entryType = ENTRY_TYPE_SYSTEM,
-            )
+            val banner =
+                if (isChatProviderConfigured()) {
+                    "ZeroClaw Terminal v$version \u2014 Type /help for commands"
+                } else {
+                    "ZeroClaw Terminal v$version \u2014 Admin Console " +
+                        "(no chat provider) \u2014 Type /help for commands"
+                }
+            repository.append(content = banner, entryType = ENTRY_TYPE_SYSTEM)
         }
     }
 
@@ -480,6 +533,11 @@ class TerminalViewModel(
 
         /** Confirmation message shown after clearing the terminal. */
         private const val CLEAR_CONFIRMATION = "Terminal cleared."
+
+        /** Warning shown when user sends a chat message without a configured provider. */
+        private const val NO_PROVIDER_WARNING =
+            "No chat provider configured \u2014 use /help to see admin commands, " +
+                "or add a provider in Settings > API Keys."
 
         /** Pattern matching common chain-of-thought tag variants across models. */
         private val THINKING_TAG_REGEX =
