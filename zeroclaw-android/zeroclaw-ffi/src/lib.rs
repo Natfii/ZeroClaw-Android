@@ -25,6 +25,7 @@ mod memory_browse;
 mod repl;
 mod runtime;
 mod skills;
+mod streaming;
 mod tools_browse;
 mod types;
 mod vision;
@@ -199,6 +200,25 @@ pub fn validate_config(config_toml: String) -> Result<String, FfiError> {
 #[uniffi::export]
 pub fn doctor_channels(config_toml: String, data_dir: String) -> Result<String, FfiError> {
     catch_unwind(|| runtime::doctor_channels_inner(config_toml, data_dir)).unwrap_or_else(|e| {
+        Err(FfiError::InternalPanic {
+            detail: panic_detail(&e),
+        })
+    })
+}
+
+/// Returns the names of all channels with non-null config sections in
+/// the running daemon's parsed TOML.
+///
+/// Useful for UI progress tracking during daemon startup -- the caller
+/// knows which channels to expect without re-parsing the TOML.
+///
+/// # Errors
+///
+/// Returns [`FfiError::StateError`] if the daemon is not running,
+/// or [`FfiError::InternalPanic`] if native code panics.
+#[uniffi::export]
+pub fn get_configured_channel_names() -> Result<Vec<String>, FfiError> {
+    catch_unwind(runtime::get_configured_channel_names_inner).unwrap_or_else(|e| {
         Err(FfiError::InternalPanic {
             detail: panic_detail(&e),
         })
@@ -762,6 +782,58 @@ pub fn eval_repl(expression: String) -> Result<String, FfiError> {
     })
 }
 
+/// Sends a streaming message directly to the configured provider.
+///
+/// Bypasses the full agent loop and calls the provider's streaming API
+/// directly. Chunks are classified as thinking or response content and
+/// delivered to the [listener] callback in real time. The stream can be
+/// cancelled by calling [`cancel_streaming`].
+///
+/// Falls back path: if the provider does not support streaming, returns
+/// an error. Callers should use [`send_message`] for non-streaming providers.
+///
+/// # Errors
+///
+/// Returns [`FfiError::ConfigError`] for oversized messages,
+/// [`FfiError::StateError`] if the daemon is not running,
+/// [`FfiError::SpawnError`] if provider creation or streaming fails, or
+/// [`FfiError::InternalPanic`] if native code panics.
+#[uniffi::export]
+pub fn send_message_streaming(
+    message: String,
+    listener: Box<dyn streaming::FfiStreamListener>,
+) -> Result<(), FfiError> {
+    let listener: Arc<dyn streaming::FfiStreamListener> = Arc::from(listener);
+    catch_unwind(AssertUnwindSafe(|| {
+        streaming::send_message_streaming_inner(message, listener)
+    }))
+    .unwrap_or_else(|e| {
+        Err(FfiError::InternalPanic {
+            detail: panic_detail(&e),
+        })
+    })
+}
+
+/// Signals the current streaming operation to cancel.
+///
+/// Sets an internal cancel flag that is checked between stream chunks.
+/// The streaming callback will receive an `on_error("Request cancelled")`
+/// call at the next chunk boundary.
+///
+/// Safe to call at any time, including when no streaming is in progress.
+///
+/// # Errors
+///
+/// Returns [`FfiError::InternalPanic`] if native code panics.
+#[uniffi::export]
+pub fn cancel_streaming() -> Result<(), FfiError> {
+    catch_unwind(streaming::cancel_streaming_inner).unwrap_or_else(|e| {
+        Err(FfiError::InternalPanic {
+            detail: panic_detail(&e),
+        })
+    })
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
@@ -850,6 +922,18 @@ mod tests {
                 assert!(detail.contains("failed to parse config TOML"));
             }
             other => panic!("expected ConfigError, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_get_configured_channel_names_no_daemon() {
+        let result = get_configured_channel_names();
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            FfiError::StateError { detail } => {
+                assert!(detail.contains("daemon not running"));
+            }
+            other => panic!("expected StateError, got {other:?}"),
         }
     }
 
