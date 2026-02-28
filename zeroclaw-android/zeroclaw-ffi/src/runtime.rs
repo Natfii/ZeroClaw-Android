@@ -130,7 +130,7 @@ pub(crate) fn clone_daemon_config() -> Result<Config, FfiError> {
 /// Returns [`FfiError::StateError`] if the daemon is not running or
 /// the memory backend was not initialised during daemon startup,
 /// or [`FfiError::StateCorrupted`] if the daemon mutex is poisoned.
-#[allow(dead_code)] // Used by session_send_inner (landing in Task 5)
+#[allow(dead_code)] // Used by session_send_inner, wired in Task 9
 pub(crate) fn clone_daemon_memory() -> Result<Arc<dyn zeroclaw::memory::Memory>, FfiError> {
     let guard = daemon_mutex()
         .lock()
