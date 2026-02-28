@@ -69,6 +69,7 @@ import com.zeroclaw.android.ui.screen.settings.gateway.QrScannerScreen
 import com.zeroclaw.android.ui.screen.settings.logs.LogViewerScreen
 import com.zeroclaw.android.ui.screen.settings.memory.MemoryBrowserScreen
 import com.zeroclaw.android.ui.screen.settings.tools.ToolsBrowserScreen
+import com.zeroclaw.android.ui.screen.setup.SetupScreen
 import com.zeroclaw.android.ui.screen.terminal.TerminalScreen
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -524,8 +525,18 @@ fun ZeroClawNavHost(
         composable<OnboardingRoute> {
             OnboardingScreen(
                 onComplete = {
-                    navController.navigate(DashboardRoute) {
+                    navController.navigate(SetupRoute) {
                         popUpTo(OnboardingRoute) { inclusive = true }
+                    }
+                },
+            )
+        }
+
+        composable<SetupRoute> {
+            SetupScreen(
+                onComplete = {
+                    navController.navigate(DashboardRoute) {
+                        popUpTo(SetupRoute) { inclusive = true }
                     }
                 },
             )
