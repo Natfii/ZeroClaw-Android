@@ -24,14 +24,13 @@
 //!
 //! Only one session exists at a time (guarded by the [`SESSION`] mutex).
 
-// Foundation types and helpers consumed by session_start_inner,
-// session_send_inner, and other functions landing in later tasks.
 // Remove these allows once all session functions are wired up.
 #![allow(dead_code, unused_imports)]
 
 use std::sync::Mutex;
 
 use crate::error::FfiError;
+use crate::runtime::clone_daemon_config;
 
 /// The global singleton session slot.
 ///
@@ -139,6 +138,195 @@ pub trait FfiSessionListener: Send + Sync {
     ///
     /// The session remains valid; the caller may issue a new send.
     fn on_cancelled(&self);
+}
+
+// ── Session lifecycle ───────────────────────────────────────────────────
+
+/// Creates a new live agent session from the running daemon's configuration.
+///
+/// Mirrors the setup phase of upstream `zeroclaw::agent::run()`:
+///
+/// 1. Clones the daemon config snapshot.
+/// 2. Resolves provider name, model, and temperature.
+/// 3. Loads workspace and community skills.
+/// 4. Builds tool description metadata for the system prompt.
+/// 5. Creates a temporary provider to query native tool support.
+/// 6. Builds the full system prompt via
+///    [`zeroclaw::channels::build_system_prompt_with_mode`].
+/// 7. Seeds the conversation history with the system prompt.
+/// 8. Stores the [`Session`] in the global [`SESSION`] mutex.
+///
+/// Only one session may exist at a time. Calling this while a session is
+/// already active returns [`FfiError::StateError`].
+///
+/// # Errors
+///
+/// Returns [`FfiError::StateError`] if a session is already active or
+/// the daemon is not running, [`FfiError::StateCorrupted`] if the session
+/// mutex is poisoned, or [`FfiError::SpawnError`] if provider creation fails.
+pub(crate) fn session_start_inner() -> Result<(), FfiError> {
+    let config = clone_daemon_config()?;
+
+    let provider_name = config
+        .default_provider
+        .as_deref()
+        .unwrap_or("openrouter")
+        .to_string();
+
+    let model = config
+        .default_model
+        .as_deref()
+        .unwrap_or("anthropic/claude-sonnet-4")
+        .to_string();
+
+    let temperature = config.default_temperature;
+
+    let tool_descs = build_android_tool_descs(&config);
+    let tool_desc_refs: Vec<(&str, &str)> = tool_descs
+        .iter()
+        .map(|(name, desc)| (name.as_str(), desc.as_str()))
+        .collect();
+
+    let bootstrap_max_chars = if config.agent.compact_context {
+        Some(6000)
+    } else {
+        None
+    };
+
+    let native_tools = {
+        let provider =
+            zeroclaw::providers::create_provider(&provider_name, config.api_key.as_deref())
+                .map_err(|e| FfiError::SpawnError {
+                    detail: format!("failed to create provider for native-tools check: {e}"),
+                })?;
+        provider.supports_native_tools()
+    };
+
+    // Upstream `skills` module is `pub(crate)`, so we cannot call
+    // `load_skills_with_config` or name the `Skill` type directly.
+    // Pass an empty slice -- skill prompt injection still works via
+    // workspace file scanning inside `build_system_prompt_with_mode`.
+    let system_prompt = zeroclaw::channels::build_system_prompt_with_mode(
+        &config.workspace_dir,
+        &model,
+        &tool_desc_refs,
+        &[],
+        Some(&config.identity),
+        bootstrap_max_chars,
+        native_tools,
+        config.skills.prompt_injection_mode,
+    );
+
+    let history = vec![zeroclaw::providers::ChatMessage::system(&system_prompt)];
+
+    let session = Session {
+        history,
+        config,
+        system_prompt,
+        model,
+        temperature,
+        provider_name,
+    };
+
+    let mut guard = SESSION.lock().map_err(|_| FfiError::StateCorrupted {
+        detail: "session mutex poisoned".into(),
+    })?;
+
+    if guard.is_some() {
+        return Err(FfiError::StateError {
+            detail: "a session is already active; destroy it first".into(),
+        });
+    }
+
+    *guard = Some(session);
+
+    tracing::info!("Live agent session started");
+    Ok(())
+}
+
+/// Builds the Android-appropriate tool description list for the system prompt.
+///
+/// Returns `(tool_name, description)` pairs matching the subset of tools
+/// available on Android. Hardware peripherals, composio, and screenshot
+/// tools are excluded because they require desktop-only capabilities.
+///
+/// Conditional tools (`browser_open`, `delegate`) are included only when
+/// their corresponding config sections are enabled/non-empty.
+fn build_android_tool_descs(config: &zeroclaw::Config) -> Vec<(String, String)> {
+    let mut descs: Vec<(String, String)> = vec![
+        (
+            "shell".into(),
+            "Execute terminal commands. Use when: running local checks, \
+             build/test commands, diagnostics. Don't use when: a safer \
+             dedicated tool exists, or command is destructive without approval."
+                .into(),
+        ),
+        (
+            "file_read".into(),
+            "Read file contents. Use when: inspecting project files, \
+             configs, logs. Don't use when: a targeted search is enough."
+                .into(),
+        ),
+        (
+            "file_write".into(),
+            "Write file contents. Use when: applying focused edits, \
+             scaffolding files, updating docs/code. Don't use when: \
+             side effects are unclear or file ownership is uncertain."
+                .into(),
+        ),
+        (
+            "memory_store".into(),
+            "Save to memory. Use when: preserving durable preferences, \
+             decisions, key context. Don't use when: information is \
+             transient/noisy/sensitive without need."
+                .into(),
+        ),
+        (
+            "memory_recall".into(),
+            "Search memory. Use when: retrieving prior decisions, user \
+             preferences, historical context. Don't use when: answer \
+             is already in current context."
+                .into(),
+        ),
+        (
+            "memory_forget".into(),
+            "Delete a memory entry. Use when: memory is incorrect/stale \
+             or explicitly requested for removal. Don't use when: \
+             impact is uncertain."
+                .into(),
+        ),
+        (
+            "cron_add".into(),
+            "Create a cron job. Supports schedule kinds: cron, at, every; \
+             and job types: shell or agent."
+                .into(),
+        ),
+        (
+            "cron_list".into(),
+            "List all cron jobs with schedule, status, and metadata.".into(),
+        ),
+        ("cron_remove".into(), "Remove a cron job by job_id.".into()),
+    ];
+
+    if config.browser.enabled {
+        descs.push((
+            "browser_open".into(),
+            "Open approved HTTPS URLs in system browser \
+             (allowlist-only, no scraping)"
+                .into(),
+        ));
+    }
+
+    if !config.agents.is_empty() {
+        descs.push((
+            "delegate".into(),
+            "Delegate a sub-task to a specialized agent. Use when: task \
+             needs different model/capability, or to parallelize work."
+                .into(),
+        ));
+    }
+
+    descs
 }
 
 // ── Delta string parser ─────────────────────────────────────────────────

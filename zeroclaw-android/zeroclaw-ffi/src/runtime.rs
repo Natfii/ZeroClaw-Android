@@ -104,6 +104,48 @@ pub(crate) fn with_daemon_config<T>(f: impl FnOnce(&Config) -> T) -> Result<T, F
     Ok(f(&state.config))
 }
 
+/// Returns an owned clone of the running daemon's [`Config`].
+///
+/// Acquires the daemon mutex briefly to clone the config, then releases it.
+/// Used by session setup to snapshot config without holding the lock during
+/// long-running operations like provider creation and prompt building.
+///
+/// # Errors
+///
+/// Returns [`FfiError::StateError`] if the daemon is not running,
+/// or [`FfiError::StateCorrupted`] if the daemon mutex is poisoned.
+pub(crate) fn clone_daemon_config() -> Result<Config, FfiError> {
+    with_daemon_config(Config::clone)
+}
+
+/// Returns a cloned `Arc<dyn Memory>` from the running daemon.
+///
+/// Acquires the daemon mutex briefly to clone the `Arc`, then releases it.
+/// The returned `Arc` can be used independently without holding the lock,
+/// which is important for session operations that need long-lived memory
+/// access without blocking other daemon state queries.
+///
+/// # Errors
+///
+/// Returns [`FfiError::StateError`] if the daemon is not running or
+/// the memory backend was not initialised during daemon startup,
+/// or [`FfiError::StateCorrupted`] if the daemon mutex is poisoned.
+#[allow(dead_code)] // Used by session_send_inner (landing in Task 5)
+pub(crate) fn clone_daemon_memory() -> Result<Arc<dyn zeroclaw::memory::Memory>, FfiError> {
+    let guard = daemon_mutex()
+        .lock()
+        .map_err(|_| FfiError::StateCorrupted {
+            detail: "daemon mutex poisoned".into(),
+        })?;
+    let state = guard.as_ref().ok_or_else(|| FfiError::StateError {
+        detail: "daemon not running".into(),
+    })?;
+    let memory = state.memory.as_ref().ok_or_else(|| FfiError::StateError {
+        detail: "memory backend not available".into(),
+    })?;
+    Ok(Arc::clone(memory))
+}
+
 /// Runs a closure with a reference to the memory backend and the tokio
 /// runtime handle.
 ///
