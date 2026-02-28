@@ -715,7 +715,7 @@ class ApiKeysViewModel(
                 server = OAuthCallbackServer.startWithFallback()
                 val port = server.boundPort
                 val url = OpenAiOAuthManager.buildAuthorizeUrl(pkce, port)
-                Log.d(TAG, "OAuth: starting flow on port $port")
+                if (BuildConfig.DEBUG) Log.d(TAG, "OAuth: starting flow on port $port")
                 CustomTabsIntent.Builder().build().launchUrl(context, Uri.parse(url))
 
                 val callbackResult = server.awaitCallback()
@@ -732,14 +732,14 @@ class ApiKeysViewModel(
                     return@launch
                 }
 
-                Log.d(TAG, "OAuth: exchanging code for tokens")
+                if (BuildConfig.DEBUG) Log.d(TAG, "OAuth: exchanging code for tokens")
                 val tokens =
                     OpenAiOAuthManager.exchangeCodeForTokens(
                         code = callbackResult.code,
                         codeVerifier = pkce.codeVerifier,
                         port = port,
                     )
-                Log.d(TAG, "OAuth: token exchange successful, writing profile")
+                if (BuildConfig.DEBUG) Log.d(TAG, "OAuth: token exchange successful, writing profile")
                 saveOAuthTokens(tokens)
             } catch (e: Exception) {
                 Log.e(TAG, "OAuth login failed", e)

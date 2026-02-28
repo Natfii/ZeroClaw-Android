@@ -643,5 +643,9 @@ private fun copyToClipboard(
 ) {
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     val clip = ClipData.newPlainText("Terminal output", text)
+    clip.description.extras =
+        android.os.PersistableBundle().apply {
+            putBoolean("android.content.extra.IS_SENSITIVE", true)
+        }
     clipboard.setPrimaryClip(clip)
 }

@@ -375,8 +375,7 @@ class DaemonServiceBridge(
      * @throws FfiException if the native layer reports an error.
      */
     @Throws(FfiException::class)
-    suspend fun configuredChannelNames(): List<String> =
-        withContext(ioDispatcher) { getConfiguredChannelNames() }
+    suspend fun configuredChannelNames(): List<String> = withContext(ioDispatcher) { getConfiguredChannelNames() }
 
     /**
      * Ensures the workspace directory exists and migrates legacy files.
