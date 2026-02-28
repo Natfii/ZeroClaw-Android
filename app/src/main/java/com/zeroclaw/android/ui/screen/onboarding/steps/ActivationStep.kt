@@ -101,7 +101,7 @@ fun ActivationStep(
                     .fillMaxWidth()
                     .defaultMinSize(minHeight = MinButtonHeight)
                     .semantics {
-                        contentDescription = "Start daemon and finish setup"
+                        contentDescription = "Complete setup and start daemon"
                     },
         ) {
             if (isActivating) {
@@ -114,7 +114,7 @@ fun ActivationStep(
                     )
                 }
             } else {
-                Text("Start Daemon")
+                Text("Complete Setup")
             }
         }
     }
