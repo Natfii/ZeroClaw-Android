@@ -24,6 +24,7 @@ import coil3.request.crossfade
 import com.zeroclaw.android.data.SecurePrefsProvider
 import com.zeroclaw.android.data.StorageHealth
 import com.zeroclaw.android.data.local.ZeroClawDatabase
+import com.zeroclaw.android.data.oauth.AuthProfileWriter
 import com.zeroclaw.android.data.repository.ActivityRepository
 import com.zeroclaw.android.data.repository.AgentRepository
 import com.zeroclaw.android.data.repository.ApiKeyRepository
@@ -63,6 +64,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import okhttp3.ConnectionPool
 import okhttp3.OkHttpClient
@@ -235,6 +237,7 @@ class ZeroClawApplication :
         sessionLockManager = SessionLockManager(settingsRepository.settings, ioScope)
         ProcessLifecycleOwner.get().lifecycle.addObserver(sessionLockManager)
 
+        migrateStaleOAuthEntries(ioScope)
         schedulePluginSyncIfEnabled(ioScope)
     }
 
@@ -258,6 +261,66 @@ class ZeroClawApplication :
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to verify crate version: ${e.message}")
+        }
+    }
+
+    /**
+     * Migrates stale OAuth API key entries from `openai` to `openai-codex`.
+     *
+     * Before this fix, the OAuth login flow incorrectly stored ChatGPT
+     * tokens under the `openai` provider. The `openai` provider sends
+     * requests to `api.openai.com` (standard API), while OAuth tokens
+     * must be routed through the `openai-codex` provider which targets
+     * `chatgpt.com/backend-api/codex/responses`.
+     *
+     * This migration runs once per launch. It finds any `openai` entries
+     * with a non-empty [ApiKey.refreshToken][com.zeroclaw.android.model.ApiKey.refreshToken]
+     * (indicating OAuth), re-saves them as `openai-codex`, writes the
+     * corresponding [AuthProfileWriter] file for the Rust [AuthService],
+     * and updates the default provider setting.
+     *
+     * @param scope Background scope for the migration coroutine.
+     */
+    @Suppress("TooGenericExceptionCaught")
+    private fun migrateStaleOAuthEntries(scope: CoroutineScope) {
+        scope.launch {
+            try {
+                val allKeys = apiKeyRepository.keys.first()
+                val staleOAuthKeys =
+                    allKeys.filter { it.provider == STALE_OAUTH_PROVIDER && it.refreshToken.isNotEmpty() }
+                if (staleOAuthKeys.isEmpty()) return@launch
+
+                for (staleKey in staleOAuthKeys) {
+                    val migrated =
+                        staleKey.copy(
+                            provider = CODEX_PROVIDER,
+                            key = "",
+                        )
+                    apiKeyRepository.save(migrated)
+
+                    if (staleKey.expiresAt > 0L) {
+                        AuthProfileWriter.writeCodexProfile(
+                            context = this@ZeroClawApplication,
+                            accessToken = staleKey.key,
+                            refreshToken = staleKey.refreshToken,
+                            expiresAtMs = staleKey.expiresAt,
+                        )
+                    }
+                }
+
+                val currentSettings = settingsRepository.settings.first()
+                if (currentSettings.defaultProvider == STALE_OAUTH_PROVIDER) {
+                    settingsRepository.setDefaultProvider(CODEX_PROVIDER)
+                }
+
+                Log.i(
+                    TAG,
+                    "Migrated ${staleOAuthKeys.size} stale OAuth key(s) from" +
+                        " $STALE_OAUTH_PROVIDER to $CODEX_PROVIDER",
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "OAuth migration failed: ${e.message}")
+            }
         }
     }
 
@@ -380,6 +443,8 @@ class ZeroClawApplication :
     companion object {
         private const val TAG = "ZeroClawApp"
         private const val CHANNEL_SECRETS_PREFS = "zeroclaw_channel_secrets"
+        private const val STALE_OAUTH_PROVIDER = "openai"
+        private const val CODEX_PROVIDER = "openai-codex"
         private const val MEMORY_CACHE_PERCENT = 0.15
         private const val DISK_CACHE_MAX_BYTES = 64L * 1024 * 1024
         private const val MAX_IDLE_CONNECTIONS = 5

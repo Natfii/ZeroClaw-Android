@@ -87,6 +87,9 @@ enum class ModelListFormat {
  * @property keyPrefixHint Human-readable hint shown when the key does not match [keyPrefix].
  * @property helpText Provider-specific onboarding note displayed below the provider dropdown.
  * @property oauthClientId OAuth client ID for providers supporting OAuth login, empty otherwise.
+ * @property internal When true, the provider is excluded from user-facing dropdowns but
+ *   remains available via [ProviderRegistry.findById] for programmatic lookups. Used for
+ *   backend-only provider IDs such as `openai-codex`.
  */
 data class ProviderInfo(
     val id: String,
@@ -104,4 +107,5 @@ data class ProviderInfo(
     val keyPrefixHint: String = "",
     val helpText: String = "",
     val oauthClientId: String = "",
+    val internal: Boolean = false,
 )

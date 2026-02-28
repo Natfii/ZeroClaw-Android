@@ -87,6 +87,9 @@ private const val INLINE_ICON_LABEL_SPACING_DP = 4
  * @param apiKeyImeAction IME action for the API key field.
  * @param onServerSelected Optional callback invoked when a server is picked from
  *   the network scan sheet; allows the caller to pre-fill model fields.
+ * @param oauthConnected Whether an OAuth session is connected for this provider.
+ *   When true, the API key field and "Get API Key" link are hidden because
+ *   authentication is handled by the OAuth token.
  */
 @Composable
 fun ProviderCredentialForm(
@@ -106,6 +109,7 @@ fun ProviderCredentialForm(
     baseUrlImeAction: ImeAction = ImeAction.Default,
     apiKeyImeAction: ImeAction = ImeAction.Default,
     onServerSelected: ((DiscoveredServer) -> Unit)? = null,
+    oauthConnected: Boolean = false,
 ) {
     val providerInfo = ProviderRegistry.findById(selectedProviderId)
     val authType = providerInfo?.authType
@@ -114,7 +118,8 @@ fun ProviderCredentialForm(
             authType == ProviderAuthType.URL_AND_OPTIONAL_KEY
     val needsKey = authType == ProviderAuthType.API_KEY_ONLY
     val showKeyField =
-        authType != ProviderAuthType.URL_ONLY && authType != ProviderAuthType.NONE
+        !oauthConnected &&
+            authType != ProviderAuthType.URL_ONLY && authType != ProviderAuthType.NONE
 
     var showScanSheet by remember { mutableStateOf(false) }
 
@@ -168,7 +173,7 @@ fun ProviderCredentialForm(
             )
         }
 
-        if (providerInfo?.keyCreationUrl?.isNotEmpty() == true) {
+        if (!oauthConnected && providerInfo?.keyCreationUrl?.isNotEmpty() == true) {
             TextButton(
                 onClick = {
                     context.startActivity(

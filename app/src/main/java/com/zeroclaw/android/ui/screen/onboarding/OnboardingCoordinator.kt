@@ -17,6 +17,7 @@ import androidx.lifecycle.viewModelScope
 import com.zeroclaw.android.ZeroClawApplication
 import com.zeroclaw.android.data.ProviderRegistry
 import com.zeroclaw.android.data.channel.ChannelSetupSpecs
+import com.zeroclaw.android.data.oauth.AuthProfileWriter
 import com.zeroclaw.android.data.oauth.OAuthCallbackServer
 import com.zeroclaw.android.data.oauth.OpenAiOAuthManager
 import com.zeroclaw.android.data.oauth.PkceState
@@ -134,6 +135,12 @@ class OnboardingCoordinator(
 
         /** Total number of onboarding steps. */
         const val TOTAL_STEPS = 9
+
+        /** Canonical provider ID for OpenAI API-key access. */
+        private const val OPENAI_PROVIDER = "openai"
+
+        /** Canonical provider ID for ChatGPT Codex OAuth access. */
+        private const val CODEX_PROVIDER = "openai-codex"
     }
 
     private val _pinHash = MutableStateFlow("")
@@ -354,9 +361,10 @@ class OnboardingCoordinator(
             var server: OAuthCallbackServer? = null
             try {
                 server = OAuthCallbackServer.startWithFallback()
-                val url = OpenAiOAuthManager.buildAuthorizeUrl(pkce)
+                val port = server.boundPort
+                val url = OpenAiOAuthManager.buildAuthorizeUrl(pkce, port)
                 CustomTabsIntent.Builder().build().launchUrl(context, Uri.parse(url))
-                handleOAuthCallback(server, pkce)
+                handleOAuthCallback(server, pkce, port)
             } catch (e: Exception) {
                 _providerState.update {
                     it.copy(
@@ -383,10 +391,12 @@ class OnboardingCoordinator(
      * @param server The running callback server to await results from.
      * @param pkce The PKCE state containing the expected state nonce and
      *   code verifier for the token exchange.
+     * @param port The actual port the callback server is bound to.
      */
     private suspend fun handleOAuthCallback(
         server: OAuthCallbackServer,
         pkce: PkceState,
+        port: Int,
     ) {
         val callbackResult = server.awaitCallback()
         if (callbackResult == null) {
@@ -415,10 +425,19 @@ class OnboardingCoordinator(
             OpenAiOAuthManager.exchangeCodeForTokens(
                 code = callbackResult.code,
                 codeVerifier = pkce.codeVerifier,
+                port = port,
             )
+        AuthProfileWriter.writeCodexProfile(
+            context = getApplication(),
+            accessToken = tokens.accessToken,
+            refreshToken = tokens.refreshToken,
+            expiresAtMs = tokens.expiresAt,
+        )
+        cleanupStaleOpenAiEntries()
+        migrateAgentsToCodex()
         _providerState.update {
             it.copy(
-                apiKey = tokens.accessToken,
+                providerId = "openai-codex",
                 oauthRefreshToken = tokens.refreshToken,
                 oauthExpiresAt = tokens.expiresAt,
                 oauthEmail = "ChatGPT Login",
@@ -437,8 +456,10 @@ class OnboardingCoordinator(
      * OAuth session during onboarding.
      */
     fun disconnectOAuth() {
+        AuthProfileWriter.removeCodexProfile(getApplication())
         _providerState.update {
             it.copy(
+                providerId = "openai",
                 apiKey = "",
                 oauthRefreshToken = "",
                 oauthExpiresAt = 0L,
@@ -446,6 +467,36 @@ class OnboardingCoordinator(
                 validationResult = ValidationResult.Idle,
             )
         }
+    }
+
+    /**
+     * Removes any existing "openai" API keys that have an empty key value.
+     *
+     * These are stale entries left over from previous OAuth attempts that
+     * created a key under the wrong provider ID. Called before saving the
+     * correct "openai-codex" key.
+     */
+    private suspend fun cleanupStaleOpenAiEntries() {
+        val allKeys = apiKeyRepository.keys.first()
+        allKeys
+            .filter { it.provider == OPENAI_PROVIDER && it.key.isBlank() }
+            .forEach { apiKeyRepository.delete(it.id) }
+    }
+
+    /**
+     * Migrates any agents using the "openai" provider to "openai-codex".
+     *
+     * When the user completes ChatGPT OAuth, agents that were created
+     * against the "openai" provider need to be re-pointed to "openai-codex"
+     * so the daemon uses the correct API endpoint and OAuth tokens.
+     */
+    private suspend fun migrateAgentsToCodex() {
+        val agents = agentRepository.agents.first()
+        agents
+            .filter { it.provider == OPENAI_PROVIDER }
+            .forEach { agent ->
+                agentRepository.save(agent.copy(provider = CODEX_PROVIDER))
+            }
     }
 
     /**
@@ -927,7 +978,7 @@ class OnboardingCoordinator(
      *   calling [complete], because the coroutine needs to finish before the
      *   ViewModel scope is cancelled by a route pop.
      */
-    @Suppress("CognitiveComplexMethod", "LongMethod")
+    @Suppress("CognitiveComplexMethod", "CyclomaticComplexMethod", "LongMethod")
     private suspend fun completeInternal(onDone: () -> Unit) {
         val provider = _providerState.value.providerId
         val key = _providerState.value.apiKey
@@ -936,7 +987,8 @@ class OnboardingCoordinator(
         val identity = _identityState.value
         val name = identity.agentName
 
-        if (authErrorForProvider(provider, key, url)) {
+        val isOAuthSession = _providerState.value.oauthEmail.isNotEmpty()
+        if (!isOAuthSession && authErrorForProvider(provider, key, url)) {
             _activationState.value =
                 _activationState.value.copy(
                     completeError =
@@ -946,19 +998,10 @@ class OnboardingCoordinator(
             return
         }
 
-        if (provider.isNotBlank() && (key.isNotBlank() || url.isNotBlank())) {
-            val existingKey = apiKeyRepository.getByProvider(provider)
-            val providerState = _providerState.value
-            apiKeyRepository.save(
-                ApiKey(
-                    id = existingKey?.id ?: UUID.randomUUID().toString(),
-                    provider = provider,
-                    key = key,
-                    baseUrl = url,
-                    refreshToken = providerState.oauthRefreshToken,
-                    expiresAt = providerState.oauthExpiresAt,
-                ),
-            )
+        val hasCredentials =
+            key.isNotBlank() || url.isNotBlank() || isOAuthSession
+        if (provider.isNotBlank() && hasCredentials) {
+            saveProviderApiKey(provider, key, url)
         }
 
         if (name.isNotBlank() && provider.isNotBlank()) {
@@ -1013,6 +1056,36 @@ class OnboardingCoordinator(
 
         onboardingRepository.markComplete()
         onDone()
+    }
+
+    /**
+     * Persists the provider API key record for the selected provider.
+     *
+     * For OAuth sessions the key may be blank; the record is still saved
+     * so that the settings screen can display the connection and the
+     * [ConfigTomlBuilder] can reconstruct the TOML on daemon restart.
+     *
+     * @param provider Canonical provider ID.
+     * @param key Decrypted API key (may be blank for OAuth providers).
+     * @param url Base URL (may be blank for cloud providers).
+     */
+    private suspend fun saveProviderApiKey(
+        provider: String,
+        key: String,
+        url: String,
+    ) {
+        val existingKey = apiKeyRepository.getByProvider(provider)
+        val providerState = _providerState.value
+        apiKeyRepository.save(
+            ApiKey(
+                id = existingKey?.id ?: UUID.randomUUID().toString(),
+                provider = provider,
+                key = key,
+                baseUrl = url,
+                refreshToken = providerState.oauthRefreshToken,
+                expiresAt = providerState.oauthExpiresAt,
+            ),
+        )
     }
 
     /**

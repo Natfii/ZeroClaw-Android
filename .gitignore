@@ -39,6 +39,7 @@ app/src/main/jniLibs/
 
 # Design documents (local only)
 docs/
+doc/plans/
 
 # Hook scripts (local machine paths)
 scripts/hooks/

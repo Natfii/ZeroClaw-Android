@@ -94,6 +94,25 @@ object ProviderRegistry {
                 oauthClientId = "app_EMoamEEZ73f0CkXaXp7hrann",
             ),
             ProviderInfo(
+                id = "openai-codex",
+                displayName = "ChatGPT (OAuth)",
+                authType = ProviderAuthType.NONE,
+                aliases = listOf("openai_codex", "codex"),
+                suggestedModels =
+                    listOf(
+                        "gpt-5.2",
+                        "gpt-5-mini",
+                        "o3",
+                        "o4-mini",
+                        "gpt-4.1",
+                        "gpt-4.1-mini",
+                    ),
+                category = ProviderCategory.PRIMARY,
+                iconUrl = "https://cdn.openai.com/API/logo-assets/openai-logomark.png",
+                modelListFormat = ModelListFormat.NONE,
+                internal = true,
+            ),
+            ProviderInfo(
                 id = "anthropic",
                 displayName = "Anthropic",
                 authType = ProviderAuthType.API_KEY_ONLY,

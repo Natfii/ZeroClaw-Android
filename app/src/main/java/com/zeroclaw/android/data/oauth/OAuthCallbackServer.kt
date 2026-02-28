@@ -46,6 +46,9 @@ class OAuthCallbackServer(
     private val port: Int = DEFAULT_PORT,
     private val timeoutMs: Long = DEFAULT_TIMEOUT_MS,
 ) {
+    /** The actual TCP port this server is bound to. */
+    val boundPort: Int get() = port
+
     /** Deferred that completes when the callback is received or the server is stopped. */
     private val result = CompletableDeferred<OAuthCallbackResult?>()
 
@@ -100,7 +103,7 @@ class OAuthCallbackServer(
     private class CallbackHttpServer(
         port: Int,
         private val deferred: CompletableDeferred<OAuthCallbackResult?>,
-    ) : NanoHTTPD(port) {
+    ) : NanoHTTPD(LOOPBACK_HOST, port) {
         /**
          * Handles incoming HTTP requests.
          *
@@ -143,6 +146,9 @@ class OAuthCallbackServer(
 
     /** Constants for port configuration and timeout defaults. */
     companion object {
+        /** Loopback address per RFC 8252 Section 8.3; never bind on 0.0.0.0. */
+        private const val LOOPBACK_HOST = "127.0.0.1"
+
         /** Default TCP port matching the upstream Rust redirect URI. */
         const val DEFAULT_PORT = 1455
 

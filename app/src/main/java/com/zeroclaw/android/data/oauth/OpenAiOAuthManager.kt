@@ -70,8 +70,11 @@ object OpenAiOAuthManager {
     /** OpenAI OAuth token exchange endpoint. */
     private const val TOKEN_URL = "https://auth.openai.com/oauth/token"
 
-    /** Loopback redirect URI matching the upstream Rust implementation. */
-    private const val REDIRECT_URI = "http://localhost:1455/auth/callback"
+    /** Loopback redirect URI base matching the upstream Rust implementation. */
+    private const val REDIRECT_URI_BASE = "http://localhost"
+
+    /** Callback path within the loopback redirect URI. */
+    private const val REDIRECT_PATH = "/auth/callback"
 
     /** OAuth scopes requested during authorization. */
     private const val SCOPES = "openid profile email offline_access"
@@ -135,20 +138,25 @@ object OpenAiOAuthManager {
      * the upstream Rust `build_authorize_url` function exactly.
      *
      * @param pkce PKCE state from [generatePkceState].
+     * @param port The actual port the callback server is listening on. This
+     *   ensures the redirect URI in the authorization request matches the
+     *   server port, even when using a fallback port.
      * @return Fully-formed authorization URL to open in a browser or Custom Tab.
      */
-    fun buildAuthorizeUrl(pkce: PkceState): String {
+    fun buildAuthorizeUrl(
+        pkce: PkceState,
+        port: Int = OAuthCallbackServer.DEFAULT_PORT,
+    ): String {
+        val redirectUri = "$REDIRECT_URI_BASE:$port$REDIRECT_PATH"
         val params =
             linkedMapOf(
                 "response_type" to "code",
                 "client_id" to CLIENT_ID,
-                "redirect_uri" to REDIRECT_URI,
+                "redirect_uri" to redirectUri,
                 "scope" to SCOPES,
                 "code_challenge" to pkce.codeChallenge,
                 "code_challenge_method" to "S256",
                 "state" to pkce.state,
-                "codex_cli_simplified_flow" to "true",
-                "id_token_add_organizations" to "true",
             )
 
         val query =
@@ -169,6 +177,8 @@ object OpenAiOAuthManager {
      * @param code Authorization code received from the callback server.
      * @param codeVerifier The [PkceState.codeVerifier] used when building
      *   the authorization URL.
+     * @param port The callback server port used in the authorization request.
+     *   Must match the `redirect_uri` sent during authorization.
      * @param ioDispatcher Coroutine dispatcher for the blocking HTTP call.
      *   Defaults to [Dispatchers.IO].
      * @return An [OAuthTokenResult] containing the access token, refresh
@@ -180,15 +190,17 @@ object OpenAiOAuthManager {
     suspend fun exchangeCodeForTokens(
         code: String,
         codeVerifier: String,
+        port: Int = OAuthCallbackServer.DEFAULT_PORT,
         ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     ): OAuthTokenResult =
         withContext(ioDispatcher) {
+            val redirectUri = "$REDIRECT_URI_BASE:$port$REDIRECT_PATH"
             val formBody =
                 listOf(
                     "grant_type" to "authorization_code",
                     "code" to code,
                     "client_id" to CLIENT_ID,
-                    "redirect_uri" to REDIRECT_URI,
+                    "redirect_uri" to redirectUri,
                     "code_verifier" to codeVerifier,
                 ).joinToString("&") { (key, value) ->
                     "${urlEncode(key)}=${urlEncode(value)}"

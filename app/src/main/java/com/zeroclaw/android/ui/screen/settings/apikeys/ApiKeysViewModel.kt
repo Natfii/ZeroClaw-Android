@@ -18,7 +18,9 @@ import com.zeroclaw.android.ZeroClawApplication
 import com.zeroclaw.android.data.CredentialsJsonParser
 import com.zeroclaw.android.data.ProviderRegistry
 import com.zeroclaw.android.data.StorageHealth
+import com.zeroclaw.android.data.oauth.AuthProfileWriter
 import com.zeroclaw.android.data.oauth.OAuthCallbackServer
+import com.zeroclaw.android.data.oauth.OAuthTokenResult
 import com.zeroclaw.android.data.oauth.OpenAiOAuthManager
 import com.zeroclaw.android.data.remote.ConnectionProber
 import com.zeroclaw.android.data.remote.ModelFetcher
@@ -94,6 +96,7 @@ sealed interface ConnectionTestState {
  *
  * @param application Application context for accessing the API key repository.
  */
+@Suppress("TooManyFunctions")
 class ApiKeysViewModel(
     application: Application,
 ) : AndroidViewModel(application) {
@@ -343,6 +346,9 @@ class ApiKeysViewModel(
                     _revealedKeyId.value = null
                 }
                 if (deletedKey != null) {
+                    if (isCodexProvider(deletedKey.provider)) {
+                        AuthProfileWriter.removeCodexProfile(getApplication())
+                    }
                     if (alsoDeleteAgents) {
                         deleteAgentsForProvider(deletedKey.provider)
                     }
@@ -677,38 +683,113 @@ class ApiKeysViewModel(
             var server: OAuthCallbackServer? = null
             try {
                 server = OAuthCallbackServer.startWithFallback()
-                val url = OpenAiOAuthManager.buildAuthorizeUrl(pkce)
+                val port = server.boundPort
+                val url = OpenAiOAuthManager.buildAuthorizeUrl(pkce, port)
+                Log.d(TAG, "OAuth: starting flow on port $port")
                 CustomTabsIntent.Builder().build().launchUrl(context, Uri.parse(url))
 
                 val callbackResult = server.awaitCallback()
-                if (callbackResult == null) return@launch
+                if (callbackResult == null) {
+                    Log.w(TAG, "OAuth: callback timed out or was cancelled")
+                    _snackbarMessage.value = "Login timed out — please try again"
+                    return@launch
+                }
 
-                if (callbackResult.state != pkce.state) return@launch
+                if (callbackResult.state != pkce.state) {
+                    Log.w(TAG, "OAuth: CSRF state mismatch")
+                    _snackbarMessage.value = "Login failed — security check failed"
+                    return@launch
+                }
 
+                Log.d(TAG, "OAuth: exchanging code for tokens")
                 val tokens =
                     OpenAiOAuthManager.exchangeCodeForTokens(
                         code = callbackResult.code,
                         codeVerifier = pkce.codeVerifier,
+                        port = port,
                     )
-
-                repository.save(
-                    ApiKey(
-                        id = UUID.randomUUID().toString(),
-                        provider = "openai",
-                        key = tokens.accessToken,
-                        refreshToken = tokens.refreshToken,
-                        expiresAt = tokens.expiresAt,
-                    ),
-                )
-                daemonBridge.markRestartRequired()
-                _snackbarMessage.value = "ChatGPT login successful"
-            } catch (_: Exception) {
-                // User can retry; no error surfaced
+                Log.d(TAG, "OAuth: token exchange successful, writing profile")
+                saveOAuthTokens(tokens)
+            } catch (e: Exception) {
+                Log.e(TAG, "OAuth login failed", e)
+                _snackbarMessage.value = "Login failed: ${e.message}"
             } finally {
                 server?.stop()
                 _oauthInProgress.value = false
             }
         }
+    }
+
+    /**
+     * Persists OAuth tokens after a successful token exchange.
+     *
+     * Writes the profile to `auth-profiles.json` for the Rust daemon, saves
+     * the key to the repository, sets the default provider and model, and
+     * triggers a daemon restart.
+     *
+     * @param tokens The token exchange result.
+     */
+    private suspend fun saveOAuthTokens(tokens: OAuthTokenResult) {
+        AuthProfileWriter.writeCodexProfile(
+            context = getApplication(),
+            accessToken = tokens.accessToken,
+            refreshToken = tokens.refreshToken,
+            expiresAtMs = tokens.expiresAt,
+        )
+        cleanupStaleOpenAiEntries()
+        repository.save(
+            ApiKey(
+                id = UUID.randomUUID().toString(),
+                provider = CODEX_PROVIDER,
+                key = "",
+                refreshToken = tokens.refreshToken,
+                expiresAt = tokens.expiresAt,
+            ),
+        )
+        migrateAgentsToCodex()
+        settingsRepository.setDefaultProvider(CODEX_PROVIDER)
+        val defaultModel =
+            ProviderRegistry
+                .findById(CODEX_PROVIDER)
+                ?.suggestedModels
+                ?.firstOrNull()
+                .orEmpty()
+        if (defaultModel.isNotEmpty()) {
+            settingsRepository.setDefaultModel(defaultModel)
+        }
+        daemonBridge.markRestartRequired()
+        _snackbarMessage.value = "ChatGPT login successful"
+        _saveState.value = SaveState.Saved
+    }
+
+    /**
+     * Removes any existing "openai" API keys that have an empty key value.
+     *
+     * These are stale entries left over from previous OAuth attempts that
+     * created a key under the wrong provider ID. Called before saving the
+     * correct "openai-codex" key.
+     */
+    private suspend fun cleanupStaleOpenAiEntries() {
+        val allKeys = repository.keys.first()
+        allKeys
+            .filter { it.provider == OPENAI_PROVIDER && it.key.isBlank() }
+            .forEach { repository.delete(it.id) }
+    }
+
+    /**
+     * Migrates any agents using the "openai" provider to "openai-codex".
+     *
+     * When the user completes ChatGPT OAuth, agents that were created
+     * against the "openai" provider need to be re-pointed to "openai-codex"
+     * so the daemon uses the correct API endpoint and OAuth tokens.
+     */
+    private suspend fun migrateAgentsToCodex() {
+        val agents = agentRepository.agents.first()
+        agents
+            .filter { it.provider == OPENAI_PROVIDER }
+            .forEach { agent ->
+                agentRepository.save(agent.copy(provider = CODEX_PROVIDER))
+            }
     }
 
     /**
@@ -779,6 +860,24 @@ class ApiKeysViewModel(
 
         /** Debounce delay in milliseconds before fetching models after input changes. */
         private const val MODEL_FETCH_DEBOUNCE_MS = 500L
+
+        /** Canonical provider ID for OpenAI API-key access. */
+        private const val OPENAI_PROVIDER = "openai"
+
+        /** Canonical provider ID for ChatGPT Codex OAuth access. */
+        private const val CODEX_PROVIDER = "openai-codex"
+
+        /** Provider IDs that use the Codex OAuth auth-profiles store. */
+        private val CODEX_PROVIDER_IDS =
+            setOf("openai-codex", "openai_codex", "codex")
+
+        /**
+         * Returns true if the provider uses the Codex auth-profiles store.
+         *
+         * @param provider Provider ID to check.
+         * @return True if auth-profiles.json cleanup is needed on delete.
+         */
+        private fun isCodexProvider(provider: String): Boolean = provider.lowercase() in CODEX_PROVIDER_IDS
     }
 }
 

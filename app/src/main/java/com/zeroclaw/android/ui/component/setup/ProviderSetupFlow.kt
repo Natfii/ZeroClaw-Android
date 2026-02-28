@@ -119,6 +119,8 @@ private val ChipIconTextSpacing = 8.dp
  *   When non-null and the provider supports [ProviderAuthType.API_KEY_OR_OAUTH],
  *   the "Login with ChatGPT" button is rendered.
  * @param onOAuthDisconnect Optional callback to disconnect the current OAuth session.
+ * @param scrollable Whether the root [Column] applies its own vertical scroll. Set to
+ *   false when embedding inside an already-scrollable parent to avoid nested scrolling.
  */
 @Composable
 fun ProviderSetupFlow(
@@ -142,16 +144,25 @@ fun ProviderSetupFlow(
     oauthEmail: String = "",
     onOAuthLogin: (() -> Unit)? = null,
     onOAuthDisconnect: (() -> Unit)? = null,
+    scrollable: Boolean = true,
 ) {
     val providerInfo = ProviderRegistry.findById(selectedProvider)
     val suggestedModels = providerInfo?.suggestedModels.orEmpty()
     val consoleTarget = ExternalAppLauncher.providerConsoleTarget(selectedProvider)
+    val isOAuthConnected = oauthEmail.isNotEmpty()
     val validateEnabled =
         selectedProvider.isNotBlank() &&
             (apiKey.isNotBlank() || baseUrl.isNotBlank())
 
+    val columnModifier =
+        if (scrollable) {
+            modifier.verticalScroll(rememberScrollState())
+        } else {
+            modifier
+        }
+
     Column(
-        modifier = modifier.verticalScroll(rememberScrollState()),
+        modifier = columnModifier,
     ) {
         ProviderCredentialForm(
             selectedProviderId = selectedProvider,
@@ -161,6 +172,7 @@ fun ProviderSetupFlow(
             onApiKeyChanged = onApiKeyChanged,
             onBaseUrlChanged = onBaseUrlChanged,
             onServerSelected = onServerSelected,
+            oauthConnected = isOAuthConnected,
             modifier = Modifier.fillMaxWidth(),
         )
 
@@ -213,14 +225,16 @@ fun ProviderSetupFlow(
 
         Spacer(modifier = Modifier.height(FieldSpacing))
 
-        ActionRow(
-            consoleTarget = consoleTarget,
-            validateEnabled = validateEnabled,
-            validationResult = validationResult,
-            onValidate = onValidate,
-        )
+        if (!isOAuthConnected) {
+            ActionRow(
+                consoleTarget = consoleTarget,
+                validateEnabled = validateEnabled,
+                validationResult = validationResult,
+                onValidate = onValidate,
+            )
 
-        Spacer(modifier = Modifier.height(TitleSpacing))
+            Spacer(modifier = Modifier.height(TitleSpacing))
+        }
 
         ValidationIndicator(
             result = validationResult,
