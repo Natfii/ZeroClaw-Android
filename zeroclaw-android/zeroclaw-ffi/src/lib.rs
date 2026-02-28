@@ -24,6 +24,7 @@ mod health;
 mod memory_browse;
 mod repl;
 mod runtime;
+mod session;
 mod skills;
 mod streaming;
 mod tools_browse;
