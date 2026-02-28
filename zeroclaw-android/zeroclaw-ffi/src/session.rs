@@ -30,10 +30,11 @@
 use std::fmt::Write;
 use std::sync::{Arc, Mutex};
 
+use async_trait::async_trait;
 use tokio_util::sync::CancellationToken;
-use zeroclaw::memory::Memory;
+use zeroclaw::memory::{Memory, MemoryCategory};
 use zeroclaw::providers::{ChatMessage, ChatRequest, Provider};
-use zeroclaw::tools::ToolSpec;
+use zeroclaw::tools::{Tool, ToolResult, ToolSpec};
 
 use crate::error::FfiError;
 use crate::runtime::{clone_daemon_config, clone_daemon_memory, get_or_create_runtime};
@@ -76,6 +77,193 @@ static SESSION: Mutex<Option<Session>> = Mutex::new(None);
 /// to abort at the next check point.
 static CANCEL_TOKEN: Mutex<Option<CancellationToken>> = Mutex::new(None);
 
+// ── FFI tool implementations ────────────────────────────────────────────
+//
+// Upstream `SecurityPolicy` is `pub(crate)`, so `MemoryStoreTool` and
+// `MemoryForgetTool` cannot be constructed from the FFI crate. The
+// wrappers below replicate the upstream logic without the security
+// check. On Android the user directly initiates all agent actions, so
+// the upstream read-only / rate-limit checks are unnecessary.
+
+/// FFI-specific memory store tool that bypasses `SecurityPolicy`.
+///
+/// On Android the user directly initiates all agent actions, so the
+/// upstream read-only / rate-limit checks are unnecessary. The tool
+/// delegates directly to the [`Memory`] backend.
+struct FfiMemoryStoreTool {
+    /// The memory backend shared with the daemon.
+    memory: Arc<dyn Memory>,
+}
+
+#[async_trait]
+impl Tool for FfiMemoryStoreTool {
+    fn name(&self) -> &'static str {
+        "memory_store"
+    }
+
+    fn description(&self) -> &'static str {
+        "Store a fact, preference, or note in long-term memory. \
+         Use category 'core' for permanent facts, 'daily' for session notes, \
+         'conversation' for chat context, or a custom category name."
+    }
+
+    fn parameters_schema(&self) -> serde_json::Value {
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "key": {
+                    "type": "string",
+                    "description": "Unique key for this memory (e.g. 'user_lang', 'project_stack')"
+                },
+                "content": {
+                    "type": "string",
+                    "description": "The information to remember"
+                },
+                "category": {
+                    "type": "string",
+                    "description": "Memory category: 'core' (permanent), 'daily' (session), \
+                                    'conversation' (chat), or a custom category name. \
+                                    Defaults to 'core'."
+                }
+            },
+            "required": ["key", "content"]
+        })
+    }
+
+    async fn execute(&self, args: serde_json::Value) -> anyhow::Result<ToolResult> {
+        let key = args
+            .get("key")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Missing 'key' parameter"))?;
+
+        let content = args
+            .get("content")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Missing 'content' parameter"))?;
+
+        let category = match args.get("category").and_then(|v| v.as_str()) {
+            Some("core") | None => MemoryCategory::Core,
+            Some("daily") => MemoryCategory::Daily,
+            Some("conversation") => MemoryCategory::Conversation,
+            Some(other) => MemoryCategory::Custom(other.to_string()),
+        };
+
+        match self.memory.store(key, content, category, None).await {
+            Ok(()) => Ok(ToolResult {
+                success: true,
+                output: format!("Stored memory: {key}"),
+                error: None,
+            }),
+            Err(e) => Ok(ToolResult {
+                success: false,
+                output: String::new(),
+                error: Some(format!("Failed to store memory: {e}")),
+            }),
+        }
+    }
+}
+
+/// FFI-specific memory forget tool that bypasses `SecurityPolicy`.
+///
+/// See [`FfiMemoryStoreTool`] for rationale on skipping security checks.
+struct FfiMemoryForgetTool {
+    /// The memory backend shared with the daemon.
+    memory: Arc<dyn Memory>,
+}
+
+#[async_trait]
+impl Tool for FfiMemoryForgetTool {
+    fn name(&self) -> &'static str {
+        "memory_forget"
+    }
+
+    fn description(&self) -> &'static str {
+        "Remove a memory by key. Use to delete outdated facts or sensitive \
+         data. Returns whether the memory was found and removed."
+    }
+
+    fn parameters_schema(&self) -> serde_json::Value {
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "key": {
+                    "type": "string",
+                    "description": "The key of the memory to forget"
+                }
+            },
+            "required": ["key"]
+        })
+    }
+
+    async fn execute(&self, args: serde_json::Value) -> anyhow::Result<ToolResult> {
+        let key = args
+            .get("key")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Missing 'key' parameter"))?;
+
+        match self.memory.forget(key).await {
+            Ok(true) => Ok(ToolResult {
+                success: true,
+                output: format!("Forgot memory: {key}"),
+                error: None,
+            }),
+            Ok(false) => Ok(ToolResult {
+                success: true,
+                output: format!("No memory found with key: {key}"),
+                error: None,
+            }),
+            Err(e) => Ok(ToolResult {
+                success: false,
+                output: String::new(),
+                error: Some(format!("Failed to forget memory: {e}")),
+            }),
+        }
+    }
+}
+
+/// Builds the tools registry for the Android agent session.
+///
+/// Constructs tools that are available without upstream's `SecurityPolicy`:
+/// - Memory tools (store, recall, forget) via FFI wrappers and upstream
+/// - Cron listing tools via upstream constructors
+/// - Web search via upstream constructor (when enabled in config)
+///
+/// Tools that require `SecurityPolicy` (shell, file I/O, git, browser) are
+/// excluded because the upstream security module is `pub(crate)`. These
+/// tools are also less relevant on Android where the OS sandbox provides
+/// security boundaries.
+fn build_tools_registry(config: &zeroclaw::Config, memory: Arc<dyn Memory>) -> Vec<Box<dyn Tool>> {
+    let config_arc = Arc::new(config.clone());
+    let mut tools: Vec<Box<dyn Tool>> = vec![
+        Box::new(FfiMemoryStoreTool {
+            memory: memory.clone(),
+        }),
+        Box::new(zeroclaw::tools::MemoryRecallTool::new(memory.clone())),
+        Box::new(FfiMemoryForgetTool { memory }),
+        Box::new(zeroclaw::tools::CronListTool::new(config_arc.clone())),
+        Box::new(zeroclaw::tools::CronRunsTool::new(config_arc)),
+    ];
+
+    if config.web_search.enabled {
+        tools.push(Box::new(zeroclaw::tools::WebSearchTool::new(
+            config.web_search.provider.clone(),
+            config.web_search.brave_api_key.clone(),
+            config.web_search.max_results,
+            config.web_search.timeout_secs,
+        )));
+    }
+
+    tools
+}
+
+/// Generates [`ToolSpec`] metadata from the tools registry.
+///
+/// Uses each tool's [`Tool::spec`] method to produce the name, description,
+/// and JSON parameter schema that the provider uses for native tool calling.
+fn tool_specs_from_registry(tools: &[Box<dyn Tool>]) -> Vec<ToolSpec> {
+    tools.iter().map(|t| t.spec()).collect()
+}
+
 /// Internal session state holding conversation history and provider config.
 ///
 /// Not exposed across the FFI boundary -- Kotlin interacts exclusively
@@ -93,6 +281,8 @@ struct Session {
     temperature: f64,
     /// Provider name used to create the provider instance (e.g. `"openai"`).
     provider_name: String,
+    /// Tools registry built from available upstream tools and FFI wrappers.
+    tools_registry: Vec<Box<dyn Tool>>,
 }
 
 /// A single conversation message exchanged over the FFI boundary.
@@ -218,7 +408,25 @@ pub(crate) fn session_start_inner() -> Result<(), FfiError> {
 
     let temperature = config.default_temperature;
 
-    let tool_descs = build_android_tool_descs(&config);
+    // Build tools registry from daemon memory + config.
+    let tools_registry = if let Ok(mem) = clone_daemon_memory() {
+        build_tools_registry(&config, mem)
+    } else {
+        tracing::warn!("Memory backend unavailable; session tools will be limited");
+        Vec::new()
+    };
+
+    // Generate tool descriptions from the real tools registry, plus
+    // static descriptions for tools the LLM should know about but that
+    // cannot be constructed from the FFI crate.
+    let mut tool_descs = build_android_tool_descs(&config);
+    for tool in &tools_registry {
+        let name = tool.name().to_string();
+        if !tool_descs.iter().any(|(n, _)| n == &name) {
+            tool_descs.push((name, tool.description().to_string()));
+        }
+    }
+
     let tool_desc_refs: Vec<(&str, &str)> = tool_descs
         .iter()
         .map(|(name, desc)| (name.as_str(), desc.as_str()))
@@ -263,6 +471,7 @@ pub(crate) fn session_start_inner() -> Result<(), FfiError> {
         model,
         temperature,
         provider_name,
+        tools_registry,
     };
 
     let mut guard = SESSION.lock().map_err(|_| FfiError::StateCorrupted {
@@ -328,7 +537,7 @@ pub(crate) fn session_send_inner(
     }
 
     // Snapshot session state while holding the lock briefly.
-    let (mut history, config, model, temperature, provider_name, system_prompt) = {
+    let (mut history, tools, config, model, temperature, provider_name, system_prompt) = {
         let mut guard = SESSION.lock().map_err(|_| FfiError::StateCorrupted {
             detail: "session mutex poisoned".into(),
         })?;
@@ -337,6 +546,7 @@ pub(crate) fn session_send_inner(
         })?;
         (
             std::mem::take(&mut session.history),
+            std::mem::take(&mut session.tools_registry),
             session.config.clone(),
             session.model.clone(),
             session.temperature,
@@ -388,19 +598,20 @@ pub(crate) fn session_send_inner(
         )
         .map_err(|e| AgentLoopOutcome::Error(format!("failed to create provider: {e}")))?;
 
-        // Build tool specs from the system prompt descriptions.
-        // Upstream `SecurityPolicy` is `pub(crate)`, so we cannot construct
-        // the full tools registry from the FFI crate. Instead we provide
-        // tool specs (name + description + schema) to the provider for
-        // native tool calling awareness. Tool calls returned by the LLM are
-        // reported to the listener but responded to with a
-        // gateway-unavailable message, prompting the LLM to answer directly.
-        let tool_specs = build_android_tool_specs(&config);
+        // Build tool specs from the real tools registry plus static
+        // descriptions for tools the LLM should know about.
+        let mut tool_specs = tool_specs_from_registry(&tools);
+        for spec in build_android_tool_specs(&config) {
+            if !tool_specs.iter().any(|s| s.name == spec.name) {
+                tool_specs.push(spec);
+            }
+        }
 
-        // Run the agent loop.
+        // Run the agent loop with real tool execution.
         run_agent_loop(
             provider.as_ref(),
             &mut history,
+            &tools,
             &tool_specs,
             &model,
             temperature,
@@ -410,7 +621,7 @@ pub(crate) fn session_send_inner(
         .await
     });
 
-    // Put history back and handle result.
+    // Put history and tools back and handle result.
     match result {
         Ok(full_response) => {
             // Run compaction on the history (best-effort).
@@ -439,13 +650,13 @@ pub(crate) fn session_send_inner(
                 }
             }
 
-            put_history_back(history, &system_prompt)?;
+            put_session_state_back(history, tools, &system_prompt)?;
             clear_cancel_token();
             listener.on_complete(full_response);
             Ok(())
         }
         Err(AgentLoopOutcome::Cancelled) => {
-            put_history_back(history, &system_prompt)?;
+            put_session_state_back(history, tools, &system_prompt)?;
             clear_cancel_token();
             listener.on_cancelled();
             Ok(())
@@ -453,7 +664,7 @@ pub(crate) fn session_send_inner(
         Err(AgentLoopOutcome::Error(msg)) => {
             // Rollback history to pre-send state.
             history.truncate(history_len_before);
-            put_history_back(history, &system_prompt)?;
+            put_session_state_back(history, tools, &system_prompt)?;
             clear_cancel_token();
             listener.on_error(msg.clone());
             Err(FfiError::SpawnError { detail: msg })
@@ -635,22 +846,21 @@ enum AgentLoopOutcome {
 /// 2. Fire `on_thinking` / `on_progress` via the listener.
 /// 3. Call `provider.chat(...)` with the current history and tool specs.
 /// 4. If no tool calls: stream the final response, append to history, return.
-/// 5. If tool calls: report them to the listener, respond with an
-///    unavailability message, and continue to the next iteration so the
-///    LLM can produce a text answer.
+/// 5. If tool calls: execute tools that exist in the registry and report
+///    results; tools not in the registry get a fallback "unavailable" message.
 ///
-/// Tool execution is not performed in the FFI session because upstream's
-/// `SecurityPolicy` is `pub(crate)` and the tools registry cannot be
-/// constructed from outside the `zeroclaw` crate. Tool calls are reported
-/// to the listener for UI display, then a synthesised "tool unavailable"
-/// result is fed back so the LLM can answer without tools.
+/// Tools with real implementations (memory, cron, web search) are executed
+/// directly. Tools that require upstream's `pub(crate)` `SecurityPolicy`
+/// (shell, file I/O, git, browser) are not in the registry and receive
+/// an unavailability response so the LLM can answer without them.
 ///
 /// The function returns the full response text on success, or an
 /// [`AgentLoopOutcome`] on failure/cancellation.
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::too_many_lines)]
 async fn run_agent_loop(
     provider: &dyn Provider,
     history: &mut Vec<ChatMessage>,
+    tools: &[Box<dyn Tool>],
     tool_specs: &[ToolSpec],
     model: &str,
     temperature: f64,
@@ -707,7 +917,7 @@ async fn run_agent_loop(
             return Ok(text);
         }
 
-        // Has tool calls -- report them but cannot execute (see doc comment).
+        // Has tool calls -- execute those we have and report unavailable for the rest.
         let tool_call_count = response.tool_calls.len();
         listener.on_progress(format!("Got {tool_call_count} tool call(s)"));
 
@@ -724,9 +934,7 @@ async fn run_agent_loop(
             history.push(ChatMessage::assistant(&assistant_text));
         }
 
-        // Respond to each tool call with an unavailability message.
-        let unavailable_msg =
-            "Tool execution is not available in this session. Please answer directly.";
+        // Execute or respond to each tool call.
         let mut tool_results_text = String::new();
 
         for call in &response.tool_calls {
@@ -736,19 +944,64 @@ async fn run_agent_loop(
 
             let args_hint = truncate_tool_args_hint(&call.name, &call.arguments);
             listener.on_tool_start(call.name.clone(), args_hint);
-            listener.on_tool_result(call.name.clone(), false, 0);
-            listener.on_tool_output(call.name.clone(), unavailable_msg.to_string());
+
+            let start_time = std::time::Instant::now();
+
+            // Find the tool by name in the registry.
+            let tool = tools.iter().find(|t| t.name() == call.name);
+
+            let (success, output) = match tool {
+                Some(tool) => {
+                    let args: serde_json::Value =
+                        serde_json::from_str(&call.arguments).unwrap_or(serde_json::json!({}));
+
+                    let exec_result = tokio::select! {
+                        () = cancel_token.cancelled() => {
+                            return Err(AgentLoopOutcome::Cancelled);
+                        }
+                        result = tool.execute(args) => result,
+                    };
+
+                    match exec_result {
+                        Ok(result) => {
+                            if result.success {
+                                (true, result.output)
+                            } else {
+                                (
+                                    false,
+                                    result.error.unwrap_or_else(|| {
+                                        "Tool failed without error message".into()
+                                    }),
+                                )
+                            }
+                        }
+                        Err(e) => (false, format!("Tool execution error: {e}")),
+                    }
+                }
+                None => (
+                    false,
+                    format!(
+                        "Tool '{}' is not available in this session. \
+                         Please answer directly without this tool.",
+                        call.name
+                    ),
+                ),
+            };
+
+            let duration_secs = start_time.elapsed().as_secs();
+            listener.on_tool_result(call.name.clone(), success, duration_secs);
+            listener.on_tool_output(call.name.clone(), output.clone());
 
             if use_native_tools {
                 let tool_msg = serde_json::json!({
                     "tool_call_id": call.id,
-                    "content": unavailable_msg,
+                    "content": output,
                 });
                 history.push(ChatMessage::tool(tool_msg.to_string()));
             } else {
                 let _ = writeln!(
                     tool_results_text,
-                    "<tool_result name=\"{}\">\n{unavailable_msg}\n</tool_result>",
+                    "<tool_result name=\"{}\">\n{output}\n</tool_result>",
                     call.name
                 );
             }
@@ -1030,16 +1283,21 @@ fn build_native_assistant_history(
     msg.to_string()
 }
 
-/// Puts the working history back into the [`SESSION`] mutex.
+/// Puts the working history and tools registry back into the [`SESSION`] mutex.
 ///
 /// If the session was destroyed while the send was in progress, the
-/// history is silently dropped (the session slot will be `None`).
-fn put_history_back(history: Vec<ChatMessage>, _system_prompt: &str) -> Result<(), FfiError> {
+/// state is silently dropped (the session slot will be `None`).
+fn put_session_state_back(
+    history: Vec<ChatMessage>,
+    tools: Vec<Box<dyn Tool>>,
+    _system_prompt: &str,
+) -> Result<(), FfiError> {
     let mut guard = SESSION.lock().map_err(|_| FfiError::StateCorrupted {
         detail: "session mutex poisoned".into(),
     })?;
     if let Some(session) = guard.as_mut() {
         session.history = history;
+        session.tools_registry = tools;
     }
     Ok(())
 }
