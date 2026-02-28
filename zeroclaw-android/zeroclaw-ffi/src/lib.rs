@@ -835,6 +835,159 @@ pub fn cancel_streaming() -> Result<(), FfiError> {
     })
 }
 
+// ── Live agent session ──────────────────────────────────────────────────
+
+/// Creates a new live agent session from the running daemon's configuration.
+///
+/// Builds the system prompt, tools registry, and provider configuration.
+/// Only one session may exist at a time; call [`session_destroy`] first
+/// if a previous session is still active.
+///
+/// # Errors
+///
+/// Returns [`FfiError::StateError`] if a session is already active or the
+/// daemon is not running, [`FfiError::StateCorrupted`] if the session
+/// mutex is poisoned, [`FfiError::SpawnError`] if provider creation fails,
+/// or [`FfiError::InternalPanic`] if native code panics.
+#[uniffi::export]
+pub fn session_start() -> Result<(), FfiError> {
+    catch_unwind(session::session_start_inner).unwrap_or_else(|e| {
+        Err(FfiError::InternalPanic {
+            detail: panic_detail(&e),
+        })
+    })
+}
+
+/// Injects seed messages into the active session's conversation history.
+///
+/// Used to restore prior context from Room persistence before the first
+/// [`session_send`] call. At most 20 entries are accepted; system-role
+/// messages are silently skipped.
+///
+/// # Errors
+///
+/// Returns [`FfiError::StateError`] if no session is active,
+/// [`FfiError::StateCorrupted`] if the session mutex is poisoned, or
+/// [`FfiError::InternalPanic`] if native code panics.
+#[uniffi::export]
+pub fn session_seed(messages: Vec<session::SessionMessage>) -> Result<(), FfiError> {
+    catch_unwind(AssertUnwindSafe(|| {
+        session::session_seed_inner(messages)
+    }))
+    .unwrap_or_else(|e| {
+        Err(FfiError::InternalPanic {
+            detail: panic_detail(&e),
+        })
+    })
+}
+
+/// Sends a message through the live agent session's tool-call loop.
+///
+/// Runs the full agent loop with memory recall, tool execution, streaming
+/// progress, and auto-compaction. Events are delivered to the `listener`
+/// callback in real time. The send can be cancelled by calling
+/// [`session_cancel`].
+///
+/// # Errors
+///
+/// Returns [`FfiError::ConfigError`] for oversized messages,
+/// [`FfiError::StateError`] if no session is active,
+/// [`FfiError::StateCorrupted`] if the session mutex is poisoned,
+/// [`FfiError::SpawnError`] if the agent loop or provider creation fails,
+/// or [`FfiError::InternalPanic`] if native code panics.
+#[uniffi::export]
+pub fn session_send(
+    message: String,
+    listener: Box<dyn session::FfiSessionListener>,
+) -> Result<(), FfiError> {
+    let listener: Arc<dyn session::FfiSessionListener> = Arc::from(listener);
+    catch_unwind(AssertUnwindSafe(|| {
+        session::session_send_inner(message, listener)
+    }))
+    .unwrap_or_else(|e| {
+        Err(FfiError::InternalPanic {
+            detail: panic_detail(&e),
+        })
+    })
+}
+
+/// Cancels the currently running [`session_send`] call.
+///
+/// Sets the internal cancellation token. The agent loop aborts at the
+/// next check point and fires `on_cancelled()` on the listener.
+/// No-op if no send is in progress.
+///
+/// # Errors
+///
+/// Returns [`FfiError::StateCorrupted`] if the cancel token mutex is
+/// poisoned, or [`FfiError::InternalPanic`] if native code panics.
+#[uniffi::export]
+pub fn session_cancel() -> Result<(), FfiError> {
+    catch_unwind(session::session_cancel_inner).unwrap_or_else(|e| {
+        Err(FfiError::InternalPanic {
+            detail: panic_detail(&e),
+        })
+    })
+}
+
+/// Clears the active session's conversation history.
+///
+/// Retains the system prompt but discards all user, assistant, and tool
+/// messages. The session remains active and ready for new sends.
+///
+/// # Errors
+///
+/// Returns [`FfiError::StateError`] if no session is active,
+/// [`FfiError::StateCorrupted`] if the session mutex is poisoned, or
+/// [`FfiError::InternalPanic`] if native code panics.
+#[uniffi::export]
+pub fn session_clear() -> Result<(), FfiError> {
+    catch_unwind(session::session_clear_inner).unwrap_or_else(|e| {
+        Err(FfiError::InternalPanic {
+            detail: panic_detail(&e),
+        })
+    })
+}
+
+/// Returns the current conversation history as a list of session messages.
+///
+/// Includes the system prompt as the first entry, followed by user,
+/// assistant, and tool messages in chronological order.
+///
+/// # Errors
+///
+/// Returns [`FfiError::StateError`] if no session is active,
+/// [`FfiError::StateCorrupted`] if the session mutex is poisoned, or
+/// [`FfiError::InternalPanic`] if native code panics.
+#[uniffi::export]
+pub fn session_history() -> Result<Vec<session::SessionMessage>, FfiError> {
+    catch_unwind(session::session_history_inner).unwrap_or_else(|e| {
+        Err(FfiError::InternalPanic {
+            detail: panic_detail(&e),
+        })
+    })
+}
+
+/// Destroys the active session and releases all resources.
+///
+/// Cancels any in-flight send, drops the tools registry, and clears
+/// the session slot. A new session may be created afterwards with
+/// [`session_start`].
+///
+/// # Errors
+///
+/// Returns [`FfiError::StateError`] if no session is active,
+/// [`FfiError::StateCorrupted`] if the session mutex is poisoned, or
+/// [`FfiError::InternalPanic`] if native code panics.
+#[uniffi::export]
+pub fn session_destroy() -> Result<(), FfiError> {
+    catch_unwind(session::session_destroy_inner).unwrap_or_else(|e| {
+        Err(FfiError::InternalPanic {
+            detail: panic_detail(&e),
+        })
+    })
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
