@@ -48,6 +48,11 @@ private const val DESCRIPTION_SPACING_DP = 24
  * @param onBaseUrlChanged Callback when base URL text changes.
  * @param onModelChanged Callback when model text changes.
  * @param onValidate Callback to trigger credential validation.
+ * @param isOAuthInProgress Whether an OAuth login flow is currently running.
+ * @param oauthEmail Display email or label for the connected OAuth session,
+ *   or empty string when not connected.
+ * @param onOAuthLogin Optional callback to initiate the OAuth login flow.
+ * @param onOAuthDisconnect Optional callback to disconnect the current OAuth session.
  */
 @Composable
 fun ProviderStep(
@@ -63,6 +68,10 @@ fun ProviderStep(
     onBaseUrlChanged: (String) -> Unit,
     onModelChanged: (String) -> Unit,
     onValidate: () -> Unit = {},
+    isOAuthInProgress: Boolean = false,
+    oauthEmail: String = "",
+    onOAuthLogin: (() -> Unit)? = null,
+    onOAuthDisconnect: (() -> Unit)? = null,
 ) {
     Column {
         Text(
@@ -99,6 +108,10 @@ fun ProviderStep(
                     onModelChanged(server.models.first())
                 }
             },
+            isOAuthInProgress = isOAuthInProgress,
+            oauthEmail = oauthEmail,
+            onOAuthLogin = onOAuthLogin,
+            onOAuthDisconnect = onOAuthDisconnect,
             modifier = Modifier.fillMaxWidth(),
         )
     }

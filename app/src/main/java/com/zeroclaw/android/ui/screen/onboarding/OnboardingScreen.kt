@@ -30,6 +30,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -273,6 +274,7 @@ private fun PermissionsStepCollector(coordinator: OnboardingCoordinator) {
 @Composable
 private fun ProviderStepCollector(coordinator: OnboardingCoordinator) {
     val state by coordinator.providerState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     ProviderStep(
         selectedProvider = state.providerId,
@@ -287,6 +289,10 @@ private fun ProviderStepCollector(coordinator: OnboardingCoordinator) {
         onBaseUrlChanged = coordinator::setBaseUrl,
         onModelChanged = coordinator::setModel,
         onValidate = coordinator::validateProvider,
+        isOAuthInProgress = state.isOAuthInProgress,
+        oauthEmail = state.oauthEmail,
+        onOAuthLogin = { coordinator.startOAuthLogin(context) },
+        onOAuthDisconnect = { coordinator.disconnectOAuth() },
     )
 }
 
