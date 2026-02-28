@@ -182,3 +182,7 @@ data object EmbeddingRoutesRoute
 /** First-run onboarding wizard. */
 @Serializable
 data object OnboardingRoute
+
+/** Post-onboarding daemon setup and channel initialization screen. */
+@Serializable
+data object SetupRoute
