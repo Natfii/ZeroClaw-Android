@@ -690,11 +690,12 @@ class TerminalViewModel(
         }
 
         override fun onComplete(fullResponse: String) {
+            val cleaned = stripToolCallTags(fullResponse)
             val stripped =
                 if (cachedSettings.value.stripThinkingTags) {
-                    stripThinkingTags(fullResponse)
+                    stripThinkingTags(cleaned)
                 } else {
-                    fullResponse
+                    cleaned
                 }
             val display = stripped.ifBlank { EMPTY_RESPONSE_FALLBACK }
 
@@ -782,14 +783,16 @@ class TerminalViewModel(
          * Pattern matching tool-call markup leaked by models that support
          * function calling.
          *
-         * Matches both complete blocks (`<tool_call>...</tool_call>`) and
-         * unclosed tags through end-of-string. Also covers the
-         * `<function_call>` variant used by some models.
+         * Matches self-closing tags (`<tool_call name="..." args="..."/>`),
+         * complete blocks (`<tool_call>...</tool_call>`), and unclosed tags
+         * through end-of-string. Also covers the `<function_call>` variant
+         * used by some models.
          */
         private val TOOL_CALL_TAG_REGEX =
             Regex(
-                "<(?:tool_call|function_call)>[\\s\\S]*?</(?:tool_call|function_call)>" +
-                    "|<(?:tool_call|function_call)>[\\s\\S]*$",
+                "<(?:tool_call|function_call)\\b[\\s\\S]*?/>" +
+                    "|<(?:tool_call|function_call)>[\\s\\S]*?</(?:tool_call|function_call)>" +
+                    "|<(?:tool_call|function_call)[\\s\\S]*$",
                 RegexOption.IGNORE_CASE,
             )
 
