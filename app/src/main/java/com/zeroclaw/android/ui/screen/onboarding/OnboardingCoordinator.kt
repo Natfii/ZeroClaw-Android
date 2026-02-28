@@ -9,11 +9,17 @@
 package com.zeroclaw.android.ui.screen.onboarding
 
 import android.app.Application
+import android.content.Context
+import android.net.Uri
+import androidx.browser.customtabs.CustomTabsIntent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.zeroclaw.android.ZeroClawApplication
 import com.zeroclaw.android.data.ProviderRegistry
 import com.zeroclaw.android.data.channel.ChannelSetupSpecs
+import com.zeroclaw.android.data.oauth.OAuthCallbackServer
+import com.zeroclaw.android.data.oauth.OpenAiOAuthManager
+import com.zeroclaw.android.data.oauth.PkceState
 import com.zeroclaw.android.data.remote.ModelFetcher
 import com.zeroclaw.android.data.validation.ChannelValidator
 import com.zeroclaw.android.data.validation.ProviderValidator
@@ -43,6 +49,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
@@ -77,7 +84,7 @@ private const val SHARING_TIMEOUT_MS = 5000L
  *
  * @param application Application context for accessing repositories.
  */
-@Suppress("LongParameterList", "CognitiveComplexMethod")
+@Suppress("LongParameterList", "CognitiveComplexMethod", "LargeClass")
 class OnboardingCoordinator(
     application: Application,
 ) : AndroidViewModel(application) {
@@ -319,6 +326,126 @@ class OnboardingCoordinator(
      */
     fun setModel(model: String) {
         _providerState.value = _providerState.value.copy(model = model)
+    }
+
+    /**
+     * Launches the full OpenAI OAuth 2.0 PKCE login flow.
+     *
+     * Generates PKCE state, starts a loopback callback server, opens a Chrome
+     * Custom Tab for the user to authenticate, and exchanges the returned
+     * authorization code for access and refresh tokens. On success, the
+     * provider state is updated with the OAuth tokens and a success
+     * validation result. On failure, the validation result is set to an
+     * appropriate error state.
+     *
+     * Safe to call from the main thread; all network operations run on
+     * background dispatchers.
+     *
+     * @param context Activity or application context used to launch the
+     *   Chrome Custom Tab.
+     */
+    @Suppress("TooGenericExceptionCaught")
+    fun startOAuthLogin(context: Context) {
+        viewModelScope.launch {
+            _providerState.update {
+                it.copy(isOAuthInProgress = true)
+            }
+            val pkce = OpenAiOAuthManager.generatePkceState()
+            var server: OAuthCallbackServer? = null
+            try {
+                server = OAuthCallbackServer.startWithFallback()
+                val url = OpenAiOAuthManager.buildAuthorizeUrl(pkce)
+                CustomTabsIntent.Builder().build().launchUrl(context, Uri.parse(url))
+                handleOAuthCallback(server, pkce)
+            } catch (e: Exception) {
+                _providerState.update {
+                    it.copy(
+                        isOAuthInProgress = false,
+                        validationResult =
+                            ValidationResult.Offline(
+                                e.message ?: "OAuth login failed",
+                            ),
+                    )
+                }
+            } finally {
+                server?.stop()
+            }
+        }
+    }
+
+    /**
+     * Processes the OAuth callback from the loopback server.
+     *
+     * Awaits the callback result, validates the CSRF state nonce, and
+     * exchanges the authorization code for tokens. Updates the provider
+     * state with the result.
+     *
+     * @param server The running callback server to await results from.
+     * @param pkce The PKCE state containing the expected state nonce and
+     *   code verifier for the token exchange.
+     */
+    private suspend fun handleOAuthCallback(
+        server: OAuthCallbackServer,
+        pkce: PkceState,
+    ) {
+        val callbackResult = server.awaitCallback()
+        if (callbackResult == null) {
+            _providerState.update {
+                it.copy(
+                    isOAuthInProgress = false,
+                    validationResult =
+                        ValidationResult.Failure("Login timed out"),
+                )
+            }
+            return
+        }
+
+        if (callbackResult.state != pkce.state) {
+            _providerState.update {
+                it.copy(
+                    isOAuthInProgress = false,
+                    validationResult =
+                        ValidationResult.Failure("Security validation failed"),
+                )
+            }
+            return
+        }
+
+        val tokens =
+            OpenAiOAuthManager.exchangeCodeForTokens(
+                code = callbackResult.code,
+                codeVerifier = pkce.codeVerifier,
+            )
+        _providerState.update {
+            it.copy(
+                apiKey = tokens.accessToken,
+                oauthRefreshToken = tokens.refreshToken,
+                oauthExpiresAt = tokens.expiresAt,
+                oauthEmail = "ChatGPT Login",
+                validationResult =
+                    ValidationResult.Success("OAuth login successful"),
+                isOAuthInProgress = false,
+            )
+        }
+    }
+
+    /**
+     * Clears all OAuth-related fields from the provider state.
+     *
+     * Resets the API key, refresh token, expiry, email, and validation
+     * result to their defaults. Used when the user disconnects their
+     * OAuth session during onboarding.
+     */
+    fun disconnectOAuth() {
+        _providerState.update {
+            it.copy(
+                apiKey = "",
+                oauthRefreshToken = "",
+                oauthExpiresAt = 0L,
+                oauthEmail = "",
+                validationResult = ValidationResult.Idle,
+            )
+        }
     }
 
     /**
@@ -821,12 +948,15 @@ class OnboardingCoordinator(
 
         if (provider.isNotBlank() && (key.isNotBlank() || url.isNotBlank())) {
             val existingKey = apiKeyRepository.getByProvider(provider)
+            val providerState = _providerState.value
             apiKeyRepository.save(
                 ApiKey(
                     id = existingKey?.id ?: UUID.randomUUID().toString(),
                     provider = provider,
                     key = key,
                     baseUrl = url,
+                    refreshToken = providerState.oauthRefreshToken,
+                    expiresAt = providerState.oauthExpiresAt,
                 ),
             )
         }
