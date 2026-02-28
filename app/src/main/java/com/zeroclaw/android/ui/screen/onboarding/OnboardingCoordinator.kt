@@ -10,6 +10,7 @@ package com.zeroclaw.android.ui.screen.onboarding
 
 import android.app.Application
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.lifecycle.AndroidViewModel
@@ -30,6 +31,8 @@ import com.zeroclaw.android.model.ApiKey
 import com.zeroclaw.android.model.ChannelType
 import com.zeroclaw.android.model.ConnectedChannel
 import com.zeroclaw.android.model.ModelListFormat
+import com.zeroclaw.android.model.ServiceState
+import com.zeroclaw.android.service.ZeroClawDaemonService
 import com.zeroclaw.android.ui.component.setup.ConfigSummary
 import com.zeroclaw.android.ui.screen.onboarding.state.ActivationStepState
 import com.zeroclaw.android.ui.screen.onboarding.state.ChannelSelectionState
@@ -360,11 +363,12 @@ class OnboardingCoordinator(
             val pkce = OpenAiOAuthManager.generatePkceState()
             var server: OAuthCallbackServer? = null
             try {
+                holdForegroundForOAuth(context)
                 server = OAuthCallbackServer.startWithFallback()
                 val port = server.boundPort
                 val url = OpenAiOAuthManager.buildAuthorizeUrl(pkce, port)
                 CustomTabsIntent.Builder().build().launchUrl(context, Uri.parse(url))
-                handleOAuthCallback(server, pkce, port)
+                handleOAuthCallback(server, pkce, port, context)
             } catch (e: Exception) {
                 _providerState.update {
                     it.copy(
@@ -377,6 +381,7 @@ class OnboardingCoordinator(
                 }
             } finally {
                 server?.stop()
+                releaseOAuthHold(context)
             }
         }
     }
@@ -392,13 +397,16 @@ class OnboardingCoordinator(
      * @param pkce The PKCE state containing the expected state nonce and
      *   code verifier for the token exchange.
      * @param port The actual port the callback server is bound to.
+     * @param context Context for bringing the app back to the foreground.
      */
     private suspend fun handleOAuthCallback(
         server: OAuthCallbackServer,
         pkce: PkceState,
         port: Int,
+        context: Context,
     ) {
         val callbackResult = server.awaitCallback()
+        bringAppToForeground(context)
         if (callbackResult == null) {
             _providerState.update {
                 it.copy(
@@ -467,6 +475,56 @@ class OnboardingCoordinator(
                 validationResult = ValidationResult.Idle,
             )
         }
+    }
+
+    /**
+     * Starts the daemon service in OAuth-hold mode to prevent process freezing.
+     *
+     * Android 12+ freezes cached-app processes within seconds when no
+     * foreground service is active. This hold keeps the process alive while
+     * the user authenticates in a Custom Tab or 2FA app.
+     *
+     * @param context Context for starting the service.
+     */
+    private fun holdForegroundForOAuth(context: Context) {
+        val intent =
+            Intent(context, ZeroClawDaemonService::class.java).apply {
+                action = ZeroClawDaemonService.ACTION_OAUTH_HOLD
+            }
+        context.startForegroundService(intent)
+    }
+
+    /**
+     * Stops the OAuth-hold foreground service if the daemon is not running.
+     *
+     * @param context Context for stopping the service.
+     */
+    private fun releaseOAuthHold(context: Context) {
+        val app = getApplication<ZeroClawApplication>()
+        if (app.daemonBridge.serviceState.value != ServiceState.RUNNING) {
+            val intent =
+                Intent(context, ZeroClawDaemonService::class.java).apply {
+                    action = ZeroClawDaemonService.ACTION_STOP
+                }
+            context.startService(intent)
+        }
+    }
+
+    /**
+     * Brings the app to the foreground to dismiss the Custom Tab overlay.
+     *
+     * Uses the package launch intent with [Intent.FLAG_ACTIVITY_SINGLE_TOP]
+     * to resume the existing activity rather than creating a new one.
+     *
+     * @param context Context for launching the intent.
+     */
+    private fun bringAppToForeground(context: Context) {
+        val intent =
+            context.packageManager
+                .getLaunchIntentForPackage(context.packageName)
+                ?.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                ?: return
+        context.startActivity(intent)
     }
 
     /**
