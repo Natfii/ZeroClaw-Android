@@ -442,7 +442,8 @@ private fun RerunWizardDialog(
         text = {
             Text(
                 "This will open the initial setup wizard again. " +
-                    "Your existing settings and API keys will be preserved.",
+                    "Your agent identity (AIEOS) will be cleared so you can " +
+                    "generate a fresh one. API keys and other settings are preserved.",
             )
         },
         confirmButton = {
