@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
@@ -33,9 +35,11 @@ import androidx.compose.material.icons.outlined.FileUpload
 import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.Upload
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -56,6 +60,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
@@ -72,6 +77,7 @@ import com.zeroclaw.android.data.validation.ProviderValidator
 import com.zeroclaw.android.data.validation.ValidationResult
 import com.zeroclaw.android.model.ApiKey
 import com.zeroclaw.android.model.KeyStatus
+import com.zeroclaw.android.model.isOAuthToken
 import com.zeroclaw.android.ui.component.EmptyState
 import com.zeroclaw.android.ui.component.ErrorCard
 import com.zeroclaw.android.ui.component.MaskedText
@@ -90,6 +96,7 @@ private const val MIN_PASSPHRASE_LENGTH = 8
  * @property unusedKeyIds Set of key IDs not used by any agent.
  * @property unreachableKeyIds Set of key IDs whose base URL failed a reachability probe.
  * @property storageHealth Current encrypted storage health status.
+ * @property oauthInProgress Whether an OAuth login flow is currently running.
  */
 data class ApiKeysState(
     val keys: List<ApiKey>,
@@ -98,6 +105,7 @@ data class ApiKeysState(
     val unusedKeyIds: Set<String>,
     val unreachableKeyIds: Set<String>,
     val storageHealth: StorageHealth,
+    val oauthInProgress: Boolean = false,
 )
 
 /**
@@ -134,6 +142,7 @@ fun ApiKeysScreen(
     val corruptCount by apiKeysViewModel.corruptKeyCount.collectAsStateWithLifecycle()
     val unusedKeyIds by apiKeysViewModel.unusedKeyIds.collectAsStateWithLifecycle()
     val unreachableKeyIds by apiKeysViewModel.unreachableKeyIds.collectAsStateWithLifecycle()
+    val oauthInProgress by apiKeysViewModel.oauthInProgress.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
@@ -156,6 +165,7 @@ fun ApiKeysScreen(
                 unusedKeyIds = unusedKeyIds,
                 unreachableKeyIds = unreachableKeyIds,
                 storageHealth = apiKeysViewModel.storageHealth,
+                oauthInProgress = oauthInProgress,
             ),
         snackbarHostState = snackbarHostState,
         edgeMargin = edgeMargin,
@@ -170,6 +180,7 @@ fun ApiKeysScreen(
         onShowSnackbar = apiKeysViewModel::showSnackbar,
         onExportResult = onExportResult,
         onImportCredentials = onImportCredentials,
+        onStartOAuthLogin = apiKeysViewModel::startOAuthLogin,
         modifier = modifier,
     )
 }
@@ -191,6 +202,7 @@ fun ApiKeysScreen(
  * @param onShowSnackbar Callback to show a snackbar message.
  * @param onExportResult Callback with the encrypted export payload.
  * @param onImportCredentials Callback to open the credentials file picker.
+ * @param onStartOAuthLogin Callback to initiate the OAuth login flow.
  * @param modifier Modifier applied to the root layout.
  */
 @Suppress("CognitiveComplexMethod", "LongMethod", "LongParameterList")
@@ -210,8 +222,10 @@ internal fun ApiKeysContent(
     onShowSnackbar: (String) -> Unit,
     onExportResult: (String) -> Unit,
     onImportCredentials: () -> Unit,
+    onStartOAuthLogin: (android.content.Context) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
     var deleteTarget by remember { mutableStateOf<ApiKey?>(null) }
     var deleteTargetAgentCount by remember { mutableStateOf(0) }
     var rotatingKeyId by remember { mutableStateOf<String?>(null) }
@@ -361,6 +375,13 @@ internal fun ApiKeysContent(
                     )
                 }
 
+                item {
+                    OAuthLoginButton(
+                        isOAuthInProgress = state.oauthInProgress,
+                        onClick = { onStartOAuthLogin(context) },
+                    )
+                }
+
                 items(
                     items = state.keys,
                     key = { it.id },
@@ -468,6 +489,58 @@ private fun ExportImportRow(
             )
             Text("Credentials")
         }
+    }
+}
+
+/** Size of the progress spinner inside the OAuth login button. */
+private val OAuthProgressSize = 18.dp
+
+/** Stroke width of the OAuth progress spinner. */
+private val OAuthProgressStroke = 2.dp
+
+/** Horizontal spacing between the progress spinner and button text. */
+private val ButtonIconSpacing = 8.dp
+
+/**
+ * Full-width button that initiates the OpenAI OAuth login flow.
+ *
+ * Shows a progress spinner and "Logging in..." text while the flow
+ * is in progress. Disabled during the flow to prevent duplicate launches.
+ *
+ * @param isOAuthInProgress Whether an OAuth login is currently running.
+ * @param onClick Callback invoked when the user taps the button.
+ */
+@Composable
+private fun OAuthLoginButton(
+    isOAuthInProgress: Boolean,
+    onClick: () -> Unit,
+) {
+    Button(
+        onClick = onClick,
+        enabled = !isOAuthInProgress,
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .semantics {
+                    contentDescription = "Login with ChatGPT"
+                },
+    ) {
+        if (isOAuthInProgress) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(OAuthProgressSize),
+                strokeWidth = OAuthProgressStroke,
+                color = MaterialTheme.colorScheme.onPrimary,
+            )
+            Spacer(modifier = Modifier.width(ButtonIconSpacing))
+        }
+        Text(
+            text =
+                if (isOAuthInProgress) {
+                    "Logging in\u2026"
+                } else {
+                    "Login with ChatGPT"
+                },
+        )
     }
 }
 
@@ -771,10 +844,18 @@ private fun ApiKeyItem(
                 }
             }
             Spacer(modifier = Modifier.height(4.dp))
-            MaskedText(
-                text = apiKey.key,
-                revealed = isRevealed,
-            )
+            if (apiKey.isOAuthToken) {
+                Text(
+                    text = "ChatGPT Login",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                MaskedText(
+                    text = apiKey.key,
+                    revealed = isRevealed,
+                )
+            }
             if (apiKey.expiresAt > 0L) {
                 Spacer(modifier = Modifier.height(4.dp))
                 ExpiryLabel(expiresAt = apiKey.expiresAt)

@@ -10,6 +10,7 @@ import android.app.Application
 import android.content.Context
 import android.net.Uri
 import android.util.Log
+import androidx.browser.customtabs.CustomTabsIntent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.zeroclaw.android.BuildConfig
@@ -17,6 +18,8 @@ import com.zeroclaw.android.ZeroClawApplication
 import com.zeroclaw.android.data.CredentialsJsonParser
 import com.zeroclaw.android.data.ProviderRegistry
 import com.zeroclaw.android.data.StorageHealth
+import com.zeroclaw.android.data.oauth.OAuthCallbackServer
+import com.zeroclaw.android.data.oauth.OpenAiOAuthManager
 import com.zeroclaw.android.data.remote.ConnectionProber
 import com.zeroclaw.android.data.remote.ModelFetcher
 import com.zeroclaw.android.model.ApiKey
@@ -176,6 +179,11 @@ class ApiKeysViewModel(
      * Cloud-only keys are never included. Updated by [probeStoredConnections].
      */
     val unreachableKeyIds: StateFlow<Set<String>> = _unreachableKeyIds.asStateFlow()
+
+    private val _oauthInProgress = MutableStateFlow(false)
+
+    /** Whether an OAuth login flow is currently in progress. */
+    val oauthInProgress: StateFlow<Boolean> = _oauthInProgress.asStateFlow()
 
     /**
      * Coroutine job for the auto-hide timer that clears the revealed key
@@ -641,6 +649,64 @@ class ApiKeysViewModel(
                     Log.w(TAG, "Credentials import failed: ${e.message}", e)
                 }
                 _snackbarMessage.value = "Import failed: ${safeErrorMessage(e)}"
+            }
+        }
+    }
+
+    /**
+     * Initiates the OpenAI OAuth 2.0 login flow using PKCE.
+     *
+     * Generates PKCE state, starts a loopback callback server, opens a
+     * Chrome Custom Tab for the user to authenticate, then exchanges the
+     * authorization code for tokens. On success, the resulting API key is
+     * saved to the repository with provider "openai", including the refresh
+     * token and expiry. On failure, the operation is silently abandoned so
+     * the user can retry.
+     *
+     * Safe to call from the main thread; all blocking work runs on
+     * background dispatchers.
+     *
+     * @param context Activity or application context used to launch the
+     *   Chrome Custom Tab.
+     */
+    @Suppress("TooGenericExceptionCaught")
+    fun startOAuthLogin(context: Context) {
+        _oauthInProgress.value = true
+        viewModelScope.launch {
+            val pkce = OpenAiOAuthManager.generatePkceState()
+            var server: OAuthCallbackServer? = null
+            try {
+                server = OAuthCallbackServer.startWithFallback()
+                val url = OpenAiOAuthManager.buildAuthorizeUrl(pkce)
+                CustomTabsIntent.Builder().build().launchUrl(context, Uri.parse(url))
+
+                val callbackResult = server.awaitCallback()
+                if (callbackResult == null) return@launch
+
+                if (callbackResult.state != pkce.state) return@launch
+
+                val tokens =
+                    OpenAiOAuthManager.exchangeCodeForTokens(
+                        code = callbackResult.code,
+                        codeVerifier = pkce.codeVerifier,
+                    )
+
+                repository.save(
+                    ApiKey(
+                        id = UUID.randomUUID().toString(),
+                        provider = "openai",
+                        key = tokens.accessToken,
+                        refreshToken = tokens.refreshToken,
+                        expiresAt = tokens.expiresAt,
+                    ),
+                )
+                daemonBridge.markRestartRequired()
+                _snackbarMessage.value = "ChatGPT login successful"
+            } catch (_: Exception) {
+                // User can retry; no error surfaced
+            } finally {
+                server?.stop()
+                _oauthInProgress.value = false
             }
         }
     }
