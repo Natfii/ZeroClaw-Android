@@ -357,14 +357,15 @@ class SetupViewModel(
     }
 
     /**
-     * Extracts a string value from an AIEOS identity JSON blob.
+     * Extracts a value from the AIEOS identity JSON blob.
      *
-     * Returns an empty string if the JSON is blank, malformed, or does
-     * not contain the requested key.
+     * The JSON structure is nested: `{"identity": {"names": {"first": "..."}, "user_name": "...", ...}}`.
+     * This helper navigates into the `identity` object to find the requested key.
+     * Agent name is special-cased because it lives under `identity.names.first`.
      *
-     * @param json Raw AIEOS identity JSON string.
-     * @param key JSON key to extract (e.g. "agentName", "userName").
-     * @return The extracted value, or empty string on any failure.
+     * @param json Full AIEOS identity JSON string.
+     * @param key Logical key to extract (one of the `IDENTITY_KEY_*` constants).
+     * @return The extracted string, or empty string on any parse failure.
      */
     @Suppress("TooGenericExceptionCaught")
     private fun extractFromIdentity(
@@ -373,7 +374,12 @@ class SetupViewModel(
     ): String {
         if (json.isBlank()) return ""
         return try {
-            JSONObject(json).optString(key, "")
+            val identity = JSONObject(json).optJSONObject("identity") ?: return ""
+            if (key == IDENTITY_KEY_AGENT_NAME) {
+                identity.optJSONObject("names")?.optString("first", "") ?: ""
+            } else {
+                identity.optString(key, "")
+            }
         } catch (_: Exception) {
             ""
         }
@@ -383,9 +389,9 @@ class SetupViewModel(
     companion object {
         private const val TAG = "SetupViewModel"
         private const val IDENTITY_KEY_AGENT_NAME = "agentName"
-        private const val IDENTITY_KEY_USER_NAME = "userName"
+        private const val IDENTITY_KEY_USER_NAME = "user_name"
         private const val IDENTITY_KEY_TIMEZONE = "timezone"
-        private const val IDENTITY_KEY_COMMUNICATION_STYLE = "communicationStyle"
+        private const val IDENTITY_KEY_COMMUNICATION_STYLE = "communication_style"
         private val VALID_PORT_RANGE = 1..65535
     }
 }

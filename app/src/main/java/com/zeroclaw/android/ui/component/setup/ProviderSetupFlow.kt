@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
@@ -30,12 +31,18 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
 import com.zeroclaw.android.data.ProviderRegistry
 import com.zeroclaw.android.data.validation.ValidationResult
 import com.zeroclaw.android.model.DiscoveredServer
@@ -63,6 +70,17 @@ private val ButtonIconSpacing = 4.dp
 
 /** Size of the circular progress indicator inside the OAuth login button. */
 private val OAuthProgressSize = 18.dp
+
+/** Size of the ChatGPT logo icon in the OAuth login button. */
+private val OAuthLogoSize = 20.dp
+
+/** Pixel size for the ChatGPT logo Coil request (20dp at 4x density). */
+private const val OAUTH_LOGO_PX = 80
+
+/** Google Favicon API URL for the ChatGPT logo. */
+private const val CHATGPT_FAVICON_URL =
+    "https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON" +
+        "&fallback_opts=TYPE,SIZE,URL&url=https://chatgpt.com&size=128"
 
 /** Stroke width for the OAuth progress indicator. */
 private val OAuthProgressStroke = 2.dp
@@ -204,6 +222,26 @@ fun ProviderSetupFlow(
                             modifier = Modifier.size(OAuthProgressSize),
                             strokeWidth = OAuthProgressStroke,
                             color = MaterialTheme.colorScheme.onPrimary,
+                        )
+                        Spacer(modifier = Modifier.width(ButtonIconSpacing))
+                    } else {
+                        val context = LocalContext.current
+                        val logoRequest =
+                            remember {
+                                ImageRequest
+                                    .Builder(context)
+                                    .data(CHATGPT_FAVICON_URL)
+                                    .size(OAUTH_LOGO_PX, OAUTH_LOGO_PX)
+                                    .build()
+                            }
+                        AsyncImage(
+                            model = logoRequest,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier =
+                                Modifier
+                                    .size(OAuthLogoSize)
+                                    .clip(CircleShape),
                         )
                         Spacer(modifier = Modifier.width(ButtonIconSpacing))
                     }
