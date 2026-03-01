@@ -8,6 +8,8 @@ package com.zeroclaw.android.ui.screen.terminal
 
 import com.zeroclaw.android.model.TerminalEntry
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -208,6 +210,47 @@ class TerminalViewModelTest {
     }
 
     @Nested
+    @DisplayName("bindResultPattern")
+    inner class BindResultPattern {
+        @Test
+        @DisplayName("matches valid bind result for telegram")
+        fun `matches valid bind result for telegram`() {
+            val input = "Bound alice to telegram (allowed_users). Restart daemon to apply."
+            val match = TerminalViewModel.BIND_RESULT_PATTERN.find(input)
+            assertNotNull(match)
+            assertEquals("alice", match!!.destructured.component1())
+            assertEquals("telegram", match.destructured.component2())
+            assertEquals("allowed_users", match.destructured.component3())
+        }
+
+        @Test
+        @DisplayName("matches bind result for whatsapp with phone number")
+        fun `matches bind result for whatsapp with phone number`() {
+            val input =
+                "Bound +1234567890 to whatsapp (allowed_numbers). Restart daemon to apply."
+            val match = TerminalViewModel.BIND_RESULT_PATTERN.find(input)
+            assertNotNull(match)
+            assertEquals("+1234567890", match!!.destructured.component1())
+            assertEquals("whatsapp", match.destructured.component2())
+            assertEquals("allowed_numbers", match.destructured.component3())
+        }
+
+        @Test
+        @DisplayName("does not match already bound message")
+        fun `does not match already bound message`() {
+            val input = "alice is already bound to telegram"
+            assertNull(TerminalViewModel.BIND_RESULT_PATTERN.find(input))
+        }
+
+        @Test
+        @DisplayName("does not match unrelated text")
+        fun `does not match unrelated text`() {
+            val input = "Daemon is running"
+            assertNull(TerminalViewModel.BIND_RESULT_PATTERN.find(input))
+        }
+    }
+
+    @Nested
     @DisplayName("TerminalState defaults")
     inner class StateDefaults {
         @Test
@@ -218,6 +261,15 @@ class TerminalViewModelTest {
             assertEquals(false, state.isLoading)
             assertTrue(state.pendingImages.isEmpty())
             assertEquals(false, state.isProcessingImages)
+        }
+
+        @Test
+        @DisplayName("default setup progress has empty purged channels")
+        fun `default setup progress has empty purged channels`() {
+            val progress =
+                com.zeroclaw.android.ui.screen.setup
+                    .SetupProgress()
+            assertTrue(progress.purgedChannels.isEmpty())
         }
     }
 }

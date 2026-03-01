@@ -7,7 +7,9 @@
 package com.zeroclaw.android.ui.screen.terminal
 
 import android.app.Application
+import android.content.Intent
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.zeroclaw.android.ZeroClawApplication
@@ -18,6 +20,7 @@ import com.zeroclaw.android.model.ProcessedImage
 import com.zeroclaw.android.model.ProviderAuthType
 import com.zeroclaw.android.model.RefreshCommand
 import com.zeroclaw.android.model.TerminalEntry
+import com.zeroclaw.android.service.ZeroClawDaemonService
 import com.zeroclaw.android.util.ErrorSanitizer
 import com.zeroclaw.android.util.ImageProcessor
 import com.zeroclaw.ffi.FfiException
@@ -278,6 +281,7 @@ class TerminalViewModel(
                         rawResult.trim().ifBlank { EMPTY_RESPONSE_FALLBACK }
                     }
                 repository.append(content = displayResult, entryType = ENTRY_TYPE_RESPONSE)
+                handleBindResult(displayResult)
                 emitRefreshIfNeeded(expression)
             } catch (e: FfiException) {
                 val sanitized = ErrorSanitizer.sanitizeForUi(e)
@@ -525,6 +529,58 @@ class TerminalViewModel(
     }
 
     /**
+     * Detects and handles a bind result from the REPL.
+     *
+     * When the user runs `bind("channel", "identity")` in the terminal,
+     * the REPL returns a structured message. This method parses it,
+     * persists the binding to Room, and restarts the daemon so the
+     * channel picks up the new allowlist entry.
+     *
+     * @param response The raw REPL response string.
+     */
+    private suspend fun handleBindResult(response: String) {
+        val match = BIND_RESULT_PATTERN.find(response) ?: return
+        val (userId, channelKey, fieldName) = match.destructured
+
+        val channels = app.channelConfigRepository.channels.first()
+        val channel = channels.find { it.type.tomlKey == channelKey } ?: return
+
+        val currentList = channel.configValues[fieldName].orEmpty()
+        val entries = currentList.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+        if (userId in entries) return
+
+        val updatedList = (entries + userId).joinToString(", ")
+        val updatedValues = channel.configValues.toMutableMap()
+        updatedValues[fieldName] = updatedList
+
+        val updatedChannel = channel.copy(configValues = updatedValues)
+        app.channelConfigRepository.save(
+            updatedChannel,
+            app.channelConfigRepository.getSecrets(channel.id),
+        )
+
+        restartDaemonWithCurrentConfig()
+    }
+
+    /**
+     * Restarts the daemon by sending [ZeroClawDaemonService.ACTION_START].
+     *
+     * The service rebuilds its config from the current Room/DataStore state,
+     * picking up any changes made by [handleBindResult].
+     */
+    @Suppress("TooGenericExceptionCaught")
+    private fun restartDaemonWithCurrentConfig() {
+        try {
+            val intent =
+                Intent(app, ZeroClawDaemonService::class.java)
+                    .setAction(ZeroClawDaemonService.ACTION_START)
+            app.startForegroundService(intent)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to restart daemon after bind: ${e.message}")
+        }
+    }
+
+    /**
      * Emits a [RefreshCommand] to trigger immediate data refresh in other
      * ViewModels after a successful mutating REPL command.
      *
@@ -741,6 +797,10 @@ class TerminalViewModel(
                     "|<(?:tool_call|function_call)[\\s\\S]*$",
                 RegexOption.IGNORE_CASE,
             )
+
+        /** Pattern matching successful REPL bind results. */
+        val BIND_RESULT_PATTERN: Regex =
+            Regex("""Bound (.+) to (\w+) \((\w+)\)\. Restart daemon to apply\.""")
 
         /**
          * Removes chain-of-thought thinking tags from a model response.
