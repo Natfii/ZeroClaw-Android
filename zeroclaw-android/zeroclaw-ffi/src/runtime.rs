@@ -617,6 +617,256 @@ fn has_supervised_channels(config: &Config) -> bool {
         || config.channels_config.webhook.is_some()
 }
 
+/// Maps a channel name to the upstream allowlist field name for that channel.
+///
+/// Returns `None` for unrecognised channel names. The returned string
+/// matches the struct field name in the upstream `*Config` type
+/// (e.g. `"allowed_users"` for Telegram, `"allowed_numbers"` for WhatsApp).
+fn allowlist_field_for_channel(channel: &str) -> Option<&'static str> {
+    match channel {
+        "telegram" | "discord" | "slack" | "mattermost" | "matrix" | "irc" | "lark" | "feishu"
+        | "dingtalk" | "qq" | "nextcloud_talk" => Some("allowed_users"),
+        "whatsapp" | "wati" => Some("allowed_numbers"),
+        "signal" => Some("allowed_from"),
+        "imessage" => Some("allowed_contacts"),
+        "email" | "linq" => Some("allowed_senders"),
+        "nostr" => Some("allowed_pubkeys"),
+        "clawdtalk" => Some("allowed_destinations"),
+        _ => None,
+    }
+}
+
+/// Returns a [`FfiError::ConfigError`] indicating that the given channel
+/// is not configured in the running daemon.
+#[allow(dead_code)] // Wired in Task 2 (lib.rs FFI exports)
+fn not_configured(channel: &str) -> FfiError {
+    FfiError::ConfigError {
+        detail: format!("{channel} is not configured in the running daemon"),
+    }
+}
+
+/// Appends `user_id` to the in-memory allowlist for `channel_name`.
+///
+/// Mutates only the in-memory [`Config`] held by [`DaemonState`]. The
+/// caller must restart the daemon (or hot-reload channels) for the
+/// change to take effect on the running channel supervisors.
+///
+/// Returns `"already_bound"` if the identity is already present in the
+/// allowlist, or the allowlist field name (e.g. `"allowed_users"`) on
+/// success.
+///
+/// # Telegram normalisation
+///
+/// For the `telegram` channel, a leading `@` is stripped to match
+/// upstream `normalize_telegram_identity`.
+///
+/// # Errors
+///
+/// Returns [`FfiError::ConfigError`] if `channel_name` is unknown, the
+/// channel is not configured, or `user_id` is empty after trimming.
+/// Returns [`FfiError::StateError`] if the daemon is not running.
+#[allow(clippy::too_many_lines)]
+#[allow(dead_code)] // Wired in Task 2 (lib.rs FFI exports)
+pub(crate) fn bind_channel_identity_inner(
+    channel_name: String,
+    user_id: String,
+) -> Result<String, FfiError> {
+    let field =
+        allowlist_field_for_channel(&channel_name).ok_or_else(|| FfiError::ConfigError {
+            detail: format!("unknown channel: {channel_name}"),
+        })?;
+
+    let trimmed = user_id.trim().to_string();
+    if trimmed.is_empty() {
+        return Err(FfiError::ConfigError {
+            detail: "user identity must not be empty".to_string(),
+        });
+    }
+
+    let id = if channel_name == "telegram" {
+        trimmed.trim_start_matches('@').to_string()
+    } else {
+        trimmed
+    };
+
+    let mut guard = lock_daemon();
+    let state = guard.as_mut().ok_or_else(|| FfiError::StateError {
+        detail: "daemon not running".to_string(),
+    })?;
+    let cc = &mut state.config.channels_config;
+
+    /// Pushes `$id` into `$list` unless it is already present.
+    /// Evaluates to `true` if the identity was already bound.
+    macro_rules! bind {
+        ($cfg:expr, $field:ident, $id:expr) => {{
+            let cfg = $cfg.as_mut().ok_or_else(|| not_configured(&channel_name))?;
+            if cfg.$field.iter().any(|e| e == &$id) {
+                true
+            } else {
+                cfg.$field.push($id);
+                false
+            }
+        }};
+    }
+
+    let already = match channel_name.as_str() {
+        "telegram" => bind!(cc.telegram, allowed_users, id),
+        "discord" => bind!(cc.discord, allowed_users, id),
+        "slack" => bind!(cc.slack, allowed_users, id),
+        "mattermost" => bind!(cc.mattermost, allowed_users, id),
+        "matrix" => bind!(cc.matrix, allowed_users, id),
+        "irc" => bind!(cc.irc, allowed_users, id),
+        "lark" => bind!(cc.lark, allowed_users, id),
+        "feishu" => bind!(cc.feishu, allowed_users, id),
+        "dingtalk" => bind!(cc.dingtalk, allowed_users, id),
+        "qq" => bind!(cc.qq, allowed_users, id),
+        "nextcloud_talk" => bind!(cc.nextcloud_talk, allowed_users, id),
+        "whatsapp" => bind!(cc.whatsapp, allowed_numbers, id),
+        "wati" => bind!(cc.wati, allowed_numbers, id),
+        "signal" => bind!(cc.signal, allowed_from, id),
+        "imessage" => bind!(cc.imessage, allowed_contacts, id),
+        "email" => bind!(cc.email, allowed_senders, id),
+        "linq" => bind!(cc.linq, allowed_senders, id),
+        "nostr" => bind!(cc.nostr, allowed_pubkeys, id),
+        "clawdtalk" => bind!(cc.clawdtalk, allowed_destinations, id),
+        _ => {
+            return Err(FfiError::ConfigError {
+                detail: format!("unknown channel: {channel_name}"),
+            });
+        }
+    };
+
+    if already {
+        Ok("already_bound".to_string())
+    } else {
+        Ok(field.to_string())
+    }
+}
+
+/// Returns the current allowlist for `channel_name` from the running
+/// daemon's in-memory config.
+///
+/// Returns an empty `Vec` if the channel is configured but its
+/// allowlist is empty.
+///
+/// # Errors
+///
+/// Returns [`FfiError::ConfigError`] if `channel_name` is unknown or
+/// the channel is not configured.
+/// Returns [`FfiError::StateError`] if the daemon is not running.
+#[allow(clippy::too_many_lines)]
+#[allow(dead_code)] // Wired in Task 2 (lib.rs FFI exports)
+pub(crate) fn get_channel_allowlist_inner(channel_name: String) -> Result<Vec<String>, FfiError> {
+    let _field =
+        allowlist_field_for_channel(&channel_name).ok_or_else(|| FfiError::ConfigError {
+            detail: format!("unknown channel: {channel_name}"),
+        })?;
+
+    with_daemon_config(|config| {
+        let cc = &config.channels_config;
+        match channel_name.as_str() {
+            "telegram" => cc
+                .telegram
+                .as_ref()
+                .ok_or_else(|| not_configured(&channel_name))
+                .map(|c| c.allowed_users.clone()),
+            "discord" => cc
+                .discord
+                .as_ref()
+                .ok_or_else(|| not_configured(&channel_name))
+                .map(|c| c.allowed_users.clone()),
+            "slack" => cc
+                .slack
+                .as_ref()
+                .ok_or_else(|| not_configured(&channel_name))
+                .map(|c| c.allowed_users.clone()),
+            "mattermost" => cc
+                .mattermost
+                .as_ref()
+                .ok_or_else(|| not_configured(&channel_name))
+                .map(|c| c.allowed_users.clone()),
+            "matrix" => cc
+                .matrix
+                .as_ref()
+                .ok_or_else(|| not_configured(&channel_name))
+                .map(|c| c.allowed_users.clone()),
+            "irc" => cc
+                .irc
+                .as_ref()
+                .ok_or_else(|| not_configured(&channel_name))
+                .map(|c| c.allowed_users.clone()),
+            "lark" => cc
+                .lark
+                .as_ref()
+                .ok_or_else(|| not_configured(&channel_name))
+                .map(|c| c.allowed_users.clone()),
+            "feishu" => cc
+                .feishu
+                .as_ref()
+                .ok_or_else(|| not_configured(&channel_name))
+                .map(|c| c.allowed_users.clone()),
+            "dingtalk" => cc
+                .dingtalk
+                .as_ref()
+                .ok_or_else(|| not_configured(&channel_name))
+                .map(|c| c.allowed_users.clone()),
+            "qq" => cc
+                .qq
+                .as_ref()
+                .ok_or_else(|| not_configured(&channel_name))
+                .map(|c| c.allowed_users.clone()),
+            "nextcloud_talk" => cc
+                .nextcloud_talk
+                .as_ref()
+                .ok_or_else(|| not_configured(&channel_name))
+                .map(|c| c.allowed_users.clone()),
+            "whatsapp" => cc
+                .whatsapp
+                .as_ref()
+                .ok_or_else(|| not_configured(&channel_name))
+                .map(|c| c.allowed_numbers.clone()),
+            "wati" => cc
+                .wati
+                .as_ref()
+                .ok_or_else(|| not_configured(&channel_name))
+                .map(|c| c.allowed_numbers.clone()),
+            "signal" => cc
+                .signal
+                .as_ref()
+                .ok_or_else(|| not_configured(&channel_name))
+                .map(|c| c.allowed_from.clone()),
+            "imessage" => cc
+                .imessage
+                .as_ref()
+                .ok_or_else(|| not_configured(&channel_name))
+                .map(|c| c.allowed_contacts.clone()),
+            "email" => cc
+                .email
+                .as_ref()
+                .ok_or_else(|| not_configured(&channel_name))
+                .map(|c| c.allowed_senders.clone()),
+            "linq" => cc
+                .linq
+                .as_ref()
+                .ok_or_else(|| not_configured(&channel_name))
+                .map(|c| c.allowed_senders.clone()),
+            "nostr" => cc
+                .nostr
+                .as_ref()
+                .ok_or_else(|| not_configured(&channel_name))
+                .map(|c| c.allowed_pubkeys.clone()),
+            "clawdtalk" => cc
+                .clawdtalk
+                .as_ref()
+                .ok_or_else(|| not_configured(&channel_name))
+                .map(|c| c.allowed_destinations.clone()),
+            _ => Err(FfiError::ConfigError {
+                detail: format!("unknown channel: {channel_name}"),
+            }),
+        }
+    })?
+}
+
 /// Returns the names of all channels with non-null config sections in
 /// the running daemon's parsed TOML.
 ///
@@ -693,4 +943,120 @@ pub(crate) fn get_configured_channel_names_inner() -> Result<Vec<String>, FfiErr
         }
         names
     })
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_allowlist_field_telegram() {
+        assert_eq!(
+            allowlist_field_for_channel("telegram"),
+            Some("allowed_users")
+        );
+    }
+
+    #[test]
+    fn test_allowlist_field_whatsapp() {
+        assert_eq!(
+            allowlist_field_for_channel("whatsapp"),
+            Some("allowed_numbers")
+        );
+    }
+
+    #[test]
+    fn test_allowlist_field_signal() {
+        assert_eq!(allowlist_field_for_channel("signal"), Some("allowed_from"));
+    }
+
+    #[test]
+    fn test_allowlist_field_nostr() {
+        assert_eq!(
+            allowlist_field_for_channel("nostr"),
+            Some("allowed_pubkeys")
+        );
+    }
+
+    #[test]
+    fn test_allowlist_field_clawdtalk() {
+        assert_eq!(
+            allowlist_field_for_channel("clawdtalk"),
+            Some("allowed_destinations")
+        );
+    }
+
+    #[test]
+    fn test_allowlist_field_email() {
+        assert_eq!(
+            allowlist_field_for_channel("email"),
+            Some("allowed_senders")
+        );
+    }
+
+    #[test]
+    fn test_allowlist_field_unknown() {
+        assert_eq!(allowlist_field_for_channel("carrier_pigeon"), None);
+    }
+
+    #[test]
+    fn test_bind_channel_no_daemon() {
+        let result = bind_channel_identity_inner("telegram".into(), "alice".into());
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            FfiError::StateError { detail } => {
+                assert!(detail.contains("not running"));
+            }
+            other => panic!("expected StateError, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_bind_channel_unknown() {
+        let result = bind_channel_identity_inner("carrier_pigeon".into(), "alice".into());
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            FfiError::ConfigError { detail } => {
+                assert!(detail.contains("unknown channel"));
+            }
+            other => panic!("expected ConfigError, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_bind_channel_empty_identity() {
+        let result = bind_channel_identity_inner("telegram".into(), "   ".into());
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            FfiError::ConfigError { detail } => {
+                assert!(detail.contains("must not be empty"));
+            }
+            other => panic!("expected ConfigError, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_get_allowlist_no_daemon() {
+        let result = get_channel_allowlist_inner("telegram".into());
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            FfiError::StateError { detail } => {
+                assert!(detail.contains("not running"));
+            }
+            other => panic!("expected StateError, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_get_allowlist_unknown_channel() {
+        let result = get_channel_allowlist_inner("carrier_pigeon".into());
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            FfiError::ConfigError { detail } => {
+                assert!(detail.contains("unknown channel"));
+            }
+            other => panic!("expected ConfigError, got {other:?}"),
+        }
+    }
 }
