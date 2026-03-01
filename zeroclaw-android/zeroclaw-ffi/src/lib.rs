@@ -226,6 +226,51 @@ pub fn get_configured_channel_names() -> Result<Vec<String>, FfiError> {
     })
 }
 
+/// Binds a user identity to a channel's allowlist in the running daemon.
+///
+/// Appends `user_id` to the appropriate allowlist field for `channel_name`
+/// (e.g. `allowed_users` for Telegram, `allowed_numbers` for WhatsApp).
+/// Returns the field name used on success, or `"already_bound"` if the
+/// identity was already present.
+///
+/// **Important:** This mutates the in-memory config only. The caller must
+/// restart the daemon for the change to take effect on the live channel.
+///
+/// # Errors
+///
+/// Returns [`FfiError::StateError`] if the daemon is not running,
+/// [`FfiError::ConfigError`] if `channel_name` is unknown or not configured,
+/// or [`FfiError::InternalPanic`] if native code panics.
+#[uniffi::export]
+pub fn bind_channel_identity(channel_name: String, user_id: String) -> Result<String, FfiError> {
+    catch_unwind(|| runtime::bind_channel_identity_inner(channel_name, user_id)).unwrap_or_else(
+        |e| {
+            Err(FfiError::InternalPanic {
+                detail: panic_detail(&e),
+            })
+        },
+    )
+}
+
+/// Returns the current allowlist for a named channel from the running daemon.
+///
+/// Returns an empty list if the channel is configured but has no entries.
+/// Useful for checking whether channel binding is needed after setup.
+///
+/// # Errors
+///
+/// Returns [`FfiError::StateError`] if the daemon is not running,
+/// [`FfiError::ConfigError`] if `channel_name` is unknown or not configured,
+/// or [`FfiError::InternalPanic`] if native code panics.
+#[uniffi::export]
+pub fn get_channel_allowlist(channel_name: String) -> Result<Vec<String>, FfiError> {
+    catch_unwind(|| runtime::get_channel_allowlist_inner(channel_name)).unwrap_or_else(|e| {
+        Err(FfiError::InternalPanic {
+            detail: panic_detail(&e),
+        })
+    })
+}
+
 /// Returns the version string of the native library.
 ///
 /// Reads from the crate version set at compile time via `CARGO_PKG_VERSION`.
@@ -1197,5 +1242,25 @@ mod tests {
         assert!(user_md.contains("**Timezone:** UTC"), "default timezone");
 
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_bind_channel_identity_no_daemon() {
+        let result = bind_channel_identity("telegram".into(), "alice".into());
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            FfiError::StateError { detail } => assert!(detail.contains("not running")),
+            other => panic!("unexpected: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_get_channel_allowlist_no_daemon() {
+        let result = get_channel_allowlist("telegram".into());
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            FfiError::StateError { detail } => assert!(detail.contains("not running")),
+            other => panic!("unexpected: {other:?}"),
+        }
     }
 }
