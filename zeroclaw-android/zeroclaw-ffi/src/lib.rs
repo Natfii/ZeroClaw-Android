@@ -17,6 +17,7 @@ uniffi::setup_scaffolding!();
 mod cost;
 mod cron;
 mod error;
+mod estop;
 mod events;
 mod ffi_health;
 mod gateway_client;
@@ -160,7 +161,15 @@ pub fn get_component_health(name: String) -> Result<Option<health::FfiComponentH
 /// [`FfiError::InternalPanic`] if native code panics.
 #[uniffi::export]
 pub fn send_message(message: String) -> Result<String, FfiError> {
-    catch_unwind(|| runtime::send_message_inner(message)).unwrap_or_else(|e| {
+    catch_unwind(|| {
+        if estop::is_engaged() {
+            return Err(FfiError::EstopEngaged {
+                detail: "Emergency stop is engaged. Resume before sending messages.".into(),
+            });
+        }
+        runtime::send_message_inner(message)
+    })
+    .unwrap_or_else(|e| {
         Err(FfiError::InternalPanic {
             detail: panic_detail(&e),
         })
@@ -282,6 +291,58 @@ pub fn get_channel_allowlist(channel_name: String) -> Result<Vec<String>, FfiErr
 pub fn get_version() -> Result<String, FfiError> {
     catch_unwind(|| env!("CARGO_PKG_VERSION").to_string()).map_err(|e| FfiError::InternalPanic {
         detail: panic_detail(&e),
+    })
+}
+
+/// Engages the emergency stop, cancelling all active agent execution.
+///
+/// While engaged, [`send_message`], [`session_send`], and
+/// [`send_message_streaming`] return [`FfiError::EstopEngaged`].
+/// State is persisted to disk and survives process death.
+///
+/// # Errors
+///
+/// Returns [`FfiError::InternalPanic`] if native code panics.
+#[uniffi::export]
+pub fn engage_estop() -> Result<(), FfiError> {
+    catch_unwind(estop::engage_estop_inner).unwrap_or_else(|e| {
+        Err(FfiError::InternalPanic {
+            detail: panic_detail(&e),
+        })
+    })
+}
+
+/// Returns the current emergency stop status.
+///
+/// The returned [`estop::FfiEstopStatus`] includes whether the stop is
+/// engaged and the epoch-millisecond timestamp of engagement (if available).
+///
+/// # Errors
+///
+/// Returns [`FfiError::InternalPanic`] if native code panics.
+#[uniffi::export]
+pub fn get_estop_status() -> Result<estop::FfiEstopStatus, FfiError> {
+    catch_unwind(estop::get_estop_status_inner).unwrap_or_else(|e| {
+        Err(FfiError::InternalPanic {
+            detail: panic_detail(&e),
+        })
+    })
+}
+
+/// Resumes from an engaged emergency stop.
+///
+/// Clears the kill-all flag and persists the resumed state to disk.
+/// Agent-executing functions will accept requests again immediately.
+///
+/// # Errors
+///
+/// Returns [`FfiError::InternalPanic`] if native code panics.
+#[uniffi::export]
+pub fn resume_estop() -> Result<(), FfiError> {
+    catch_unwind(estop::resume_estop_inner).unwrap_or_else(|e| {
+        Err(FfiError::InternalPanic {
+            detail: panic_detail(&e),
+        })
     })
 }
 
@@ -851,6 +912,11 @@ pub fn send_message_streaming(
 ) -> Result<(), FfiError> {
     let listener: Arc<dyn streaming::FfiStreamListener> = Arc::from(listener);
     catch_unwind(AssertUnwindSafe(|| {
+        if estop::is_engaged() {
+            return Err(FfiError::EstopEngaged {
+                detail: "Emergency stop is engaged. Resume before sending messages.".into(),
+            });
+        }
         streaming::send_message_streaming_inner(message, listener)
     }))
     .unwrap_or_else(|e| {
@@ -952,6 +1018,11 @@ pub fn session_send(
 ) -> Result<(), FfiError> {
     let listener: Arc<dyn session::FfiSessionListener> = Arc::from(listener);
     catch_unwind(AssertUnwindSafe(|| {
+        if estop::is_engaged() {
+            return Err(FfiError::EstopEngaged {
+                detail: "Emergency stop is engaged. Resume before sending messages.".into(),
+            });
+        }
         session::session_send_inner(message, image_data, mime_types, listener)
     }))
     .unwrap_or_else(|e| {

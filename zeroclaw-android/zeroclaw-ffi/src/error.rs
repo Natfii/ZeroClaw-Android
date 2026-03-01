@@ -61,4 +61,11 @@ pub enum FfiError {
         /// Description of the panic.
         detail: String,
     },
+
+    /// The emergency stop is engaged; agent execution is blocked.
+    #[error("emergency stop engaged: {detail}")]
+    EstopEngaged {
+        /// Reason or instructions for the operator.
+        detail: String,
+    },
 }

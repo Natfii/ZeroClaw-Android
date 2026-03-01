@@ -254,6 +254,8 @@ pub(crate) fn start_daemon_inner(
     config.workspace_dir = data_path.join("workspace");
     config.config_path = data_path.join("config.toml");
 
+    crate::estop::load_state(&data_path);
+
     std::fs::create_dir_all(&config.workspace_dir).map_err(|e| FfiError::ConfigError {
         detail: format!("failed to create workspace dir: {e}"),
     })?;

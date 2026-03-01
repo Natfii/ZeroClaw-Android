@@ -333,6 +333,27 @@ fn build_engine() -> Engine {
         Ok(i64::from(count))
     });
 
+    // ── Emergency Stop ──────────────────────────────────────────
+
+    engine.register_fn("estop", || -> Result<String, Box<EvalAltResult>> {
+        crate::estop::engage_estop_inner().map_err(ffi_err)?;
+        Ok("ok".into())
+    });
+
+    engine.register_fn("estop_status", || -> Result<String, Box<EvalAltResult>> {
+        let s = crate::estop::get_estop_status_inner().map_err(ffi_err)?;
+        serde_json::to_string(&serde_json::json!({
+            "engaged": s.engaged,
+            "engaged_at_ms": s.engaged_at_ms,
+        }))
+        .map_err(|e| -> Box<EvalAltResult> { format!("serialisation failed: {e}").into() })
+    });
+
+    engine.register_fn("estop_resume", || -> Result<String, Box<EvalAltResult>> {
+        crate::estop::resume_estop_inner().map_err(ffi_err)?;
+        Ok("ok".into())
+    });
+
     engine
 }
 
