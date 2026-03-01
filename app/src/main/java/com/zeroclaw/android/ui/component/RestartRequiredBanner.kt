@@ -61,7 +61,7 @@ fun RestartRequiredBanner(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "Restart daemon to apply changes",
+                text = "Restart daemon to apply configuration changes",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onTertiaryContainer,
                 modifier = Modifier.weight(1f),

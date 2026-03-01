@@ -136,6 +136,16 @@ fn build_engine() -> Engine {
         },
     );
 
+    // ── Provider Swap ──────────────────────────────────────────
+
+    engine.register_fn(
+        "swap_provider",
+        |provider: String, model: String| -> Result<String, Box<EvalAltResult>> {
+            runtime::swap_provider_inner(provider, model, None).map_err(ffi_err)?;
+            Ok("ok".into())
+        },
+    );
+
     // ── Health ────────────────────────────────────────────────────
 
     engine.register_fn("health", || -> Result<String, Box<EvalAltResult>> {
@@ -686,6 +696,13 @@ mod tests {
         let result = eval_repl_inner(r#"models("anthropic")"#.into()).unwrap();
         let parsed: Vec<serde_json::Value> = serde_json::from_str(&result).unwrap();
         assert!(!parsed.is_empty());
+    }
+
+    #[test]
+    fn test_repl_swap_provider_no_daemon() {
+        let result =
+            eval_repl_inner(r#"swap_provider("anthropic", "claude-sonnet-4")"#.into());
+        assert!(result.is_err());
     }
 
     #[test]

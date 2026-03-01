@@ -61,14 +61,49 @@ class AgentDetailViewModel(
     /**
      * Saves the given agent (creates or updates).
      *
+     * When only the provider or model changed, attempts a hot-swap via
+     * [DaemonServiceBridge.hotSwapProvider][com.zeroclaw.android.service.DaemonServiceBridge.hotSwapProvider]
+     * so the daemon does not need a full restart. Falls back to
+     * [DaemonServiceBridge.markRestartRequired][com.zeroclaw.android.service.DaemonServiceBridge.markRestartRequired]
+     * for all other field changes.
+     *
      * @param agent The agent to persist.
      */
     fun saveAgent(agent: Agent) {
         viewModelScope.launch {
+            val previous = _agent.value
             repository.save(agent)
-            daemonBridge.markRestartRequired()
+
+            if (previous != null && isProviderOnlyChange(previous, agent)) {
+                daemonBridge.hotSwapProvider(
+                    provider = agent.provider,
+                    model = agent.modelName,
+                )
+            } else {
+                daemonBridge.markRestartRequired()
+            }
         }
     }
+
+    /**
+     * Returns `true` when only provider-related fields differ between agents.
+     *
+     * Provider-related fields are [Agent.provider] and [Agent.modelName].
+     * All other fields (channels, system prompt, temperature, etc.) require
+     * a full daemon restart when changed.
+     */
+    private fun isProviderOnlyChange(
+        old: Agent,
+        new: Agent,
+    ): Boolean =
+        old.id == new.id &&
+            old.isEnabled == new.isEnabled &&
+            old.systemPrompt == new.systemPrompt &&
+            old.channels == new.channels &&
+            old.temperature == new.temperature &&
+            old.maxDepth == new.maxDepth &&
+            old.name == new.name &&
+            (old.provider != new.provider || old.modelName != new.modelName)
 
     /**
      * Deletes the agent with the given [agentId].

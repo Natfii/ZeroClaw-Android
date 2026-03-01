@@ -78,7 +78,7 @@ class SettingsScreenTest {
             )
         }
         composeTestRule
-            .onNodeWithText("Restart daemon to apply changes")
+            .onNodeWithText("Restart daemon to apply configuration changes")
             .assertIsDisplayed()
         composeTestRule
             .onNodeWithText("Restart")
@@ -99,7 +99,7 @@ class SettingsScreenTest {
             )
         }
         composeTestRule
-            .onNodeWithText("Restart daemon to apply changes")
+            .onNodeWithText("Restart daemon to apply configuration changes")
             .assertDoesNotExist()
     }
 

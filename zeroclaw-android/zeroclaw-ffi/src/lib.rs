@@ -220,6 +220,29 @@ pub fn get_running_config() -> Result<String, FfiError> {
     })
 }
 
+/// Hot-swaps the default provider and model without restarting the daemon.
+///
+/// The change takes effect on the next message send. Does not persist
+/// to disk; the Kotlin layer is responsible for persisting the setting
+/// and rebuilding the TOML on next full restart.
+///
+/// # Errors
+///
+/// Returns [`FfiError::StateError`] if the daemon is not running, or
+/// [`FfiError::InternalPanic`] if native code panics.
+#[uniffi::export]
+pub fn swap_provider(
+    provider: String,
+    model: String,
+    api_key: Option<String>,
+) -> Result<(), FfiError> {
+    catch_unwind(|| runtime::swap_provider_inner(provider, model, api_key)).unwrap_or_else(|e| {
+        Err(FfiError::InternalPanic {
+            detail: panic_detail(&e),
+        })
+    })
+}
+
 /// Runs channel health checks without starting the daemon.
 ///
 /// Parses the TOML config, overrides paths with `data_dir`, then

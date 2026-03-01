@@ -520,6 +520,41 @@ where
     })
 }
 
+/// Hot-swaps the default provider and model in the running daemon config.
+///
+/// Mutates `DaemonState.config` in-place without restarting the daemon.
+/// The change takes effect on the next message send (session start will
+/// snapshot the updated config). Does not persist to disk; the Kotlin
+/// layer is responsible for persisting the setting and rebuilding the
+/// TOML on next full restart.
+///
+/// # Errors
+///
+/// Returns [`FfiError::StateError`] if the daemon is not running.
+pub(crate) fn swap_provider_inner(
+    provider: String,
+    model: String,
+    api_key: Option<String>,
+) -> Result<(), FfiError> {
+    let mut guard = lock_daemon();
+    let state = guard.as_mut().ok_or_else(|| FfiError::StateError {
+        detail: "daemon not running".into(),
+    })?;
+
+    state.config.default_provider = Some(provider);
+    state.config.default_model = Some(model);
+    if let Some(key) = api_key {
+        state.config.api_key = Some(key);
+    }
+
+    tracing::info!(
+        "Provider hot-swapped to {:?}/{:?}",
+        state.config.default_provider,
+        state.config.default_model
+    );
+    Ok(())
+}
+
 /// Returns the TOML representation of the currently running daemon config.
 ///
 /// Serialises the in-memory [`Config`] back to TOML using
@@ -1078,6 +1113,19 @@ mod tests {
                 assert!(detail.contains("unknown channel"));
             }
             other => panic!("expected ConfigError, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_swap_provider_no_daemon() {
+        let result =
+            swap_provider_inner("anthropic".into(), "claude-sonnet-4".into(), None);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            FfiError::StateError { detail } => {
+                assert!(detail.contains("not running"));
+            }
+            other => panic!("expected StateError, got {other:?}"),
         }
     }
 }

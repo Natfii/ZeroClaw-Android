@@ -6,6 +6,7 @@
 
 package com.zeroclaw.android.service
 
+import android.util.Log
 import com.zeroclaw.android.model.ComponentStatus
 import com.zeroclaw.android.model.DaemonStatus
 import com.zeroclaw.android.model.KeyRejectionEvent
@@ -19,6 +20,7 @@ import com.zeroclaw.ffi.scaffoldWorkspace
 import com.zeroclaw.ffi.sendMessage
 import com.zeroclaw.ffi.startDaemon
 import com.zeroclaw.ffi.stopDaemon
+import com.zeroclaw.ffi.swapProvider
 import java.io.File
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
@@ -592,6 +594,35 @@ class DaemonServiceBridge(
     }
 
     /**
+     * Hot-swaps the default provider and model in the running daemon.
+     *
+     * On success, clears [restartRequired] since the change is already live.
+     * On failure, falls back to marking restart required.
+     *
+     * @param provider Provider ID (e.g. "anthropic", "openai").
+     * @param model Model ID (e.g. "claude-sonnet-4-20250514").
+     * @param apiKey Optional API key override.
+     * @return `true` if hot-swap succeeded.
+     */
+    @Suppress("TooGenericExceptionCaught")
+    suspend fun hotSwapProvider(
+        provider: String,
+        model: String,
+        apiKey: String? = null,
+    ): Boolean =
+        withContext(ioDispatcher) {
+            try {
+                swapProvider(provider, model, apiKey)
+                _restartRequired.value = false
+                true
+            } catch (e: Exception) {
+                Log.w(TAG, "Hot-swap failed, falling back to restart: ${e.message}")
+                markRestartRequired()
+                false
+            }
+        }
+
+    /**
      * Stops and re-starts the daemon with a fresh configuration.
      *
      * @param configToml New TOML configuration string.
@@ -652,6 +683,9 @@ class DaemonServiceBridge(
 
     /** Constants for [DaemonServiceBridge]. */
     companion object {
+        /** Log tag for diagnostic messages. */
+        private const val TAG = "DaemonServiceBridge"
+
         /** Maximum length for workspace identity strings passed to FFI. */
         private const val MAX_IDENTITY_LENGTH = 100
     }
