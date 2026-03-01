@@ -272,7 +272,7 @@ internal fun fakeTerminalState(): TerminalState =
                 TerminalBlock.System(
                     id = 1,
                     timestamp = System.currentTimeMillis(),
-                    text = "ZeroClaw Terminal v0.0.32 \u2014 Type /help for commands",
+                    text = "ZeroClaw Terminal v0.0.33 \u2014 Type /help for commands",
                 ),
             ),
         isLoading = false,
