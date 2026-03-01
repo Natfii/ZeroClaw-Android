@@ -243,4 +243,20 @@ internal class TestSettingsRepository : SettingsRepository {
     override suspend fun setStripThinkingTags(enabled: Boolean) = _settings.update { it.copy(stripThinkingTags = enabled) }
 
     override suspend fun setTheme(theme: ThemeMode) = _settings.update { it.copy(theme = theme) }
+
+    override suspend fun setTranscriptionEnabled(enabled: Boolean) = _settings.update { it.copy(transcriptionEnabled = enabled) }
+
+    override suspend fun setTranscriptionApiUrl(url: String) = _settings.update { it.copy(transcriptionApiUrl = url) }
+
+    override suspend fun setTranscriptionModel(model: String) = _settings.update { it.copy(transcriptionModel = model) }
+
+    override suspend fun setTranscriptionLanguage(language: String) = _settings.update { it.copy(transcriptionLanguage = language) }
+
+    override suspend fun setTranscriptionMaxDurationSecs(secs: Int) = _settings.update { it.copy(transcriptionMaxDurationSecs = secs) }
+
+    override suspend fun setMultimodalMaxImages(max: Int) = _settings.update { it.copy(multimodalMaxImages = max) }
+
+    override suspend fun setMultimodalMaxImageSizeMb(mb: Int) = _settings.update { it.copy(multimodalMaxImageSizeMb = mb) }
+
+    override suspend fun setMultimodalAllowRemoteFetch(enabled: Boolean) = _settings.update { it.copy(multimodalAllowRemoteFetch = enabled) }
 }

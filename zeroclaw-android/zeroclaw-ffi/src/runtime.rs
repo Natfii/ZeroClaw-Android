@@ -1118,8 +1118,7 @@ mod tests {
 
     #[test]
     fn test_swap_provider_no_daemon() {
-        let result =
-            swap_provider_inner("anthropic".into(), "claude-sonnet-4".into(), None);
+        let result = swap_provider_inner("anthropic".into(), "claude-sonnet-4".into(), None);
         assert!(result.is_err());
         match result.unwrap_err() {
             FfiError::StateError { detail } => {

@@ -375,5 +375,7 @@ private fun categoryDisplayName(category: DiagnosticCategory): String =
         DiagnosticCategory.API_KEYS -> "API Keys"
         DiagnosticCategory.CONNECTIVITY -> "Connectivity"
         DiagnosticCategory.DAEMON_HEALTH -> "Daemon Health"
+        DiagnosticCategory.CHANNELS -> "Channels"
+        DiagnosticCategory.RUNTIME_TRACES -> "Runtime Traces"
         DiagnosticCategory.SYSTEM -> "System"
     }

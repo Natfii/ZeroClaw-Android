@@ -409,6 +409,22 @@ private class TestSettingsRepository : SettingsRepository {
 
     override suspend fun setWebSearchTimeoutSecs(secs: Int) { /* no-op */ }
 
+    override suspend fun setMultimodalMaxImages(max: Int) { /* no-op */ }
+
+    override suspend fun setMultimodalMaxImageSizeMb(mb: Int) { /* no-op */ }
+
+    override suspend fun setMultimodalAllowRemoteFetch(enabled: Boolean) { /* no-op */ }
+
+    override suspend fun setTranscriptionEnabled(enabled: Boolean) { /* no-op */ }
+
+    override suspend fun setTranscriptionApiUrl(url: String) { /* no-op */ }
+
+    override suspend fun setTranscriptionModel(model: String) { /* no-op */ }
+
+    override suspend fun setTranscriptionLanguage(language: String) { /* no-op */ }
+
+    override suspend fun setTranscriptionMaxDurationSecs(secs: Int) { /* no-op */ }
+
     override suspend fun setSecuritySandboxEnabled(enabled: String) { /* no-op */ }
 
     override suspend fun setSecuritySandboxBackend(backend: String) { /* no-op */ }

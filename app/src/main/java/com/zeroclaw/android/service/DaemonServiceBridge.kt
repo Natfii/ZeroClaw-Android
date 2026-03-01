@@ -709,4 +709,5 @@ private fun FfiException.errorDetail(): String =
         is FfiException.ShutdownException -> detail
         is FfiException.InternalPanic -> detail
         is FfiException.StateCorrupted -> detail
+        is FfiException.EstopEngaged -> detail
     }

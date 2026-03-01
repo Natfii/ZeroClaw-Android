@@ -367,6 +367,16 @@ private class InMemorySettingsRepository : SettingsRepository {
 
     override suspend fun setMultimodalAllowRemoteFetch(enabled: Boolean) { /* no-op */ }
 
+    override suspend fun setTranscriptionEnabled(enabled: Boolean) { /* no-op */ }
+
+    override suspend fun setTranscriptionApiUrl(url: String) { /* no-op */ }
+
+    override suspend fun setTranscriptionModel(model: String) { /* no-op */ }
+
+    override suspend fun setTranscriptionLanguage(language: String) { /* no-op */ }
+
+    override suspend fun setTranscriptionMaxDurationSecs(secs: Int) { /* no-op */ }
+
     override suspend fun setSecuritySandboxEnabled(enabled: String) { /* no-op */ }
 
     override suspend fun setSecuritySandboxBackend(backend: String) { /* no-op */ }
