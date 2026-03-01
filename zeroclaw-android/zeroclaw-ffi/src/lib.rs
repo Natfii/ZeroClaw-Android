@@ -14,6 +14,7 @@
 
 uniffi::setup_scaffolding!();
 
+mod auth_profiles;
 mod cost;
 mod cron;
 mod error;
@@ -296,6 +297,51 @@ pub fn bind_channel_identity(channel_name: String, user_id: String) -> Result<St
 #[uniffi::export]
 pub fn get_channel_allowlist(channel_name: String) -> Result<Vec<String>, FfiError> {
     catch_unwind(|| runtime::get_channel_allowlist_inner(channel_name)).unwrap_or_else(|e| {
+        Err(FfiError::InternalPanic {
+            detail: panic_detail(&e),
+        })
+    })
+}
+
+/// Lists all auth profiles from the daemon's workspace.
+///
+/// Reads `auth-profiles.json` from the running daemon's workspace directory
+/// and returns all stored profiles. Returns an empty list if the file does
+/// not exist yet (no profiles have been stored).
+///
+/// # Errors
+///
+/// Returns [`FfiError::StateError`] if the daemon is not running,
+/// [`FfiError::SpawnError`] on I/O or parse failure, or
+/// [`FfiError::InternalPanic`] if native code panics.
+#[uniffi::export]
+pub fn list_auth_profiles() -> Result<Vec<auth_profiles::FfiAuthProfile>, FfiError> {
+    catch_unwind(auth_profiles::list_auth_profiles_inner).unwrap_or_else(|e| {
+        Err(FfiError::InternalPanic {
+            detail: panic_detail(&e),
+        })
+    })
+}
+
+/// Removes an auth profile by provider and profile name.
+///
+/// Constructs the profile ID as `"provider:profile_name"`, removes it
+/// from the profiles map, and clears the active-profile entry if the
+/// removed profile was the active one. Writes the updated JSON back
+/// to disk.
+///
+/// # Errors
+///
+/// Returns [`FfiError::StateError`] if the daemon is not running or the
+/// auth-profiles file does not exist,
+/// [`FfiError::SpawnError`] on I/O, parse, or serialisation failure, or
+/// [`FfiError::InternalPanic`] if native code panics.
+#[uniffi::export]
+pub fn remove_auth_profile(provider: String, profile_name: String) -> Result<(), FfiError> {
+    catch_unwind(AssertUnwindSafe(|| {
+        auth_profiles::remove_auth_profile_inner(provider, profile_name)
+    }))
+    .unwrap_or_else(|e| {
         Err(FfiError::InternalPanic {
             detail: panic_detail(&e),
         })
@@ -1387,6 +1433,26 @@ mod tests {
     #[test]
     fn test_get_channel_allowlist_no_daemon() {
         let result = get_channel_allowlist("telegram".into());
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            FfiError::StateError { detail } => assert!(detail.contains("not running")),
+            other => panic!("unexpected: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_list_auth_profiles_no_daemon() {
+        let result = list_auth_profiles();
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            FfiError::StateError { detail } => assert!(detail.contains("not running")),
+            other => panic!("unexpected: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_remove_auth_profile_no_daemon() {
+        let result = remove_auth_profile("openai".into(), "default".into());
         assert!(result.is_err());
         match result.unwrap_err() {
             FfiError::StateError { detail } => assert!(detail.contains("not running")),

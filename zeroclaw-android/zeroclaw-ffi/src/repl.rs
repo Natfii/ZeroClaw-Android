@@ -20,7 +20,9 @@ use rhai::packages::{CorePackage, Package};
 use rhai::{Array, Dynamic, Engine, EvalAltResult};
 
 use crate::error::FfiError;
-use crate::{cost, cron, events, health, memory_browse, runtime, skills, tools_browse, vision};
+use crate::{
+    auth_profiles, cost, cron, events, health, memory_browse, runtime, skills, tools_browse, vision,
+};
 
 /// Lazily initialised Rhai engine with all gateway functions registered.
 static ENGINE: OnceLock<Mutex<Engine>> = OnceLock::new();
@@ -376,6 +378,32 @@ fn build_engine() -> Engine {
         },
     );
 
+    // ── Auth Profiles ──────────────────────────────────────────
+
+    engine.register_fn("auth_list", || -> Result<String, Box<EvalAltResult>> {
+        let profiles = auth_profiles::list_auth_profiles_inner().map_err(ffi_err)?;
+        let json: Vec<serde_json::Value> = profiles
+            .iter()
+            .map(|p| {
+                serde_json::json!({
+                    "id": p.id,
+                    "provider": p.provider,
+                    "kind": p.kind,
+                    "active": p.is_active,
+                })
+            })
+            .collect();
+        to_json(&json)
+    });
+
+    engine.register_fn(
+        "auth_remove",
+        |provider: String, profile_name: String| -> Result<String, Box<EvalAltResult>> {
+            auth_profiles::remove_auth_profile_inner(provider, profile_name).map_err(ffi_err)?;
+            Ok("ok".into())
+        },
+    );
+
     engine
 }
 
@@ -577,6 +605,18 @@ mod tests {
     #[test]
     fn test_repl_traces_filter_no_daemon() {
         let result = eval_repl_inner(r#"traces_filter("error", 5)"#.into());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_repl_auth_list_no_daemon() {
+        let result = eval_repl_inner("auth_list()".into());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_repl_auth_remove_no_daemon() {
+        let result = eval_repl_inner(r#"auth_remove("openai", "default")"#.into());
         assert!(result.is_err());
     }
 }
