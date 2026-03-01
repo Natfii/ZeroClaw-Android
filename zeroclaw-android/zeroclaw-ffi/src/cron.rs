@@ -115,6 +115,38 @@ pub(crate) fn add_one_shot_job_inner(
     Ok(parse_job_json(&json["job"]))
 }
 
+/// Adds a one-shot cron job that fires at a specific RFC 3339 timestamp.
+///
+/// The gateway creates a one-shot job whose next-run time is set to the
+/// given timestamp. Once fired it will self-delete.
+pub(crate) fn add_cron_job_at_inner(
+    timestamp_rfc3339: String,
+    command: String,
+) -> Result<FfiCronJob, FfiError> {
+    let body = serde_json::json!({
+        "schedule": format!("@at {timestamp_rfc3339}"),
+        "command": command,
+    });
+    let json = gateway_client::gateway_post("/api/cron", &body)?;
+    Ok(parse_job_json(&json["job"]))
+}
+
+/// Adds a fixed-interval repeating cron job.
+///
+/// The `interval_ms` parameter specifies the repeat interval in
+/// milliseconds. The gateway translates this into an `@every` schedule.
+pub(crate) fn add_cron_job_every_inner(
+    interval_ms: u64,
+    command: String,
+) -> Result<FfiCronJob, FfiError> {
+    let body = serde_json::json!({
+        "schedule": format!("@every {interval_ms}ms"),
+        "command": command,
+    });
+    let json = gateway_client::gateway_post("/api/cron", &body)?;
+    Ok(parse_job_json(&json["job"]))
+}
+
 /// Removes a cron job by its identifier.
 pub(crate) fn remove_cron_job_inner(id: String) -> Result<(), FfiError> {
     let path = format!("/api/cron/{id}");
@@ -195,6 +227,30 @@ mod tests {
     #[test]
     fn test_add_one_shot_job_not_running() {
         let result = add_one_shot_job_inner("5m".into(), "echo once".into());
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            FfiError::StateError { detail } => {
+                assert!(detail.contains("not running"));
+            }
+            other => panic!("expected StateError, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_add_cron_job_at_not_running() {
+        let result = add_cron_job_at_inner("2026-12-31T23:59:59Z".into(), "echo at-time".into());
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            FfiError::StateError { detail } => {
+                assert!(detail.contains("not running"));
+            }
+            other => panic!("expected StateError, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_add_cron_job_every_not_running() {
+        let result = add_cron_job_every_inner(60_000, "echo every-min".into());
         assert!(result.is_err());
         match result.unwrap_err() {
             FfiError::StateError { detail } => {

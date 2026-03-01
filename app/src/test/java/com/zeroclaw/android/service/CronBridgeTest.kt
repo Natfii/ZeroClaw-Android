@@ -137,6 +137,35 @@ class CronBridgeTest {
         }
 
     @Test
+    @DisplayName("addJobAt passes timestamp and command and returns created job")
+    fun `addJobAt passes timestamp and command and returns created job`() =
+        runTest {
+            val ffiJob = makeFfiCronJob(id = "at-1", oneShot = true)
+            every {
+                com.zeroclaw.ffi.addCronJobAt("2026-12-31T23:59:59Z", "echo at")
+            } returns ffiJob
+
+            val result = bridge.addJobAt("2026-12-31T23:59:59Z", "echo at")
+
+            assertEquals("at-1", result.id)
+            assertTrue(result.oneShot)
+        }
+
+    @Test
+    @DisplayName("addJobEvery passes interval and command and returns created job")
+    fun `addJobEvery passes interval and command and returns created job`() =
+        runTest {
+            val ffiJob = makeFfiCronJob(id = "every-1")
+            every {
+                com.zeroclaw.ffi.addCronJobEvery(60_000UL, "echo every")
+            } returns ffiJob
+
+            val result = bridge.addJobEvery(60_000UL, "echo every")
+
+            assertEquals("every-1", result.id)
+        }
+
+    @Test
     @DisplayName("removeJob delegates to FFI")
     fun `removeJob delegates to FFI`() =
         runTest {

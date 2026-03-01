@@ -235,6 +235,23 @@ fn build_engine() -> Engine {
     );
 
     engine.register_fn(
+        "cron_add_at",
+        |timestamp: String, command: String| -> Result<String, Box<EvalAltResult>> {
+            let job = cron::add_cron_job_at_inner(timestamp, command).map_err(ffi_err)?;
+            to_json(&job)
+        },
+    );
+
+    engine.register_fn(
+        "cron_add_every",
+        |ms: i64, command: String| -> Result<String, Box<EvalAltResult>> {
+            #[allow(clippy::cast_sign_loss)]
+            let job = cron::add_cron_job_every_inner(ms as u64, command).map_err(ffi_err)?;
+            to_json(&job)
+        },
+    );
+
+    engine.register_fn(
         "cron_remove",
         |id: String| -> Result<String, Box<EvalAltResult>> {
             cron::remove_cron_job_inner(id).map_err(ffi_err)?;
@@ -637,6 +654,18 @@ mod tests {
     #[test]
     fn test_repl_traces_filter_no_daemon() {
         let result = eval_repl_inner(r#"traces_filter("error", 5)"#.into());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_repl_cron_add_at_no_daemon() {
+        let result = eval_repl_inner(r#"cron_add_at("2026-12-31T23:59:59Z", "echo at")"#.into());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_repl_cron_add_every_no_daemon() {
+        let result = eval_repl_inner(r#"cron_add_every(60000, "echo every")"#.into());
         assert!(result.is_err());
     }
 

@@ -120,6 +120,40 @@ class CronJobsViewModel(
     }
 
     /**
+     * Adds a one-shot job that fires at a specific RFC 3339 timestamp.
+     *
+     * @param timestampRfc3339 RFC 3339 datetime string (e.g. `"2026-12-31T23:59:59Z"`).
+     * @param command Command for the scheduler to execute.
+     */
+    fun addJobAt(
+        timestampRfc3339: String,
+        command: String,
+    ) {
+        viewModelScope.launch {
+            runMutation("Scheduled job added") {
+                cronBridge.addJobAt(timestampRfc3339, command)
+            }
+        }
+    }
+
+    /**
+     * Adds a fixed-interval repeating job.
+     *
+     * @param intervalMs Repeat interval in milliseconds.
+     * @param command Command for the scheduler to execute.
+     */
+    fun addJobEvery(
+        intervalMs: ULong,
+        command: String,
+    ) {
+        viewModelScope.launch {
+            runMutation("Interval job added") {
+                cronBridge.addJobEvery(intervalMs, command)
+            }
+        }
+    }
+
+    /**
      * Pauses the job with the given identifier.
      *
      * @param id Unique job identifier.

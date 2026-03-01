@@ -674,6 +674,52 @@ pub fn add_one_shot_job(delay: String, command: String) -> Result<cron::FfiCronJ
     })
 }
 
+/// Adds a one-shot cron job that fires at a specific RFC 3339 timestamp.
+///
+/// The `timestamp_rfc3339` must be a valid RFC 3339 string (e.g.
+/// `"2026-12-31T23:59:59Z"`). The job self-deletes after firing.
+///
+/// # Errors
+///
+/// Returns [`FfiError::StateError`] if the daemon is not running,
+/// [`FfiError::SpawnError`] on invalid timestamp or database failure, or
+/// [`FfiError::InternalPanic`] if native code panics.
+#[uniffi::export]
+pub fn add_cron_job_at(
+    timestamp_rfc3339: String,
+    command: String,
+) -> Result<cron::FfiCronJob, FfiError> {
+    catch_unwind(AssertUnwindSafe(|| {
+        cron::add_cron_job_at_inner(timestamp_rfc3339, command)
+    }))
+    .unwrap_or_else(|e| {
+        Err(FfiError::InternalPanic {
+            detail: panic_detail(&e),
+        })
+    })
+}
+
+/// Adds a fixed-interval repeating cron job.
+///
+/// The `interval_ms` specifies the repeat interval in milliseconds.
+///
+/// # Errors
+///
+/// Returns [`FfiError::StateError`] if the daemon is not running,
+/// [`FfiError::SpawnError`] on database failure, or
+/// [`FfiError::InternalPanic`] if native code panics.
+#[uniffi::export]
+pub fn add_cron_job_every(interval_ms: u64, command: String) -> Result<cron::FfiCronJob, FfiError> {
+    catch_unwind(AssertUnwindSafe(|| {
+        cron::add_cron_job_every_inner(interval_ms, command)
+    }))
+    .unwrap_or_else(|e| {
+        Err(FfiError::InternalPanic {
+            detail: panic_detail(&e),
+        })
+    })
+}
+
 /// Removes a cron job by its identifier.
 ///
 /// # Errors

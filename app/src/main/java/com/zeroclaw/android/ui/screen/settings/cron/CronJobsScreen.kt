@@ -148,6 +148,12 @@ fun CronJobsScreen(
             onAddOneShot = { delay, command ->
                 cronJobsViewModel.addOneShot(delay, command)
             },
+            onAddAtTime = { timestamp, command ->
+                cronJobsViewModel.addJobAt(timestamp, command)
+            },
+            onAddInterval = { intervalMs, command ->
+                cronJobsViewModel.addJobEvery(intervalMs, command)
+            },
             onDismiss = { showAddDialog = false },
         )
     }

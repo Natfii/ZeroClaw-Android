@@ -104,6 +104,50 @@ class CronBridge(
         }
 
     /**
+     * Adds a one-shot job that fires at a specific RFC 3339 timestamp.
+     *
+     * Safe to call from the main thread; the underlying blocking FFI call is
+     * dispatched to [ioDispatcher].
+     *
+     * @param timestampRfc3339 RFC 3339 datetime string (e.g. `"2026-12-31T23:59:59Z"`).
+     * @param command Command string for the scheduler to execute.
+     * @return The newly created [CronJob].
+     * @throws FfiException if the timestamp is invalid or the native layer fails.
+     */
+    @Throws(FfiException::class)
+    suspend fun addJobAt(
+        timestampRfc3339: String,
+        command: String,
+    ): CronJob =
+        withContext(ioDispatcher) {
+            com.zeroclaw.ffi
+                .addCronJobAt(timestampRfc3339, command)
+                .toModel()
+        }
+
+    /**
+     * Adds a fixed-interval repeating cron job.
+     *
+     * Safe to call from the main thread; the underlying blocking FFI call is
+     * dispatched to [ioDispatcher].
+     *
+     * @param intervalMs Repeat interval in milliseconds.
+     * @param command Command string for the scheduler to execute.
+     * @return The newly created [CronJob].
+     * @throws FfiException if the native layer fails.
+     */
+    @Throws(FfiException::class)
+    suspend fun addJobEvery(
+        intervalMs: ULong,
+        command: String,
+    ): CronJob =
+        withContext(ioDispatcher) {
+            com.zeroclaw.ffi
+                .addCronJobEvery(intervalMs, command)
+                .toModel()
+        }
+
+    /**
      * Removes a cron job by its identifier.
      *
      * Safe to call from the main thread; the underlying blocking FFI call is
