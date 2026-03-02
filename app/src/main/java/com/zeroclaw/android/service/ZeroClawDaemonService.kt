@@ -211,10 +211,9 @@ class ZeroClawDaemonService : Service() {
     private fun handleStartFromSettings() {
         val notification =
             notificationManager.buildNotification(ServiceState.STARTING)
-        startForeground(
+        startForegroundCompat(
             DaemonNotificationManager.NOTIFICATION_ID,
             notification,
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
         )
         acquireWakeLock()
 
@@ -510,10 +509,9 @@ class ZeroClawDaemonService : Service() {
         }
         val notification =
             notificationManager.buildNotification(ServiceState.STARTING)
-        startForeground(
+        startForegroundCompat(
             DaemonNotificationManager.NOTIFICATION_ID,
             notification,
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
         )
         serviceScope.launch {
             delay(OAUTH_HOLD_TIMEOUT_MS)
@@ -542,10 +540,9 @@ class ZeroClawDaemonService : Service() {
     private fun handleStickyRestart() {
         val notification =
             notificationManager.buildNotification(ServiceState.STARTING)
-        startForeground(
+        startForegroundCompat(
             DaemonNotificationManager.NOTIFICATION_ID,
             notification,
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
         )
 
         if (!persistence.wasRunning()) {
@@ -832,6 +829,34 @@ class ZeroClawDaemonService : Service() {
             if (lock.isHeld) lock.release()
         }
         wakeLock = null
+    }
+
+    /**
+     * Enters the foreground with a notification, specifying the
+     * `specialUse` service type on API 29+ where the 3-argument
+     * [startForeground] overload exists.
+     *
+     * On API 28 and below, the 2-argument overload is used instead
+     * because [ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE] and
+     * the typed `startForeground(int, Notification, int)` method were
+     * not yet available.
+     *
+     * @param notificationId Stable notification ID.
+     * @param notification Foreground notification to display.
+     */
+    private fun startForegroundCompat(
+        notificationId: Int,
+        notification: android.app.Notification,
+    ) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(
+                notificationId,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
+            )
+        } else {
+            startForeground(notificationId, notification)
+        }
     }
 
     /** Constants for [ZeroClawDaemonService]. */
