@@ -13,7 +13,6 @@ package com.zeroclaw.android.model
  * plugin is enabled.
  */
 object OfficialPlugins {
-
     /** Web search tool (DuckDuckGo / Brave). Maps to `[web_search]`. */
     const val WEB_SEARCH = "official-web-search"
 
@@ -39,10 +38,17 @@ object OfficialPlugins {
     const val QUERY_CLASSIFICATION = "official-query-classification"
 
     /** Set of all official plugin IDs. */
-    val ALL: Set<String> = setOf(
-        WEB_SEARCH, WEB_FETCH, HTTP_REQUEST, BROWSER,
-        COMPOSIO, VISION, TRANSCRIPTION, QUERY_CLASSIFICATION,
-    )
+    val ALL: Set<String> =
+        setOf(
+            WEB_SEARCH,
+            WEB_FETCH,
+            HTTP_REQUEST,
+            BROWSER,
+            COMPOSIO,
+            VISION,
+            TRANSCRIPTION,
+            QUERY_CLASSIFICATION,
+        )
 
     /** Returns true if the given [pluginId] is an official built-in plugin. */
     fun isOfficial(pluginId: String): Boolean = pluginId in ALL

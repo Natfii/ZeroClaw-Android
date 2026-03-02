@@ -421,6 +421,16 @@ private class InMemorySettingsRepository : SettingsRepository {
 
     override suspend fun setQueryClassificationEnabled(enabled: Boolean) { /* no-op */ }
 
+    override suspend fun setSkillsOpenSkillsEnabled(enabled: Boolean) { /* no-op */ }
+
+    override suspend fun setSkillsOpenSkillsDir(dir: String) { /* no-op */ }
+
+    override suspend fun setSkillsPromptInjectionMode(mode: String) { /* no-op */ }
+
+    override suspend fun setHttpRequestMaxResponseSize(size: Int) { /* no-op */ }
+
+    override suspend fun setHttpRequestTimeoutSecs(secs: Int) { /* no-op */ }
+
     override suspend fun setProxyEnabled(enabled: Boolean) { /* no-op */ }
 
     override suspend fun setProxyHttpProxy(proxy: String) { /* no-op */ }

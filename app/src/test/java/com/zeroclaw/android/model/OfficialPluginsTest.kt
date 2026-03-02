@@ -8,7 +8,6 @@ import org.junit.jupiter.api.Test
 
 @DisplayName("OfficialPlugins")
 class OfficialPluginsTest {
-
     @Test
     fun `ALL contains exactly 8 official plugin IDs`() {
         assertEquals(8, OfficialPlugins.ALL.size)

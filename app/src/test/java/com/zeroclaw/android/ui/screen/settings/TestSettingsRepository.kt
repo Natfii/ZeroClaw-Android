@@ -208,6 +208,16 @@ internal class TestSettingsRepository : SettingsRepository {
 
     override suspend fun setQueryClassificationEnabled(enabled: Boolean) = _settings.update { it.copy(queryClassificationEnabled = enabled) }
 
+    override suspend fun setSkillsOpenSkillsEnabled(enabled: Boolean) = _settings.update { it.copy(skillsOpenSkillsEnabled = enabled) }
+
+    override suspend fun setSkillsOpenSkillsDir(dir: String) = _settings.update { it.copy(skillsOpenSkillsDir = dir) }
+
+    override suspend fun setSkillsPromptInjectionMode(mode: String) = _settings.update { it.copy(skillsPromptInjectionMode = mode) }
+
+    override suspend fun setHttpRequestMaxResponseSize(size: Int) = _settings.update { it.copy(httpRequestMaxResponseSize = size) }
+
+    override suspend fun setHttpRequestTimeoutSecs(secs: Int) = _settings.update { it.copy(httpRequestTimeoutSecs = secs) }
+
     override suspend fun setProxyEnabled(enabled: Boolean) = _settings.update { it.copy(proxyEnabled = enabled) }
 
     override suspend fun setProxyHttpProxy(proxy: String) = _settings.update { it.copy(proxyHttpProxy = proxy) }

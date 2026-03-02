@@ -1227,9 +1227,10 @@ object ConfigTomlBuilder {
      * @param config Configuration to read skills values from.
      */
     private fun StringBuilder.appendSkillsSection(config: GlobalTomlConfig) {
-        val hasNonDefault = config.skillsOpenSkillsEnabled ||
-            config.skillsOpenSkillsDir.isNotBlank() ||
-            config.skillsPromptInjectionMode != "full"
+        val hasNonDefault =
+            config.skillsOpenSkillsEnabled ||
+                config.skillsOpenSkillsDir.isNotBlank() ||
+                config.skillsPromptInjectionMode != "full"
         if (!hasNonDefault) return
 
         appendLine()

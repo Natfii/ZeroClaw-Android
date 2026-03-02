@@ -83,16 +83,17 @@ class RoomPluginRepository(
      * @param settings Current application settings to sync from.
      */
     override suspend fun syncOfficialPluginStates(settings: AppSettings) {
-        val mapping = mapOf(
-            OfficialPlugins.WEB_SEARCH to settings.webSearchEnabled,
-            OfficialPlugins.WEB_FETCH to settings.webFetchEnabled,
-            OfficialPlugins.HTTP_REQUEST to settings.httpRequestEnabled,
-            OfficialPlugins.BROWSER to settings.browserEnabled,
-            OfficialPlugins.COMPOSIO to settings.composioEnabled,
-            OfficialPlugins.VISION to true,
-            OfficialPlugins.TRANSCRIPTION to settings.transcriptionEnabled,
-            OfficialPlugins.QUERY_CLASSIFICATION to settings.queryClassificationEnabled,
-        )
+        val mapping =
+            mapOf(
+                OfficialPlugins.WEB_SEARCH to settings.webSearchEnabled,
+                OfficialPlugins.WEB_FETCH to settings.webFetchEnabled,
+                OfficialPlugins.HTTP_REQUEST to settings.httpRequestEnabled,
+                OfficialPlugins.BROWSER to settings.browserEnabled,
+                OfficialPlugins.COMPOSIO to settings.composioEnabled,
+                OfficialPlugins.VISION to true,
+                OfficialPlugins.TRANSCRIPTION to settings.transcriptionEnabled,
+                OfficialPlugins.QUERY_CLASSIFICATION to settings.queryClassificationEnabled,
+            )
         for ((id, enabled) in mapping) {
             dao.setEnabled(id, enabled)
         }
