@@ -7,6 +7,7 @@
 package com.zeroclaw.android.data.local
 
 import com.zeroclaw.android.data.local.entity.PluginEntity
+import com.zeroclaw.android.model.OfficialPlugins
 import com.zeroclaw.android.model.PluginCategory
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -23,63 +24,128 @@ object SeedData {
      *
      * @return List of pre-configured [PluginEntity] instances.
      */
+    /**
+     * Returns all seed plugin entities: official built-in plugins plus
+     * community sample plugins.
+     *
+     * @return List of pre-configured [PluginEntity] instances.
+     */
     @Suppress("LongMethod")
-    fun seedPlugins(): List<PluginEntity> =
-        listOf(
-            PluginEntity(
-                id = "plugin-http-channel",
-                name = "HTTP Channel",
-                description = "REST API channel for agent communication.",
-                version = "1.0.0",
-                author = "ZeroClaw",
-                category = PluginCategory.CHANNEL.name,
-                isInstalled = true,
-                isEnabled = true,
-                configJson = Json.encodeToString(mapOf("port" to "8080", "host" to "0.0.0.0")),
-            ),
-            PluginEntity(
-                id = "plugin-mqtt-channel",
-                name = "MQTT Channel",
-                description = "MQTT message broker channel for IoT integration.",
-                version = "0.9.0",
-                author = "ZeroClaw",
-                category = PluginCategory.CHANNEL.name,
-                isInstalled = true,
-                isEnabled = false,
-                configJson = Json.encodeToString(emptyMap<String, String>()),
-            ),
-            PluginEntity(
-                id = "plugin-sqlite-memory",
-                name = "SQLite Memory",
-                description = "Persistent agent memory backed by SQLite.",
-                version = "1.2.0",
-                author = "ZeroClaw",
-                category = PluginCategory.MEMORY.name,
-                isInstalled = false,
-                isEnabled = false,
-                configJson = Json.encodeToString(emptyMap<String, String>()),
-            ),
-            PluginEntity(
-                id = "plugin-web-search",
-                name = "Web Search Tool",
-                description = "Adds web search capability to agents.",
-                version = "0.5.0",
-                author = "Community",
-                category = PluginCategory.TOOL.name,
-                isInstalled = false,
-                isEnabled = false,
-                configJson = Json.encodeToString(emptyMap<String, String>()),
-            ),
-            PluginEntity(
-                id = "plugin-prometheus",
-                name = "Prometheus Observer",
-                description = "Exports daemon metrics to Prometheus.",
-                version = "1.0.0",
-                author = "Community",
-                category = PluginCategory.OBSERVER.name,
-                isInstalled = false,
-                isEnabled = false,
-                configJson = Json.encodeToString(emptyMap<String, String>()),
-            ),
-        )
+    fun seedPlugins(): List<PluginEntity> = officialPluginEntities() + communityPluginEntities()
+
+    private fun officialPluginEntities(): List<PluginEntity> = listOf(
+        PluginEntity(
+            id = OfficialPlugins.WEB_SEARCH,
+            name = "Web Search",
+            description = "Search the web via DuckDuckGo or Brave.",
+            version = "1.0.0",
+            author = "ZeroClaw",
+            category = PluginCategory.TOOL.name,
+            isInstalled = true,
+            isEnabled = false,
+            configJson = "{}",
+        ),
+        PluginEntity(
+            id = OfficialPlugins.WEB_FETCH,
+            name = "Web Fetch",
+            description = "Fetch and read web page content.",
+            version = "1.0.0",
+            author = "ZeroClaw",
+            category = PluginCategory.TOOL.name,
+            isInstalled = true,
+            isEnabled = false,
+            configJson = "{}",
+        ),
+        PluginEntity(
+            id = OfficialPlugins.HTTP_REQUEST,
+            name = "HTTP Request",
+            description = "Make HTTP calls to external APIs.",
+            version = "1.0.0",
+            author = "ZeroClaw",
+            category = PluginCategory.TOOL.name,
+            isInstalled = true,
+            isEnabled = false,
+            configJson = "{}",
+        ),
+        PluginEntity(
+            id = OfficialPlugins.BROWSER,
+            name = "Browser",
+            description = "Browse and interact with web pages.",
+            version = "1.0.0",
+            author = "ZeroClaw",
+            category = PluginCategory.TOOL.name,
+            isInstalled = true,
+            isEnabled = false,
+            configJson = "{}",
+        ),
+        PluginEntity(
+            id = OfficialPlugins.COMPOSIO,
+            name = "Composio",
+            description = "Third-party tool integrations via Composio.",
+            version = "1.0.0",
+            author = "ZeroClaw",
+            category = PluginCategory.TOOL.name,
+            isInstalled = true,
+            isEnabled = false,
+            configJson = "{}",
+        ),
+        PluginEntity(
+            id = OfficialPlugins.VISION,
+            name = "Vision",
+            description = "Process images for multimodal queries.",
+            version = "1.0.0",
+            author = "ZeroClaw",
+            category = PluginCategory.TOOL.name,
+            isInstalled = true,
+            isEnabled = true,
+            configJson = "{}",
+        ),
+        PluginEntity(
+            id = OfficialPlugins.TRANSCRIPTION,
+            name = "Transcription",
+            description = "Transcribe audio via Whisper-compatible API.",
+            version = "1.0.0",
+            author = "ZeroClaw",
+            category = PluginCategory.TOOL.name,
+            isInstalled = true,
+            isEnabled = false,
+            configJson = "{}",
+        ),
+        PluginEntity(
+            id = OfficialPlugins.QUERY_CLASSIFICATION,
+            name = "Query Classification",
+            description = "Classify queries for intelligent model routing.",
+            version = "1.0.0",
+            author = "ZeroClaw",
+            category = PluginCategory.OTHER.name,
+            isInstalled = true,
+            isEnabled = false,
+            configJson = "{}",
+        ),
+    )
+
+    private fun communityPluginEntities(): List<PluginEntity> = listOf(
+        PluginEntity(
+            id = "plugin-http-channel",
+            name = "HTTP Channel",
+            description = "REST API channel for agent communication.",
+            version = "1.0.0",
+            author = "ZeroClaw",
+            category = PluginCategory.CHANNEL.name,
+            isInstalled = true,
+            isEnabled = true,
+            configJson = Json.encodeToString(mapOf("port" to "8080", "host" to "0.0.0.0")),
+        ),
+        PluginEntity(
+            id = "plugin-mqtt-channel",
+            name = "MQTT Channel",
+            description = "MQTT message broker channel for IoT communication.",
+            version = "1.0.0",
+            author = "ZeroClaw",
+            category = PluginCategory.CHANNEL.name,
+            isInstalled = true,
+            isEnabled = false,
+            configJson = "{}",
+        ),
+    )
 }
