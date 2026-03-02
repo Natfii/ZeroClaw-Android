@@ -31,7 +31,10 @@ data class Plugin(
     val isEnabled: Boolean = false,
     val configFields: Map<String, String> = emptyMap(),
     val remoteVersion: String? = null,
-)
+) {
+    /** True if this is an official built-in plugin that cannot be uninstalled. */
+    val isOfficial: Boolean get() = OfficialPlugins.isOfficial(id)
+}
 
 /**
  * Functional category for plugins.
