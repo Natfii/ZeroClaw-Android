@@ -95,7 +95,7 @@ jobs:
 
   screen-test:
     name: Screen Tests
-    if: ${{ !inputs.skip-emu-tests }}
+    if: ${{ !inputs.skip-emu-tests && github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     needs: [test]
     timeout-minutes: 20
@@ -142,7 +142,7 @@ jobs:
 
   maestro-test:
     name: Maestro E2E
-    if: ${{ !inputs.skip-emu-tests }}
+    if: ${{ !inputs.skip-emu-tests && github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     needs: [test]
     timeout-minutes: 20

@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.zeroclaw.android.model.ServiceState
 import com.zeroclaw.android.screen.helpers.fakeTerminalState
+import com.zeroclaw.android.ui.screen.terminal.StreamingState
 import com.zeroclaw.android.ui.screen.terminal.TerminalBlock
 import com.zeroclaw.android.ui.screen.terminal.TerminalContent
 import org.junit.Rule
@@ -38,10 +39,12 @@ class TerminalScreenTest {
         composeTestRule.setContent {
             TerminalContent(
                 state = state,
+                streamingState = StreamingState(),
                 serviceState = ServiceState.RUNNING,
                 onSubmit = {},
                 onAttachImages = {},
                 onRemoveImage = {},
+                onCancelAgent = {},
                 edgeMargin = 16.dp,
             )
         }
@@ -55,10 +58,12 @@ class TerminalScreenTest {
         composeTestRule.setContent {
             TerminalContent(
                 state = fakeTerminalState(),
+                streamingState = StreamingState(),
                 serviceState = ServiceState.RUNNING,
                 onSubmit = {},
                 onAttachImages = {},
                 onRemoveImage = {},
+                onCancelAgent = {},
                 edgeMargin = 16.dp,
             )
         }
@@ -72,10 +77,12 @@ class TerminalScreenTest {
         composeTestRule.setContent {
             TerminalContent(
                 state = fakeTerminalState(),
+                streamingState = StreamingState(),
                 serviceState = ServiceState.RUNNING,
                 onSubmit = {},
                 onAttachImages = {},
                 onRemoveImage = {},
+                onCancelAgent = {},
                 edgeMargin = 16.dp,
             )
         }
@@ -90,10 +97,12 @@ class TerminalScreenTest {
         composeTestRule.setContent {
             TerminalContent(
                 state = state,
+                streamingState = StreamingState(),
                 serviceState = ServiceState.RUNNING,
                 onSubmit = {},
                 onAttachImages = {},
                 onRemoveImage = {},
+                onCancelAgent = {},
                 edgeMargin = 16.dp,
             )
         }
@@ -118,10 +127,12 @@ class TerminalScreenTest {
         composeTestRule.setContent {
             TerminalContent(
                 state = state,
+                streamingState = StreamingState(),
                 serviceState = ServiceState.RUNNING,
                 onSubmit = {},
                 onAttachImages = {},
                 onRemoveImage = {},
+                onCancelAgent = {},
                 edgeMargin = 16.dp,
             )
         }
@@ -135,10 +146,12 @@ class TerminalScreenTest {
         composeTestRule.setContent {
             TerminalContent(
                 state = fakeTerminalState(),
+                streamingState = StreamingState(),
                 serviceState = ServiceState.RUNNING,
                 onSubmit = {},
                 onAttachImages = {},
                 onRemoveImage = {},
+                onCancelAgent = {},
                 edgeMargin = 16.dp,
             )
         }
