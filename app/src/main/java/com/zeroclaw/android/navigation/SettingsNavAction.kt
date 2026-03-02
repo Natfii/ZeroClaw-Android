@@ -50,9 +50,6 @@ sealed interface SettingsNavAction {
     /** Navigate to the gateway and pairing screen. */
     data object Gateway : SettingsNavAction
 
-    /** Navigate to the tool management screen. */
-    data object ToolManagement : SettingsNavAction
-
     /** Navigate to the model routes screen. */
     data object ModelRoutes : SettingsNavAction
 
@@ -74,9 +71,6 @@ sealed interface SettingsNavAction {
     /** Navigate to the scheduled tasks (cron jobs) screen. */
     data object CronJobs : SettingsNavAction
 
-    /** Navigate to the tools browser screen. */
-    data object ToolsBrowser : SettingsNavAction
-
     /** Navigate to the memory browser screen. */
     data object MemoryBrowser : SettingsNavAction
 
@@ -85,9 +79,6 @@ sealed interface SettingsNavAction {
 
     /** Navigate to the embedding routes configuration screen. */
     data object EmbeddingRoutes : SettingsNavAction
-
-    /** Navigate to the web access configuration screen. */
-    data object WebAccess : SettingsNavAction
 
     /** Navigate to the auth profiles management screen. */
     data object AuthProfiles : SettingsNavAction

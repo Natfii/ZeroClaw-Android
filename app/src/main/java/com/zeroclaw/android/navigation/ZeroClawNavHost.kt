@@ -55,7 +55,6 @@ import com.zeroclaw.android.ui.screen.settings.SecurityOverviewScreen
 import com.zeroclaw.android.ui.screen.settings.ServiceConfigScreen
 import com.zeroclaw.android.ui.screen.settings.SettingsScreen
 import com.zeroclaw.android.ui.screen.settings.SettingsViewModel
-import com.zeroclaw.android.ui.screen.settings.ToolManagementScreen
 import com.zeroclaw.android.ui.screen.settings.TunnelScreen
 import com.zeroclaw.android.ui.screen.settings.UpdatesScreen
 import com.zeroclaw.android.ui.screen.settings.apikeys.ApiKeyDetailScreen
@@ -69,8 +68,6 @@ import com.zeroclaw.android.ui.screen.settings.doctor.DoctorScreen
 import com.zeroclaw.android.ui.screen.settings.gateway.QrScannerScreen
 import com.zeroclaw.android.ui.screen.settings.logs.LogViewerScreen
 import com.zeroclaw.android.ui.screen.settings.memory.MemoryBrowserScreen
-import com.zeroclaw.android.ui.screen.settings.tools.ToolsBrowserScreen
-import com.zeroclaw.android.ui.screen.settings.web.WebAccessScreen
 import com.zeroclaw.android.ui.screen.setup.SetupScreen
 import com.zeroclaw.android.ui.screen.terminal.TerminalScreen
 import kotlinx.coroutines.flow.first
@@ -225,8 +222,6 @@ fun ZeroClawNavHost(
                             navController.navigate(TunnelRoute)
                         SettingsNavAction.Gateway ->
                             navController.navigate(GatewayRoute)
-                        SettingsNavAction.ToolManagement ->
-                            navController.navigate(ToolManagementRoute)
                         SettingsNavAction.ModelRoutes ->
                             navController.navigate(ModelRoutesRoute)
                         SettingsNavAction.MemoryAdvanced ->
@@ -241,16 +236,12 @@ fun ZeroClawNavHost(
                             navController.navigate(PluginRegistryRoute)
                         SettingsNavAction.CronJobs ->
                             navController.navigate(CronJobsRoute)
-                        SettingsNavAction.ToolsBrowser ->
-                            navController.navigate(ToolsBrowserRoute)
                         SettingsNavAction.MemoryBrowser ->
                             navController.navigate(MemoryBrowserRoute)
                         SettingsNavAction.SecurityAdvanced ->
                             navController.navigate(SecurityAdvancedRoute)
                         SettingsNavAction.EmbeddingRoutes ->
                             navController.navigate(EmbeddingRoutesRoute)
-                        SettingsNavAction.WebAccess ->
-                            navController.navigate(WebAccessRoute)
                         SettingsNavAction.AuthProfiles ->
                             navController.navigate(AuthProfilesRoute)
                     }
@@ -475,10 +466,6 @@ fun ZeroClawNavHost(
             )
         }
 
-        composable<ToolManagementRoute> {
-            ToolManagementScreen(edgeMargin = edgeMargin)
-        }
-
         composable<ModelRoutesRoute> {
             ModelRoutesScreen(edgeMargin = edgeMargin)
         }
@@ -518,14 +505,6 @@ fun ZeroClawNavHost(
 
         composable<EmbeddingRoutesRoute> {
             EmbeddingRoutesScreen(edgeMargin = edgeMargin)
-        }
-
-        composable<WebAccessRoute> {
-            WebAccessScreen(edgeMargin = edgeMargin)
-        }
-
-        composable<ToolsBrowserRoute> {
-            ToolsBrowserScreen(edgeMargin = edgeMargin)
         }
 
         composable<MemoryBrowserRoute> {

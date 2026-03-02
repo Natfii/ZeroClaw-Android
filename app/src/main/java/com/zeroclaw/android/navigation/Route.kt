@@ -127,10 +127,6 @@ data object TunnelRoute
 @Serializable
 data object GatewayRoute
 
-/** Tool management screen (browser, HTTP, Composio). */
-@Serializable
-data object ToolManagementRoute
-
 /** Model routing rules screen. */
 @Serializable
 data object ModelRoutesRoute
@@ -163,10 +159,6 @@ data object CostDetailRoute
 @Serializable
 data object CronJobsRoute
 
-/** Tools inventory browser screen. */
-@Serializable
-data object ToolsBrowserRoute
-
 /** Memory entries browser screen. */
 @Serializable
 data object MemoryBrowserRoute
@@ -178,10 +170,6 @@ data object SecurityAdvancedRoute
 /** Embedding routes configuration screen. */
 @Serializable
 data object EmbeddingRoutesRoute
-
-/** Web access configuration screen (web fetch, web search, HTTP request). */
-@Serializable
-data object WebAccessRoute
 
 /** First-run onboarding wizard. */
 @Serializable

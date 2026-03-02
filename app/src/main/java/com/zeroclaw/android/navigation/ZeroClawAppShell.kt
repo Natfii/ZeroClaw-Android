@@ -237,8 +237,6 @@ private fun screenTitleFor(destination: NavDestination?): String? {
         destination.hasRoute(SchedulerRoute::class) -> "Scheduler"
         destination.hasRoute(SecurityOverviewRoute::class) -> "Security"
         destination.hasRoute(ServiceConfigRoute::class) -> "Service Config"
-        destination.hasRoute(ToolManagementRoute::class) -> "Tools"
-        destination.hasRoute(ToolsBrowserRoute::class) -> "Tools Browser"
         destination.hasRoute(TunnelRoute::class) -> "Tunnel"
         destination.hasRoute(UpdatesRoute::class) -> "Updates"
         else -> null

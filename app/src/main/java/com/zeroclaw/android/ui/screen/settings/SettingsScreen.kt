@@ -29,7 +29,6 @@ import androidx.compose.material.icons.outlined.HealthAndSafety
 import androidx.compose.material.icons.outlined.Hub
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Key
-import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.Memory
 import androidx.compose.material.icons.outlined.Psychology
@@ -42,8 +41,6 @@ import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material.icons.outlined.TaskAlt
-import androidx.compose.material.icons.outlined.Token
-import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.material.icons.outlined.VpnKey
 import androidx.compose.material3.AlertDialog
@@ -230,12 +227,6 @@ internal fun SettingsContent(
             onClick = { onNavigate(SettingsNavAction.Tunnel) },
         )
         SettingsListItem(
-            icon = Icons.Outlined.Language,
-            title = "Web Access",
-            subtitle = buildWebAccessSubtitle(settings),
-            onClick = { onNavigate(SettingsNavAction.WebAccess) },
-        )
-        SettingsListItem(
             icon = Icons.Outlined.Sync,
             title = "Plugin Registry",
             subtitle =
@@ -263,12 +254,6 @@ internal fun SettingsContent(
             title = "Embedding Routes",
             subtitle = "Hint-based embedding provider routing",
             onClick = { onNavigate(SettingsNavAction.EmbeddingRoutes) },
-        )
-        SettingsListItem(
-            icon = Icons.Outlined.Tune,
-            title = "Tool Management",
-            subtitle = "Browser, HTTP, Composio, Web Fetch, Web Search",
-            onClick = { onNavigate(SettingsNavAction.ToolManagement) },
         )
         SettingsListItem(
             icon = Icons.Outlined.Schedule,
@@ -303,12 +288,6 @@ internal fun SettingsContent(
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
         SectionHeader(title = "Inspect & Browse")
-        SettingsListItem(
-            icon = Icons.Outlined.Token,
-            title = "Tools Browser",
-            subtitle = "View all available tools",
-            onClick = { onNavigate(SettingsNavAction.ToolsBrowser) },
-        )
         SettingsListItem(
             icon = Icons.Outlined.Psychology,
             title = "Memory Browser",
@@ -471,19 +450,4 @@ private fun RerunWizardDialog(
             }
         },
     )
-}
-
-/**
- * Builds a concise subtitle for the Web Access settings item showing
- * which web tools are currently enabled.
- *
- * @param settings Current application settings.
- * @return A summary string listing enabled web tools, or "All disabled".
- */
-private fun buildWebAccessSubtitle(settings: AppSettings): String {
-    val parts = mutableListOf<String>()
-    if (settings.webFetchEnabled) parts += "Fetch"
-    if (settings.webSearchEnabled) parts += "Search"
-    if (settings.httpRequestEnabled) parts += "HTTP"
-    return if (parts.isEmpty()) "All disabled" else parts.joinToString(", ")
 }
