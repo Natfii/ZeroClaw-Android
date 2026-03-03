@@ -35,6 +35,7 @@ import com.zeroclaw.android.model.MemoryHealthResult
 import com.zeroclaw.android.model.ServiceState
 import com.zeroclaw.android.util.LogSanitizer
 import com.zeroclaw.ffi.FfiException
+import com.zeroclaw.ffi.validateConfig
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -231,6 +232,51 @@ class ZeroClawDaemonService : Service() {
                 )
             val agentsToml = buildAgentsToml()
             val configToml = baseToml + channelsToml + agentsToml
+
+            try {
+                val validationResult = validateConfig(configToml)
+                if (validationResult.isNotEmpty()) {
+                    val safeMsg = LogSanitizer.sanitizeLogMessage(validationResult)
+                    Log.e(TAG, "Config validation failed: $safeMsg")
+                    logRepository.append(
+                        LogSeverity.ERROR,
+                        TAG,
+                        "Config validation failed: $safeMsg",
+                    )
+                    activityRepository.record(
+                        ActivityType.DAEMON_ERROR,
+                        "Config validation failed: $safeMsg",
+                    )
+                    notificationManager.updateNotification(
+                        ServiceState.ERROR,
+                        errorDetail = safeMsg,
+                    )
+                    releaseWakeLock()
+                    stopForeground(STOP_FOREGROUND_DETACH)
+                    stopSelf()
+                    return@launch
+                }
+            } catch (e: FfiException) {
+                val safeMsg = LogSanitizer.sanitizeLogMessage(e.message ?: "Unknown error")
+                Log.e(TAG, "Config validation threw: $safeMsg")
+                logRepository.append(
+                    LogSeverity.ERROR,
+                    TAG,
+                    "Config validation error: $safeMsg",
+                )
+                activityRepository.record(
+                    ActivityType.DAEMON_ERROR,
+                    "Config validation error: $safeMsg",
+                )
+                notificationManager.updateNotification(
+                    ServiceState.ERROR,
+                    errorDetail = safeMsg,
+                )
+                releaseWakeLock()
+                stopForeground(STOP_FOREGROUND_DETACH)
+                stopSelf()
+                return@launch
+            }
 
             val conflict = bridge.detectMemoryConflict(effectiveSettings.memoryBackend)
             if (conflict is MemoryConflict.StaleData) {
