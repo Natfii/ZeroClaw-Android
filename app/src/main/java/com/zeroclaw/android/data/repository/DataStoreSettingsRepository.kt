@@ -21,9 +21,12 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.zeroclaw.android.data.SecurePrefsProvider
 import com.zeroclaw.android.model.AppSettings
 import com.zeroclaw.android.model.ThemeMode
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.launch
 
 /** Extension property providing the singleton [DataStore] for app settings. */
 private val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(
@@ -51,6 +54,34 @@ class DataStoreSettingsRepository(
         SecurePrefsProvider.create(context, SECURE_SETTINGS_PREFS).first
 
     private val secureRevision = MutableStateFlow(0)
+
+    init {
+        runMigrations()
+    }
+
+    /**
+     * Runs all one-time DataStore preference migrations.
+     *
+     * Migrations are keyed by [KEY_PREFS_MIGRATION_VERSION] and run
+     * atomically inside a single [DataStore.edit] transaction. Each
+     * migration level guards itself so it only applies once.
+     *
+     * **Migration 1**: Enables web search and web fetch tools by default
+     * for users upgrading from a version where these tools did not exist.
+     * Both tools are free (no API key required for DuckDuckGo search).
+     */
+    private fun runMigrations() {
+        CoroutineScope(Dispatchers.IO).launch {
+            context.settingsDataStore.edit { prefs ->
+                val currentVersion = prefs[KEY_PREFS_MIGRATION_VERSION] ?: 0
+                if (currentVersion < MIGRATION_V1) {
+                    prefs[KEY_WEB_SEARCH_ENABLED] = true
+                    prefs[KEY_WEB_FETCH_ENABLED] = true
+                    prefs[KEY_PREFS_MIGRATION_VERSION] = MIGRATION_V1
+                }
+            }
+        }
+    }
 
     override val settings: Flow<AppSettings> =
         combine(
@@ -562,6 +593,9 @@ class DataStoreSettingsRepository(
      */
     @Suppress("MemberNameEqualsClassName")
     private companion object {
+        /** Migration version that enables web search and web fetch by default. */
+        const val MIGRATION_V1 = 1
+
         const val SEC_TUNNEL_CF_TOKEN = "sec_tunnel_cf_token"
         const val SEC_TUNNEL_NGROK_TOKEN = "sec_tunnel_ngrok_token"
         const val SEC_GW_PAIRED_TOKENS = "sec_gw_paired_tokens"
@@ -700,5 +734,6 @@ class DataStoreSettingsRepository(
         val KEY_PROXY_SERVICE_SELECTORS = stringPreferencesKey("proxy_service_selectors")
         val KEY_RELIABILITY_BACKOFF_MS = intPreferencesKey("reliability_backoff_ms")
         val KEY_RELIABILITY_API_KEYS_JSON = stringPreferencesKey("reliability_api_keys_json")
+        val KEY_PREFS_MIGRATION_VERSION = intPreferencesKey("prefs_migration_version")
     }
 }
