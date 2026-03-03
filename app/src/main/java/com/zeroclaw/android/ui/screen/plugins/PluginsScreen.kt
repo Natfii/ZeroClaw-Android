@@ -4,6 +4,7 @@
  * Licensed under the MIT License. See LICENSE in the project root.
  */
 
+@file:OptIn(ExperimentalMaterial3Api::class)
 @file:Suppress("MatchingDeclarationName")
 
 package com.zeroclaw.android.ui.screen.plugins
@@ -25,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.RestartAlt
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilledTonalButton
@@ -36,8 +38,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
+import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -48,6 +50,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -168,52 +171,79 @@ internal fun PluginsContent(
                     .fillMaxSize()
                     .padding(horizontal = edgeMargin),
         ) {
-            Row(
+            PrimaryScrollableTabRow(
+                selectedTabIndex = state.selectedTab,
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
+                edgePadding = 0.dp,
             ) {
-                TabRow(
-                    selectedTabIndex = state.selectedTab,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Tab(
-                        selected = state.selectedTab == TAB_INSTALLED,
-                        onClick = { onSelectTab(TAB_INSTALLED) },
-                        text = { Text("Installed") },
-                    )
-                    Tab(
-                        selected = state.selectedTab == TAB_AVAILABLE,
-                        onClick = { onSelectTab(TAB_AVAILABLE) },
-                        text = { Text("Available") },
-                    )
-                    Tab(
-                        selected = state.selectedTab == TAB_SKILLS,
-                        onClick = { onSelectTab(TAB_SKILLS) },
-                        text = { Text("Skills") },
-                    )
-                    Tab(
-                        selected = state.selectedTab == TAB_TOOLS,
-                        onClick = { onSelectTab(TAB_TOOLS) },
-                        text = { Text("Tools") },
-                    )
-                }
-                if (state.selectedTab == TAB_INSTALLED) {
-                    IconButton(
-                        onClick = onRestoreDefaults,
-                        modifier =
-                            Modifier.semantics {
-                                contentDescription = "Restore official plugins to defaults"
-                            },
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.RestartAlt,
-                            contentDescription = null,
+                Tab(
+                    selected = state.selectedTab == TAB_INSTALLED,
+                    onClick = { onSelectTab(TAB_INSTALLED) },
+                    text = {
+                        Text(
+                            "Installed",
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
-                    }
-                }
-                if (state.selectedTab == TAB_INSTALLED ||
-                    state.selectedTab == TAB_AVAILABLE
+                    },
+                )
+                Tab(
+                    selected = state.selectedTab == TAB_AVAILABLE,
+                    onClick = { onSelectTab(TAB_AVAILABLE) },
+                    text = {
+                        Text(
+                            "Hub",
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    },
+                )
+                Tab(
+                    selected = state.selectedTab == TAB_SKILLS,
+                    onClick = { onSelectTab(TAB_SKILLS) },
+                    text = {
+                        Text(
+                            "Skills",
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    },
+                )
+                Tab(
+                    selected = state.selectedTab == TAB_TOOLS,
+                    onClick = { onSelectTab(TAB_TOOLS) },
+                    text = {
+                        Text(
+                            "Tools",
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    },
+                )
+            }
+            if (state.selectedTab == TAB_INSTALLED ||
+                state.selectedTab == TAB_AVAILABLE
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    if (state.selectedTab == TAB_INSTALLED) {
+                        IconButton(
+                            onClick = onRestoreDefaults,
+                            modifier =
+                                Modifier.semantics {
+                                    contentDescription =
+                                        "Restore official plugins to defaults"
+                                },
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.RestartAlt,
+                                contentDescription = null,
+                            )
+                        }
+                    }
                     IconButton(
                         onClick = onSyncNow,
                         enabled = state.syncState !is SyncUiState.Syncing,
