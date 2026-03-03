@@ -264,6 +264,27 @@ pub(crate) fn start_daemon_inner(
         detail: format!("failed to parse config TOML: {e}"),
     })?;
 
+    // Android does not ship the agent-browser CLI or desktop screenshot
+    // tool. Exclude them from non-CLI channels (Telegram, Discord, etc.)
+    // as a safety net in case ConfigTomlBuilder omits the field.
+    for tool_name in ["browser", "screenshot"] {
+        if !config
+            .autonomy
+            .non_cli_excluded_tools
+            .iter()
+            .any(|t| t == tool_name)
+        {
+            config
+                .autonomy
+                .non_cli_excluded_tools
+                .push(tool_name.to_string());
+        }
+    }
+    tracing::info!(
+        excluded = ?config.autonomy.non_cli_excluded_tools,
+        "Android tool exclusions applied for non-CLI channels"
+    );
+
     let data_path = PathBuf::from(&data_dir);
     config.workspace_dir = data_path.join("workspace");
     config.config_path = data_path.join("config.toml");

@@ -4423,6 +4423,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "futures-util",
+ "nanohtml2text",
  "reqwest",
  "rhai",
  "serde",

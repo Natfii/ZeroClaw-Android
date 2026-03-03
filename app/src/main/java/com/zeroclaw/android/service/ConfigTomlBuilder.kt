@@ -671,7 +671,8 @@ object ConfigTomlBuilder {
      *
      * Upstream fields: level, workspace_only, allowed_commands, forbidden_paths,
      * max_actions_per_hour, max_cost_per_day_cents, require_approval_for_medium_risk,
-     * block_high_risk_commands (see `.claude/submodule-api-map.md` lines 258-266).
+     * block_high_risk_commands, non_cli_excluded_tools
+     * (see `.claude/submodule-api-map.md` lines 258-266).
      *
      * @param config Configuration to read autonomy values from.
      */
@@ -692,6 +693,9 @@ object ConfigTomlBuilder {
         appendLine("max_cost_per_day_cents = ${config.maxCostPerDayCents.coerceAtLeast(0)}")
         appendLine("require_approval_for_medium_risk = ${config.requireApprovalMediumRisk}")
         appendLine("block_high_risk_commands = ${config.blockHighRiskCommands}")
+        val excludedTools = listOf("browser", "screenshot")
+        val toolsList = excludedTools.joinToString(", ") { tomlString(it) }
+        appendLine("non_cli_excluded_tools = [$toolsList]")
     }
 
     /**

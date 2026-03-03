@@ -112,6 +112,23 @@ const DELEGATE_TOOL: BuiltInTool = BuiltInTool {
     description: "Delegate tasks to sub-agents with independent context",
 };
 
+/// Web search tool (available when web_search is enabled).
+const WEB_SEARCH_TOOL: BuiltInTool = BuiltInTool {
+    name: "web_search",
+    description: "Search the web and return results with titles, URLs, and snippets",
+};
+
+/// Web fetch tool (available when web_fetch is enabled).
+const WEB_FETCH_TOOL: BuiltInTool = BuiltInTool {
+    name: "web_fetch",
+    description: "Fetch a web page and return its content as clean plain text",
+};
+
+/// Tool names that are incompatible with Android and should be hidden
+/// from the tools browser UI. These tools require desktop CLI binaries
+/// or capabilities not available on Android.
+const ANDROID_EXCLUDED_TOOLS: &[&str] = &["browser", "screenshot"];
+
 /// Converts a [`BuiltInTool`] to an [`FfiToolSpec`] with `"built-in"` source.
 fn builtin_to_spec(tool: &BuiltInTool) -> FfiToolSpec {
     FfiToolSpec {
@@ -125,28 +142,49 @@ fn builtin_to_spec(tool: &BuiltInTool) -> FfiToolSpec {
 /// Lists all available tools based on daemon configuration and installed skills.
 ///
 /// Enumerates built-in tools that are always active, conditionally adds
-/// browser/HTTP/Composio/delegate tools based on config flags, then
-/// appends tools from all installed skills.
+/// browser/HTTP/Composio/delegate/web_search/web_fetch tools based on
+/// config flags, then appends tools from all installed skills.
+///
+/// Android-incompatible tools (`browser`, `screenshot`) are filtered out
+/// because they require desktop CLI binaries that don't exist on Android.
 ///
 /// # Errors
 ///
 /// Returns [`FfiError::StateError`] if the daemon is not running.
 pub(crate) fn list_tools_inner() -> Result<Vec<FfiToolSpec>, FfiError> {
-    let (workspace_dir, browser_enabled, http_enabled, composio_key, has_agents) =
-        crate::runtime::with_daemon_config(|config| {
-            (
-                config.workspace_dir.clone(),
-                config.browser.enabled,
-                config.http_request.enabled,
-                config.composio.api_key.clone(),
-                !config.agents.is_empty(),
-            )
-        })?;
+    let (
+        workspace_dir,
+        browser_enabled,
+        http_enabled,
+        composio_key,
+        has_agents,
+        web_search_enabled,
+        web_fetch_enabled,
+    ) = crate::runtime::with_daemon_config(|config| {
+        (
+            config.workspace_dir.clone(),
+            config.browser.enabled,
+            config.http_request.enabled,
+            config.composio.api_key.clone(),
+            !config.agents.is_empty(),
+            config.web_search.enabled,
+            config.web_fetch.enabled,
+        )
+    })?;
 
-    let mut specs: Vec<FfiToolSpec> = CORE_TOOLS.iter().map(builtin_to_spec).collect();
+    let mut specs: Vec<FfiToolSpec> = CORE_TOOLS
+        .iter()
+        .filter(|t| !ANDROID_EXCLUDED_TOOLS.contains(&t.name))
+        .map(builtin_to_spec)
+        .collect();
 
     if browser_enabled {
-        specs.extend(BROWSER_TOOLS.iter().map(builtin_to_spec));
+        specs.extend(
+            BROWSER_TOOLS
+                .iter()
+                .filter(|t| !ANDROID_EXCLUDED_TOOLS.contains(&t.name))
+                .map(builtin_to_spec),
+        );
     }
 
     if http_enabled {
@@ -159,6 +197,14 @@ pub(crate) fn list_tools_inner() -> Result<Vec<FfiToolSpec>, FfiError> {
 
     if has_agents {
         specs.push(builtin_to_spec(&DELEGATE_TOOL));
+    }
+
+    if web_search_enabled {
+        specs.push(builtin_to_spec(&WEB_SEARCH_TOOL));
+    }
+
+    if web_fetch_enabled {
+        specs.push(builtin_to_spec(&WEB_FETCH_TOOL));
     }
 
     let skills = crate::skills::load_skills_from_workspace(&workspace_dir);
@@ -211,5 +257,25 @@ mod tests {
     #[test]
     fn test_browser_tools_count() {
         assert_eq!(BROWSER_TOOLS.len(), 2);
+    }
+
+    #[test]
+    fn test_excluded_tools_not_in_core_filtered() {
+        let filtered: Vec<&BuiltInTool> = CORE_TOOLS
+            .iter()
+            .filter(|t| !ANDROID_EXCLUDED_TOOLS.contains(&t.name))
+            .collect();
+        assert!(!filtered.iter().any(|t| t.name == "screenshot"));
+        assert!(filtered.iter().any(|t| t.name == "shell"));
+    }
+
+    #[test]
+    fn test_excluded_tools_not_in_browser_filtered() {
+        let filtered: Vec<&BuiltInTool> = BROWSER_TOOLS
+            .iter()
+            .filter(|t| !ANDROID_EXCLUDED_TOOLS.contains(&t.name))
+            .collect();
+        assert!(!filtered.iter().any(|t| t.name == "browser"));
+        assert!(filtered.iter().any(|t| t.name == "browser_open"));
     }
 }

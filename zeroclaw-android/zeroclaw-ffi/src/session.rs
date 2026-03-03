@@ -239,12 +239,524 @@ impl Tool for FfiMemoryForgetTool {
     }
 }
 
+/// FFI-specific web fetch tool that bypasses upstream's `SecurityPolicy`.
+///
+/// Upstream [`WebFetchTool`] requires `Arc<SecurityPolicy>` which is
+/// `pub(crate)` and inaccessible from the FFI crate. This wrapper
+/// replicates the upstream logic (URL validation, SSRF protection,
+/// allowlist/blocklist, HTML-to-text conversion) without the security
+/// policy dependency. On Android the user directly initiates all agent
+/// actions, so the upstream autonomy/rate-limit checks are unnecessary.
+struct FfiWebFetchTool {
+    /// Normalized allowed domains for URL validation.
+    allowed_domains: Vec<String>,
+    /// Normalized blocked domains (takes priority over allowlist).
+    blocked_domains: Vec<String>,
+    /// Maximum response body size in bytes before truncation.
+    max_response_size: usize,
+    /// HTTP request timeout in seconds.
+    timeout_secs: u64,
+}
+
+impl FfiWebFetchTool {
+    /// Validates a URL against the configured allowlist, blocklist, and DNS.
+    async fn validate_url(&self, raw_url: &str) -> anyhow::Result<String> {
+        validate_web_fetch_url_with_dns(raw_url, &self.allowed_domains, &self.blocked_domains).await
+    }
+
+    /// Truncates response text to the configured size limit.
+    fn truncate_response(&self, text: &str) -> String {
+        if text.len() > self.max_response_size {
+            let mut truncated = text
+                .chars()
+                .take(self.max_response_size)
+                .collect::<String>();
+            truncated.push_str("\n\n... [Response truncated due to size limit] ...");
+            truncated
+        } else {
+            text.to_string()
+        }
+    }
+
+    /// Reads the response body as text, streaming up to `max_response_size + 1` bytes.
+    async fn read_response_text_limited(
+        &self,
+        response: reqwest::Response,
+    ) -> anyhow::Result<String> {
+        use futures_util::StreamExt;
+
+        let hard_cap = self.max_response_size.saturating_add(1);
+        let mut bytes = Vec::new();
+        let mut stream = response.bytes_stream();
+
+        while let Some(chunk_result) = stream.next().await {
+            let chunk = chunk_result?;
+            if append_chunk_with_cap(&mut bytes, &chunk, hard_cap) {
+                break;
+            }
+        }
+
+        Ok(String::from_utf8_lossy(&bytes).into_owned())
+    }
+}
+
+#[async_trait]
+#[allow(clippy::too_many_lines)]
+impl Tool for FfiWebFetchTool {
+    fn name(&self) -> &'static str {
+        "web_fetch"
+    }
+
+    fn description(&self) -> &'static str {
+        "Fetch a web page and return its content as clean plain text. \
+         HTML pages are automatically converted to readable text. \
+         JSON and plain text responses are returned as-is. \
+         Only GET requests; follows redirects. \
+         Security: allowlist-only domains, no local/private hosts."
+    }
+
+    fn parameters_schema(&self) -> serde_json::Value {
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "url": {
+                    "type": "string",
+                    "description": "The HTTP or HTTPS URL to fetch"
+                }
+            },
+            "required": ["url"]
+        })
+    }
+
+    async fn execute(&self, args: serde_json::Value) -> anyhow::Result<ToolResult> {
+        let url = args
+            .get("url")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Missing 'url' parameter"))?;
+
+        let url = match self.validate_url(url).await {
+            Ok(v) => v,
+            Err(e) => {
+                return Ok(ToolResult {
+                    success: false,
+                    output: String::new(),
+                    error: Some(e.to_string()),
+                });
+            }
+        };
+
+        let timeout_secs = if self.timeout_secs == 0 {
+            tracing::warn!("web_fetch: timeout_secs is 0, using safe default of 30s");
+            30
+        } else {
+            self.timeout_secs
+        };
+
+        let allowed_domains = self.allowed_domains.clone();
+        let blocked_domains = self.blocked_domains.clone();
+        let redirect_policy = reqwest::redirect::Policy::custom(move |attempt| {
+            if attempt.previous().len() >= 10 {
+                return attempt.error(std::io::Error::other("Too many redirects (max 10)"));
+            }
+
+            if let Err(err) =
+                validate_web_fetch_url(attempt.url().as_str(), &allowed_domains, &blocked_domains)
+            {
+                return attempt.error(std::io::Error::new(
+                    std::io::ErrorKind::PermissionDenied,
+                    format!("Blocked redirect target: {err}"),
+                ));
+            }
+
+            attempt.follow()
+        });
+
+        let client = match reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(timeout_secs))
+            .connect_timeout(std::time::Duration::from_secs(10))
+            .redirect(redirect_policy)
+            .user_agent("ZeroClaw/0.1 (web_fetch)")
+            .build()
+        {
+            Ok(c) => c,
+            Err(e) => {
+                return Ok(ToolResult {
+                    success: false,
+                    output: String::new(),
+                    error: Some(format!("Failed to build HTTP client: {e}")),
+                });
+            }
+        };
+
+        let response = match client.get(&url).send().await {
+            Ok(r) => r,
+            Err(e) => {
+                return Ok(ToolResult {
+                    success: false,
+                    output: String::new(),
+                    error: Some(format!("HTTP request failed: {e}")),
+                });
+            }
+        };
+
+        let status = response.status();
+        if !status.is_success() {
+            return Ok(ToolResult {
+                success: false,
+                output: String::new(),
+                error: Some(format!(
+                    "HTTP {} {}",
+                    status.as_u16(),
+                    status.canonical_reason().unwrap_or("Unknown")
+                )),
+            });
+        }
+
+        let content_type = response
+            .headers()
+            .get(reqwest::header::CONTENT_TYPE)
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("")
+            .to_lowercase();
+
+        let body_mode = if content_type.contains("text/html") || content_type.is_empty() {
+            "html"
+        } else if content_type.contains("text/plain")
+            || content_type.contains("text/markdown")
+            || content_type.contains("application/json")
+        {
+            "plain"
+        } else {
+            return Ok(ToolResult {
+                success: false,
+                output: String::new(),
+                error: Some(format!(
+                    "Unsupported content type: {content_type}. \
+                     web_fetch supports text/html, text/plain, text/markdown, \
+                     and application/json."
+                )),
+            });
+        };
+
+        let body = match self.read_response_text_limited(response).await {
+            Ok(t) => t,
+            Err(e) => {
+                return Ok(ToolResult {
+                    success: false,
+                    output: String::new(),
+                    error: Some(format!("Failed to read response body: {e}")),
+                });
+            }
+        };
+
+        let text = if body_mode == "html" {
+            nanohtml2text::html2text(&body)
+        } else {
+            body
+        };
+
+        let output = self.truncate_response(&text);
+
+        Ok(ToolResult {
+            success: true,
+            output,
+            error: None,
+        })
+    }
+}
+
+// ── Web fetch URL validation helpers ────────────────────────────────────
+//
+// Replicated from upstream `tools/web_fetch.rs` (module-private functions).
+// Upstream functions are `fn` (not `pub`) by design; making them `pub`
+// would require modifying the submodule (forbidden). This is a one-time
+// cost for ~130 lines of well-tested validation logic.
+
+/// Validates a URL for web fetch: scheme, SSRF, allowlist, blocklist.
+///
+/// This is the synchronous variant used in redirect-policy closures where
+/// async DNS resolution is not possible. DNS rebinding protection is
+/// handled separately via [`validate_web_fetch_url_with_dns`].
+fn validate_web_fetch_url(
+    raw_url: &str,
+    allowed_domains: &[String],
+    blocked_domains: &[String],
+) -> anyhow::Result<String> {
+    let url = raw_url.trim();
+
+    if url.is_empty() {
+        anyhow::bail!("URL cannot be empty");
+    }
+
+    if url.chars().any(char::is_whitespace) {
+        anyhow::bail!("URL cannot contain whitespace");
+    }
+
+    if !url.starts_with("http://") && !url.starts_with("https://") {
+        anyhow::bail!("Only http:// and https:// URLs are allowed");
+    }
+
+    if allowed_domains.is_empty() {
+        anyhow::bail!(
+            "web_fetch tool is enabled but no allowed_domains are configured. \
+             Add [web_fetch].allowed_domains in config.toml"
+        );
+    }
+
+    let host = extract_web_fetch_host(url)?;
+
+    if is_private_or_local_host(&host) {
+        anyhow::bail!("Blocked local/private host: {host}");
+    }
+
+    if host_matches_list(&host, blocked_domains) {
+        anyhow::bail!("Host '{host}' is in web_fetch.blocked_domains");
+    }
+
+    if !host_matches_list(&host, allowed_domains) {
+        anyhow::bail!("Host '{host}' is not in web_fetch.allowed_domains");
+    }
+
+    Ok(url.to_string())
+}
+
+/// Validates a URL with async DNS resolution for SSRF rebinding protection.
+///
+/// Calls [`validate_web_fetch_url`] for basic checks, then performs async
+/// DNS resolution via [`tokio::net::lookup_host`] to verify that the host
+/// resolves only to globally-routable IP addresses.
+async fn validate_web_fetch_url_with_dns(
+    raw_url: &str,
+    allowed_domains: &[String],
+    blocked_domains: &[String],
+) -> anyhow::Result<String> {
+    let url = validate_web_fetch_url(raw_url, allowed_domains, blocked_domains)?;
+    let host = extract_web_fetch_host(&url)?;
+    validate_resolved_host_is_public(&host).await?;
+    Ok(url)
+}
+
+/// Appends `chunk` to `buffer`, stopping at `hard_cap`. Returns `true`
+/// when the cap is reached.
+fn append_chunk_with_cap(buffer: &mut Vec<u8>, chunk: &[u8], hard_cap: usize) -> bool {
+    if buffer.len() >= hard_cap {
+        return true;
+    }
+
+    let remaining = hard_cap - buffer.len();
+    if chunk.len() > remaining {
+        buffer.extend_from_slice(&chunk[..remaining]);
+        return true;
+    }
+
+    buffer.extend_from_slice(chunk);
+    buffer.len() >= hard_cap
+}
+
+/// Normalizes a list of domain strings: lowercase, strip scheme/path/port, dedup.
+fn normalize_domains(domains: Vec<String>) -> Vec<String> {
+    let mut normalized = domains
+        .into_iter()
+        .filter_map(|d| normalize_single_domain(&d))
+        .collect::<Vec<_>>();
+    normalized.sort_unstable();
+    normalized.dedup();
+    normalized
+}
+
+/// Normalizes a single domain: lowercase, strip scheme, path, port, dots.
+fn normalize_single_domain(raw: &str) -> Option<String> {
+    let mut d = raw.trim().to_lowercase();
+    if d.is_empty() {
+        return None;
+    }
+
+    if let Some(stripped) = d.strip_prefix("https://") {
+        d = stripped.to_string();
+    } else if let Some(stripped) = d.strip_prefix("http://") {
+        d = stripped.to_string();
+    }
+
+    if let Some((host, _)) = d.split_once('/') {
+        d = host.to_string();
+    }
+
+    d = d.trim_start_matches('.').trim_end_matches('.').to_string();
+
+    if let Some((host, _)) = d.split_once(':') {
+        d = host.to_string();
+    }
+
+    if d.is_empty() || d.chars().any(char::is_whitespace) {
+        return None;
+    }
+
+    Some(d)
+}
+
+/// Extracts the hostname from a URL (strips scheme, userinfo, port, path).
+fn extract_web_fetch_host(url: &str) -> anyhow::Result<String> {
+    let rest = url
+        .strip_prefix("http://")
+        .or_else(|| url.strip_prefix("https://"))
+        .ok_or_else(|| anyhow::anyhow!("Only http:// and https:// URLs are allowed"))?;
+
+    let authority = rest
+        .split(['/', '?', '#'])
+        .next()
+        .ok_or_else(|| anyhow::anyhow!("Invalid URL"))?;
+
+    if authority.is_empty() {
+        anyhow::bail!("URL must include a host");
+    }
+
+    if authority.contains('@') {
+        anyhow::bail!("URL userinfo is not allowed");
+    }
+
+    if authority.starts_with('[') {
+        anyhow::bail!("IPv6 hosts are not supported in web_fetch");
+    }
+
+    let host = authority
+        .split(':')
+        .next()
+        .unwrap_or_default()
+        .trim()
+        .trim_end_matches('.')
+        .to_lowercase();
+
+    if host.is_empty() {
+        anyhow::bail!("URL must include a valid host");
+    }
+
+    Ok(host)
+}
+
+/// Checks if a host matches any entry in a domain list (exact or subdomain).
+///
+/// Supports wildcard `"*"` to match all hosts.
+fn host_matches_list(host: &str, domains: &[String]) -> bool {
+    if domains.iter().any(|d| d == "*") {
+        return true;
+    }
+
+    domains.iter().any(|domain| {
+        host == domain
+            || host
+                .strip_suffix(domain)
+                .is_some_and(|prefix| prefix.ends_with('.'))
+    })
+}
+
+/// Returns `true` if the host is localhost, a local TLD, or a private/reserved IP.
+fn is_private_or_local_host(host: &str) -> bool {
+    let bare = host
+        .strip_prefix('[')
+        .and_then(|h| h.strip_suffix(']'))
+        .unwrap_or(host);
+
+    let has_local_tld = bare
+        .rsplit('.')
+        .next()
+        .is_some_and(|label| label == "local");
+
+    if bare == "localhost" || bare.ends_with(".localhost") || has_local_tld {
+        return true;
+    }
+
+    if let Ok(ip) = bare.parse::<std::net::IpAddr>() {
+        return match ip {
+            std::net::IpAddr::V4(v4) => is_non_global_v4(v4),
+            std::net::IpAddr::V6(v6) => is_non_global_v6(v6),
+        };
+    }
+
+    false
+}
+
+/// Validates that a hostname resolves to only public (globally routable) IPs.
+///
+/// Uses [`tokio::net::lookup_host`] for non-blocking DNS resolution, safe
+/// to call from async worker threads without starving the executor.
+///
+/// In test builds this is a no-op to avoid DNS-dependent test flakiness.
+#[cfg(not(test))]
+async fn validate_resolved_host_is_public(host: &str) -> anyhow::Result<()> {
+    let ips: Vec<std::net::IpAddr> = tokio::net::lookup_host((host, 0))
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to resolve host '{host}': {e}"))?
+        .map(|addr| addr.ip())
+        .collect();
+
+    validate_resolved_ips_are_public(host, &ips)
+}
+
+/// Test stub: skips DNS resolution to avoid flaky network-dependent tests.
+#[cfg(test)]
+#[allow(clippy::unnecessary_wraps, clippy::unused_async)]
+async fn validate_resolved_host_is_public(_host: &str) -> anyhow::Result<()> {
+    Ok(())
+}
+
+/// Validates that all resolved IPs are globally routable.
+fn validate_resolved_ips_are_public(host: &str, ips: &[std::net::IpAddr]) -> anyhow::Result<()> {
+    if ips.is_empty() {
+        anyhow::bail!("Failed to resolve host '{host}'");
+    }
+
+    for ip in ips {
+        let non_global = match ip {
+            std::net::IpAddr::V4(v4) => is_non_global_v4(*v4),
+            std::net::IpAddr::V6(v6) => is_non_global_v6(*v6),
+        };
+        if non_global {
+            anyhow::bail!("Blocked host '{host}' resolved to non-global address {ip}");
+        }
+    }
+
+    Ok(())
+}
+
+/// Returns `true` for non-globally-routable IPv4 addresses (loopback, private,
+/// link-local, multicast, shared address space, test-net, reserved).
+fn is_non_global_v4(v4: std::net::Ipv4Addr) -> bool {
+    let [a, b, c, _] = v4.octets();
+    v4.is_loopback()
+        || v4.is_private()
+        || v4.is_link_local()
+        || v4.is_unspecified()
+        || v4.is_broadcast()
+        || v4.is_multicast()
+        || (a == 100 && (64..=127).contains(&b))  // Shared Address Space (RFC 6598)
+        || a >= 240                                 // Reserved (RFC 1112)
+        || (a == 192 && b == 0 && (c == 0 || c == 2)) // TEST-NET-1
+        || (a == 198 && b == 51)                    // TEST-NET-2
+        || (a == 203 && b == 0)                     // TEST-NET-3
+        || (a == 198 && (18..=19).contains(&b)) // Benchmarking (RFC 2544)
+}
+
+/// Returns `true` for non-globally-routable IPv6 addresses (loopback,
+/// unspecified, multicast, unique-local, link-local, documentation,
+/// and IPv4-mapped non-global).
+fn is_non_global_v6(v6: std::net::Ipv6Addr) -> bool {
+    let segs = v6.segments();
+    v6.is_loopback()
+        || v6.is_unspecified()
+        || v6.is_multicast()
+        || (segs[0] & 0xfe00) == 0xfc00            // Unique-local (fc00::/7)
+        || (segs[0] & 0xffc0) == 0xfe80            // Link-local (fe80::/10)
+        || (segs[0] == 0x2001 && segs[1] == 0x0db8) // Documentation (2001:db8::/32)
+        || v6.to_ipv4_mapped().is_some_and(is_non_global_v4)
+}
+
 /// Builds the tools registry for the Android agent session.
 ///
 /// Constructs tools that are available without upstream's `SecurityPolicy`:
 /// - Memory tools (store, recall, forget) via FFI wrappers and upstream
 /// - Cron listing tools via upstream constructors
 /// - Web search via upstream constructor (when enabled in config)
+/// - Web fetch via FFI wrapper (when enabled in config)
 ///
 /// Tools that require `SecurityPolicy` (shell, file I/O, git, browser) are
 /// excluded because the upstream security module is `pub(crate)`. These
@@ -269,6 +781,15 @@ fn build_tools_registry(config: &zeroclaw::Config, memory: Arc<dyn Memory>) -> V
             config.web_search.max_results,
             config.web_search.timeout_secs,
         )));
+    }
+
+    if config.web_fetch.enabled {
+        tools.push(Box::new(FfiWebFetchTool {
+            allowed_domains: normalize_domains(config.web_fetch.allowed_domains.clone()),
+            blocked_domains: normalize_domains(config.web_fetch.blocked_domains.clone()),
+            max_response_size: config.web_fetch.max_response_size,
+            timeout_secs: config.web_fetch.timeout_secs,
+        }));
     }
 
     tools
@@ -678,14 +1199,19 @@ pub(crate) fn session_send_inner(
     let history_len_before = history.len();
     let handle = crate::runtime::get_or_create_runtime()?;
 
+    // Clone the memory backend *before* entering block_on to avoid holding
+    // the DAEMON mutex inside the async block, which could deadlock with a
+    // concurrent stop_daemon call.
+    let daemon_memory = clone_daemon_memory().ok();
+
     let result: Result<String, AgentLoopOutcome> = handle.block_on(async {
         // Build memory context (best-effort; skip if memory unavailable).
-        let mem_context = match clone_daemon_memory() {
-            Ok(mem) => {
+        let mem_context = match daemon_memory {
+            Some(ref mem) => {
                 listener.on_progress("Searching memory...".into());
                 build_memory_context(mem.as_ref(), &message).await
             }
-            Err(_) => String::new(),
+            None => String::new(),
         };
 
         // Enrich the user message with memory context and timestamp.
@@ -1062,42 +1588,45 @@ async fn run_agent_loop(
             // Find the tool by name in the registry.
             let tool = tools.iter().find(|t| t.name() == call.name);
 
-            let (success, output) = match tool {
-                Some(tool) => {
-                    let args: serde_json::Value =
-                        serde_json::from_str(&call.arguments).unwrap_or(serde_json::json!({}));
+            let (success, output) = if let Some(tool) = tool {
+                let args: serde_json::Value =
+                    serde_json::from_str(&call.arguments).unwrap_or(serde_json::json!({}));
 
-                    let exec_result = tokio::select! {
-                        () = cancel_token.cancelled() => {
-                            return Err(AgentLoopOutcome::Cancelled);
-                        }
-                        result = tool.execute(args) => result,
-                    };
-
-                    match exec_result {
-                        Ok(result) => {
-                            if result.success {
-                                (true, result.output)
-                            } else {
-                                (
-                                    false,
-                                    result.error.unwrap_or_else(|| {
-                                        "Tool failed without error message".into()
-                                    }),
-                                )
-                            }
-                        }
-                        Err(e) => (false, format!("Tool execution error: {e}")),
+                let exec_result = tokio::select! {
+                    () = cancel_token.cancelled() => {
+                        return Err(AgentLoopOutcome::Cancelled);
                     }
+                    result = tool.execute(args) => result,
+                };
+
+                match exec_result {
+                    Ok(result) => {
+                        if result.success {
+                            (true, result.output)
+                        } else {
+                            (
+                                false,
+                                result
+                                    .error
+                                    .unwrap_or_else(|| "Tool failed without error message".into()),
+                            )
+                        }
+                    }
+                    Err(e) => (false, format!("Tool execution error: {e}")),
                 }
-                None => (
+            } else {
+                tracing::warn!(
+                    tool = %call.name,
+                    "Tool not in FFI session registry; returning unavailable message"
+                );
+                (
                     false,
                     format!(
                         "Tool '{}' is not available in this session. \
                          Please answer directly without this tool.",
                         call.name
                     ),
-                ),
+                )
             };
 
             let duration_secs = start_time.elapsed().as_secs();
@@ -1574,6 +2103,28 @@ fn build_android_tool_descs(config: &zeroclaw::Config) -> Vec<(String, String)> 
             "browser_open".into(),
             "Open approved HTTPS URLs in system browser \
              (allowlist-only, no scraping)"
+                .into(),
+        ));
+    }
+
+    if config.web_search.enabled {
+        descs.push((
+            "web_search".into(),
+            "Search the web using a search engine. Returns a list of \
+             results with titles, URLs, and snippets. Use when: answering \
+             questions about current events, looking up facts, finding \
+             documentation."
+                .into(),
+        ));
+    }
+
+    if config.web_fetch.enabled {
+        descs.push((
+            "web_fetch".into(),
+            "Fetch a web page and return its content as clean plain text. \
+             HTML pages are automatically converted to readable text. \
+             JSON and plain text responses are returned as-is. \
+             Only GET requests; follows redirects."
                 .into(),
         ));
     }
@@ -2255,5 +2806,309 @@ mod tests {
         // Drop fires here — without a live SESSION it's a no-op,
         // but critically it does NOT panic.
         drop(guard);
+    }
+
+    // ── FfiWebFetchTool URL validation tests ────────────────────────────
+
+    fn test_web_fetch_tool(allowed: Vec<&str>) -> FfiWebFetchTool {
+        test_web_fetch_tool_with_blocklist(allowed, vec![])
+    }
+
+    fn test_web_fetch_tool_with_blocklist(
+        allowed: Vec<&str>,
+        blocked: Vec<&str>,
+    ) -> FfiWebFetchTool {
+        FfiWebFetchTool {
+            allowed_domains: normalize_domains(allowed.into_iter().map(String::from).collect()),
+            blocked_domains: normalize_domains(blocked.into_iter().map(String::from).collect()),
+            max_response_size: 500_000,
+            timeout_secs: 30,
+        }
+    }
+
+    #[test]
+    fn web_fetch_name_is_correct() {
+        let tool = test_web_fetch_tool(vec!["example.com"]);
+        assert_eq!(tool.name(), "web_fetch");
+    }
+
+    #[test]
+    fn web_fetch_schema_requires_url() {
+        let tool = test_web_fetch_tool(vec!["example.com"]);
+        let schema = tool.parameters_schema();
+        assert!(schema["properties"]["url"].is_object());
+        let required = schema["required"].as_array().unwrap();
+        assert!(required.iter().any(|v| v.as_str() == Some("url")));
+    }
+
+    #[test]
+    fn web_fetch_validate_accepts_exact_domain() {
+        let allowed = vec!["example.com".to_string()];
+        let got = validate_web_fetch_url("https://example.com/page", &allowed, &[]).unwrap();
+        assert_eq!(got, "https://example.com/page");
+    }
+
+    #[test]
+    fn web_fetch_validate_accepts_subdomain() {
+        let allowed = vec!["example.com".to_string()];
+        assert!(validate_web_fetch_url("https://docs.example.com/guide", &allowed, &[]).is_ok());
+    }
+
+    #[test]
+    fn web_fetch_validate_accepts_wildcard() {
+        let allowed = vec!["*".to_string()];
+        assert!(validate_web_fetch_url("https://news.ycombinator.com", &allowed, &[]).is_ok());
+    }
+
+    #[test]
+    fn web_fetch_validate_rejects_empty_url() {
+        let allowed = vec!["example.com".to_string()];
+        let err = validate_web_fetch_url("", &allowed, &[])
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("empty"));
+    }
+
+    #[test]
+    fn web_fetch_validate_rejects_ftp_scheme() {
+        let allowed = vec!["example.com".to_string()];
+        let err = validate_web_fetch_url("ftp://example.com", &allowed, &[])
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("http://") || err.contains("https://"));
+    }
+
+    #[test]
+    fn web_fetch_validate_rejects_allowlist_miss() {
+        let allowed = vec!["example.com".to_string()];
+        let err = validate_web_fetch_url("https://google.com", &allowed, &[])
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("allowed_domains"));
+    }
+
+    #[test]
+    fn web_fetch_validate_requires_allowlist() {
+        let err = validate_web_fetch_url("https://example.com", &[], &[])
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("allowed_domains"));
+    }
+
+    // ── SSRF protection ─────────────────────────────────────────────────
+
+    #[test]
+    fn web_fetch_ssrf_blocks_localhost() {
+        let allowed = vec!["localhost".to_string()];
+        let err = validate_web_fetch_url("https://localhost:8080", &allowed, &[])
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("local/private"));
+    }
+
+    #[test]
+    fn web_fetch_ssrf_blocks_private_ipv4() {
+        let allowed = vec!["192.168.1.5".to_string()];
+        let err = validate_web_fetch_url("https://192.168.1.5", &allowed, &[])
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("local/private"));
+    }
+
+    #[test]
+    fn web_fetch_ssrf_blocks_loopback() {
+        assert!(is_private_or_local_host("127.0.0.1"));
+        assert!(is_private_or_local_host("127.0.0.2"));
+    }
+
+    #[test]
+    fn web_fetch_ssrf_blocks_rfc1918() {
+        assert!(is_private_or_local_host("10.0.0.1"));
+        assert!(is_private_or_local_host("172.16.0.1"));
+        assert!(is_private_or_local_host("192.168.1.1"));
+    }
+
+    #[test]
+    fn web_fetch_ssrf_wildcard_still_blocks_private() {
+        let allowed = vec!["*".to_string()];
+        let err = validate_web_fetch_url("https://localhost:8080", &allowed, &[])
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("local/private"));
+    }
+
+    // ── Blocked domains ─────────────────────────────────────────────────
+
+    #[test]
+    fn web_fetch_blocklist_rejects_exact() {
+        let allowed = vec!["*".to_string()];
+        let blocked = vec!["evil.com".to_string()];
+        let err = validate_web_fetch_url("https://evil.com/page", &allowed, &blocked)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("blocked_domains"));
+    }
+
+    #[test]
+    fn web_fetch_blocklist_rejects_subdomain() {
+        let allowed = vec!["*".to_string()];
+        let blocked = vec!["evil.com".to_string()];
+        let err = validate_web_fetch_url("https://api.evil.com/v1", &allowed, &blocked)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("blocked_domains"));
+    }
+
+    #[test]
+    fn web_fetch_blocklist_wins_over_allowlist() {
+        let allowed = vec!["evil.com".to_string()];
+        let blocked = vec!["evil.com".to_string()];
+        let err = validate_web_fetch_url("https://evil.com", &allowed, &blocked)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("blocked_domains"));
+    }
+
+    #[test]
+    fn web_fetch_blocklist_allows_non_blocked() {
+        let allowed = vec!["*".to_string()];
+        let blocked = vec!["evil.com".to_string()];
+        assert!(validate_web_fetch_url("https://example.com", &allowed, &blocked).is_ok());
+    }
+
+    // ── Domain normalization ────────────────────────────────────────────
+
+    #[test]
+    fn web_fetch_normalize_domain_strips_scheme_and_case() {
+        let got = normalize_single_domain("  HTTPS://Docs.Example.com/path ").unwrap();
+        assert_eq!(got, "docs.example.com");
+    }
+
+    #[test]
+    fn web_fetch_normalize_deduplicates() {
+        let got = normalize_domains(vec![
+            "example.com".into(),
+            "EXAMPLE.COM".into(),
+            "https://example.com/".into(),
+        ]);
+        assert_eq!(got, vec!["example.com".to_string()]);
+    }
+
+    // ── Response truncation ─────────────────────────────────────────────
+
+    #[test]
+    fn web_fetch_truncate_within_limit() {
+        let tool = test_web_fetch_tool(vec!["example.com"]);
+        let text = "hello world";
+        assert_eq!(tool.truncate_response(text), "hello world");
+    }
+
+    #[test]
+    fn web_fetch_truncate_over_limit() {
+        let tool = FfiWebFetchTool {
+            allowed_domains: vec!["example.com".into()],
+            blocked_domains: vec![],
+            max_response_size: 10,
+            timeout_secs: 30,
+        };
+        let text = "hello world this is long";
+        let truncated = tool.truncate_response(text);
+        assert!(truncated.contains("[Response truncated"));
+    }
+
+    // ── HTML to text ────────────────────────────────────────────────────
+
+    #[test]
+    fn web_fetch_html_to_text() {
+        let html = "<html><body><h1>Title</h1><p>Hello <b>world</b></p></body></html>";
+        let text = nanohtml2text::html2text(html);
+        assert!(text.contains("Title"));
+        assert!(text.contains("Hello"));
+        assert!(text.contains("world"));
+        assert!(!text.contains("<h1>"));
+    }
+
+    // ── IP classification ───────────────────────────────────────────────
+
+    #[test]
+    fn web_fetch_resolved_private_ip_is_rejected() {
+        let ips = vec!["127.0.0.1".parse().unwrap()];
+        let err = validate_resolved_ips_are_public("example.com", &ips)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("non-global address"));
+    }
+
+    #[test]
+    fn web_fetch_resolved_public_ips_are_allowed() {
+        let ips = vec!["93.184.216.34".parse().unwrap(), "1.1.1.1".parse().unwrap()];
+        assert!(validate_resolved_ips_are_public("example.com", &ips).is_ok());
+    }
+
+    // ── Chunk capping ───────────────────────────────────────────────────
+
+    #[test]
+    fn web_fetch_append_chunk_with_cap_truncates() {
+        let mut buffer = Vec::new();
+        assert!(!append_chunk_with_cap(&mut buffer, b"hello", 8));
+        assert!(append_chunk_with_cap(&mut buffer, b"world", 8));
+        assert_eq!(buffer, b"hellowor");
+    }
+
+    // ── build_tools_registry includes web_fetch ─────────────────────────
+
+    #[test]
+    fn web_fetch_registered_when_enabled() {
+        let mut config = zeroclaw::Config::default();
+        config.web_fetch.enabled = true;
+        config.web_fetch.allowed_domains = vec!["*".into()];
+
+        let memory = Arc::new(zeroclaw::memory::MarkdownMemory::new(
+            &std::env::temp_dir().join("test_web_fetch_registry"),
+        ));
+        let tools = build_tools_registry(&config, memory);
+        assert!(tools.iter().any(|t| t.name() == "web_fetch"));
+    }
+
+    #[test]
+    fn web_fetch_not_registered_when_disabled() {
+        let config = zeroclaw::Config::default();
+        let memory = Arc::new(zeroclaw::memory::MarkdownMemory::new(
+            &std::env::temp_dir().join("test_web_fetch_disabled"),
+        ));
+        let tools = build_tools_registry(&config, memory);
+        assert!(!tools.iter().any(|t| t.name() == "web_fetch"));
+    }
+
+    // ── build_android_tool_descs includes web_fetch/web_search ──────────
+
+    #[test]
+    fn tool_descs_include_web_fetch_when_enabled() {
+        let mut config = zeroclaw::Config::default();
+        config.web_fetch.enabled = true;
+        let descs = build_android_tool_descs(&config);
+        assert!(descs.iter().any(|(name, _)| name == "web_fetch"));
+    }
+
+    #[test]
+    fn tool_descs_include_web_search_when_enabled() {
+        let mut config = zeroclaw::Config::default();
+        config.web_search.enabled = true;
+        let descs = build_android_tool_descs(&config);
+        assert!(descs.iter().any(|(name, _)| name == "web_search"));
+    }
+
+    #[test]
+    fn tool_descs_exclude_web_fetch_when_disabled() {
+        let config = zeroclaw::Config::default();
+        let descs = build_android_tool_descs(&config);
+        assert!(!descs.iter().any(|(name, _)| name == "web_fetch"));
+    }
+
+    #[test]
+    fn tool_descs_exclude_web_search_when_disabled() {
+        let config = zeroclaw::Config::default();
+        let descs = build_android_tool_descs(&config);
+        assert!(!descs.iter().any(|(name, _)| name == "web_search"));
     }
 }

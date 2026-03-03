@@ -902,4 +902,26 @@ class ConfigTomlBuilderTest {
             assertTrue("pair_code" in fields)
         }
     }
+
+    @Nested
+    @DisplayName("appendAutonomySection()")
+    inner class AppendAutonomySection {
+        @Test
+        @DisplayName("emits non_cli_excluded_tools with browser and screenshot")
+        fun `emits non_cli_excluded_tools with browser and screenshot`() {
+            val toml =
+                ConfigTomlBuilder.build(
+                    provider = "openai",
+                    model = "gpt-4o",
+                    apiKey = "sk-test",
+                    baseUrl = "",
+                )
+
+            assertTrue(toml.contains("[autonomy]"))
+            assertTrue(
+                toml.contains("""non_cli_excluded_tools = ["browser", "screenshot"]"""),
+                "Expected non_cli_excluded_tools with browser and screenshot, got:\n$toml",
+            )
+        }
+    }
 }
