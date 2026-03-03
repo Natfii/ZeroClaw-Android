@@ -26,6 +26,19 @@ pub struct FfiToolSpec {
     pub source: String,
     /// JSON schema for the tool parameters, or `"{}"` if unavailable.
     pub parameters_json: String,
+    /// Whether the tool is usable in the current Android session.
+    ///
+    /// Session-available tools (memory, cron, web tools) are active.
+    /// Tools requiring a `SecurityPolicy` (shell, file I/O, git) are
+    /// inactive because they can only execute via daemon channel routing.
+    pub is_active: bool,
+    /// Human-readable reason the tool is inactive, or empty string when active.
+    ///
+    /// Common values:
+    /// - `""` -- tool is active
+    /// - `"Available via daemon channels only"` -- requires `SecurityPolicy`
+    /// - `"Disabled in settings"` -- config flag is off
+    pub inactive_reason: String,
 }
 
 /// Describes a built-in tool with a static name and description.
@@ -112,13 +125,57 @@ const DELEGATE_TOOL: BuiltInTool = BuiltInTool {
     description: "Delegate tasks to sub-agents with independent context",
 };
 
+/// Tools available in the Android session without a [`SecurityPolicy`].
+///
+/// Memory and cron tools run directly in the FFI session and are always
+/// active when the daemon is running.
+const SESSION_TOOLS: &[&str] = &[
+    "memory_store",
+    "memory_recall",
+    "memory_forget",
+    "schedule",
+];
+
+/// Tools that require a [`SecurityPolicy`] and can only execute via daemon
+/// channel routing (e.g. Telegram, Discord).
+///
+/// These are listed in the tool browser for visibility but cannot be
+/// invoked from the Android session directly.
+///
+/// Used in tests to validate that every core tool is classified as either
+/// a session tool or a security-policy tool.
+#[cfg(test)]
+const SECURITY_POLICY_TOOLS: &[&str] = &[
+    "shell",
+    "file_read",
+    "file_write",
+    "git_operations",
+    "screenshot",
+    "image_info",
+];
+
+/// Inactive reason for tools that require daemon channel routing.
+const REASON_DAEMON_ONLY: &str = "Available via daemon channels only";
+
 /// Converts a [`BuiltInTool`] to an [`FfiToolSpec`] with `"built-in"` source.
+///
+/// The default active status is determined by whether the tool name appears
+/// in [`SESSION_TOOLS`] (active) or [`SECURITY_POLICY_TOOLS`] (inactive).
+/// Conditional tools (browser, HTTP, composio, delegate) default to inactive
+/// and are overridden to active when added by [`list_tools_inner`].
 fn builtin_to_spec(tool: &BuiltInTool) -> FfiToolSpec {
+    let is_session = SESSION_TOOLS.contains(&tool.name);
     FfiToolSpec {
         name: tool.name.to_string(),
         description: tool.description.to_string(),
         source: "built-in".to_string(),
         parameters_json: "{}".to_string(),
+        is_active: is_session,
+        inactive_reason: if is_session {
+            String::new()
+        } else {
+            REASON_DAEMON_ONLY.to_string()
+        },
     }
 }
 
@@ -146,19 +203,33 @@ pub(crate) fn list_tools_inner() -> Result<Vec<FfiToolSpec>, FfiError> {
     let mut specs: Vec<FfiToolSpec> = CORE_TOOLS.iter().map(builtin_to_spec).collect();
 
     if browser_enabled {
-        specs.extend(BROWSER_TOOLS.iter().map(builtin_to_spec));
+        specs.extend(BROWSER_TOOLS.iter().map(|t| {
+            let mut s = builtin_to_spec(t);
+            s.is_active = true;
+            s.inactive_reason = String::new();
+            s
+        }));
     }
 
     if http_enabled {
-        specs.push(builtin_to_spec(&HTTP_TOOL));
+        let mut s = builtin_to_spec(&HTTP_TOOL);
+        s.is_active = true;
+        s.inactive_reason = String::new();
+        specs.push(s);
     }
 
     if composio_key.as_ref().is_some_and(|k| !k.is_empty()) {
-        specs.push(builtin_to_spec(&COMPOSIO_TOOL));
+        let mut s = builtin_to_spec(&COMPOSIO_TOOL);
+        s.is_active = true;
+        s.inactive_reason = String::new();
+        specs.push(s);
     }
 
     if has_agents {
-        specs.push(builtin_to_spec(&DELEGATE_TOOL));
+        let mut s = builtin_to_spec(&DELEGATE_TOOL);
+        s.is_active = true;
+        s.inactive_reason = String::new();
+        specs.push(s);
     }
 
     let skills = crate::skills::load_skills_from_workspace(&workspace_dir);
@@ -169,6 +240,8 @@ pub(crate) fn list_tools_inner() -> Result<Vec<FfiToolSpec>, FfiError> {
                 description: tool.description.clone(),
                 source: skill.name.clone(),
                 parameters_json: "{}".to_string(),
+                is_active: true,
+                inactive_reason: String::new(),
             });
         }
     }
@@ -211,5 +284,77 @@ mod tests {
     #[test]
     fn test_browser_tools_count() {
         assert_eq!(BROWSER_TOOLS.len(), 2);
+    }
+
+    #[test]
+    fn test_session_tools_are_active() {
+        for &name in SESSION_TOOLS {
+            let tool = CORE_TOOLS
+                .iter()
+                .find(|t| t.name == name)
+                .unwrap_or_else(|| panic!("session tool {name} missing from CORE_TOOLS"));
+            let spec = builtin_to_spec(tool);
+            assert!(spec.is_active, "{name} should be active");
+            assert!(
+                spec.inactive_reason.is_empty(),
+                "{name} should have empty inactive_reason"
+            );
+        }
+    }
+
+    #[test]
+    fn test_security_policy_tools_are_inactive() {
+        for &name in SECURITY_POLICY_TOOLS {
+            let tool = CORE_TOOLS
+                .iter()
+                .find(|t| t.name == name)
+                .unwrap_or_else(|| panic!("security tool {name} missing from CORE_TOOLS"));
+            let spec = builtin_to_spec(tool);
+            assert!(!spec.is_active, "{name} should be inactive");
+            assert_eq!(
+                spec.inactive_reason, REASON_DAEMON_ONLY,
+                "{name} should have daemon-only reason"
+            );
+        }
+    }
+
+    #[test]
+    fn test_session_and_security_cover_all_core_tools() {
+        for tool in CORE_TOOLS {
+            assert!(
+                SESSION_TOOLS.contains(&tool.name)
+                    || SECURITY_POLICY_TOOLS.contains(&tool.name),
+                "core tool {:?} is in neither SESSION_TOOLS nor SECURITY_POLICY_TOOLS",
+                tool.name
+            );
+        }
+    }
+
+    #[test]
+    fn test_conditional_tools_default_inactive() {
+        let http = builtin_to_spec(&HTTP_TOOL);
+        assert!(!http.is_active, "http_request should default to inactive");
+        assert_eq!(http.inactive_reason, REASON_DAEMON_ONLY);
+
+        let composio = builtin_to_spec(&COMPOSIO_TOOL);
+        assert!(
+            !composio.is_active,
+            "composio should default to inactive"
+        );
+
+        let delegate = builtin_to_spec(&DELEGATE_TOOL);
+        assert!(
+            !delegate.is_active,
+            "delegate should default to inactive"
+        );
+
+        for browser_tool in BROWSER_TOOLS {
+            let spec = builtin_to_spec(browser_tool);
+            assert!(
+                !spec.is_active,
+                "{} should default to inactive",
+                browser_tool.name
+            );
+        }
     }
 }

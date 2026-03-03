@@ -54,4 +54,6 @@ private fun FfiToolSpec.toModel(): ToolSpec =
         description = description,
         source = source,
         parametersJson = parametersJson,
+        isActive = isActive,
+        inactiveReason = inactiveReason,
     )

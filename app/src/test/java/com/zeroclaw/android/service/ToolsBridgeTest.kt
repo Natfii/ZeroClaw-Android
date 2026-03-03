@@ -100,6 +100,33 @@ class ToolsBridgeTest {
             assertEquals(schema, result[0].parametersJson)
         }
 
+    @Test
+    @DisplayName("listTools maps isActive and inactiveReason fields")
+    fun `listTools maps isActive and inactiveReason fields`() =
+        runTest {
+            val ffiTools =
+                listOf(
+                    makeFfiToolSpec(
+                        name = "memory_store",
+                        isActive = true,
+                        inactiveReason = "",
+                    ),
+                    makeFfiToolSpec(
+                        name = "shell",
+                        isActive = false,
+                        inactiveReason = "Available via daemon channels only",
+                    ),
+                )
+            every { com.zeroclaw.ffi.listTools() } returns ffiTools
+
+            val result = bridge.listTools()
+
+            assertTrue(result[0].isActive)
+            assertEquals("", result[0].inactiveReason)
+            assertTrue(!result[1].isActive)
+            assertEquals("Available via daemon channels only", result[1].inactiveReason)
+        }
+
     /** Helper to construct an [FfiToolSpec] with sensible defaults. */
     companion object {
         private fun makeFfiToolSpec(
@@ -107,12 +134,16 @@ class ToolsBridgeTest {
             description: String = "A test tool",
             source: String = "built-in",
             parametersJson: String = "{}",
+            isActive: Boolean = true,
+            inactiveReason: String = "",
         ): FfiToolSpec =
             FfiToolSpec(
                 name = name,
                 description = description,
                 source = source,
                 parametersJson = parametersJson,
+                isActive = isActive,
+                inactiveReason = inactiveReason,
             )
     }
 }
