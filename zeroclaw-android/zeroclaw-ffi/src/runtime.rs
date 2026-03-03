@@ -653,16 +653,32 @@ pub(crate) fn validate_config_inner(config_toml: String) -> Result<String, FfiEr
     }
 }
 
-/// Runs channel health checks.
+/// Runs per-channel health checks and returns structured results.
 ///
 /// When `config_toml` is empty, uses the running daemon's config
 /// (requires the daemon to be started). When `config_toml` is
 /// provided, parses it and overrides paths with `data_dir` (same as
 /// [`start_daemon_inner`]).
 ///
-/// Calls upstream `channels::doctor_channels()` with a 30-second
-/// timeout. Returns a JSON array of
-/// `{"name":"...", "status":"healthy|unhealthy|timeout"}`.
+/// Constructs each configured channel independently (replicating
+/// upstream's private `collect_configured_channels()` logic from
+/// `zeroclaw/src/channels/mod.rs:2683-2967`) and calls
+/// [`Channel::health_check()`] with a per-channel 10-second timeout,
+/// wrapped in a 30-second outer timeout for the entire loop.
+///
+/// Returns a JSON array with one entry per channel:
+/// ```json
+/// [
+///   {"name": "Telegram", "status": "healthy"},
+///   {"name": "Discord", "status": "unhealthy", "detail": "auth/config/network"},
+///   {"name": "Signal", "status": "timeout"}
+/// ]
+/// ```
+///
+/// When no channels are configured, returns:
+/// ```json
+/// [{"name": "channels", "status": "healthy", "detail": "No channels configured"}]
+/// ```
 ///
 /// Uses the shared [`RUNTIME`] for async execution but does NOT acquire
 /// the [`DAEMON`] mutex.
@@ -692,27 +708,311 @@ pub(crate) fn doctor_channels_inner(
     let handle = get_or_create_runtime()?;
 
     let results = handle.block_on(async {
-        match tokio::time::timeout(
-            Duration::from_secs(30),
-            zeroclaw::channels::doctor_channels(config),
-        )
+        let mut channels = collect_channels(&config);
+        let mut results = Vec::<serde_json::Value>::new();
+
+        if let Some(ref ns) = config.channels_config.nostr {
+            match zeroclaw::channels::NostrChannel::new(
+                &ns.private_key,
+                ns.relays.clone(),
+                &ns.allowed_pubkeys,
+            )
+            .await
+            {
+                Ok(ch) => channels.push((
+                    "Nostr",
+                    Arc::new(ch) as Arc<dyn zeroclaw::channels::Channel>,
+                )),
+                Err(e) => results.push(serde_json::json!({
+                    "name": "Nostr",
+                    "status": "unhealthy",
+                    "detail": format!("construction failed: {e}")
+                })),
+            }
+        }
+
+        if channels.is_empty() && results.is_empty() {
+            return Ok(serde_json::json!([
+                {"name": "channels", "status": "healthy", "detail": "No channels configured"}
+            ]));
+        }
+
+        match tokio::time::timeout(Duration::from_secs(30), async {
+            for (name, channel) in &channels {
+                let check =
+                    tokio::time::timeout(Duration::from_secs(10), channel.health_check()).await;
+                match check {
+                    Ok(true) => results.push(serde_json::json!({
+                        "name": name, "status": "healthy"
+                    })),
+                    Ok(false) => results.push(serde_json::json!({
+                        "name": name,
+                        "status": "unhealthy",
+                        "detail": "auth/config/network"
+                    })),
+                    Err(_) => results.push(serde_json::json!({
+                        "name": name, "status": "timeout"
+                    })),
+                }
+            }
+        })
         .await
         {
-            Ok(Ok(())) => Ok(serde_json::json!([
-                {"name": "all_channels", "status": "healthy"}
-            ])),
-            Ok(Err(e)) => Ok(serde_json::json!([
-                {"name": "channels", "status": "unhealthy", "detail": e.to_string()}
-            ])),
-            Err(_) => Ok(serde_json::json!([
-                {"name": "channels", "status": "timeout"}
-            ])),
+            Ok(()) => {}
+            Err(_) => {
+                tracing::warn!("doctor_channels: 30s outer timeout exceeded");
+            }
         }
+
+        Ok::<_, FfiError>(serde_json::Value::Array(results))
     })?;
 
     serde_json::to_string(&results).map_err(|e| FfiError::SpawnError {
         detail: format!("failed to serialise doctor results: {e}"),
     })
+}
+
+/// Constructs all synchronous channels from the given config for health
+/// checking.
+///
+/// Replicates the upstream `collect_configured_channels()` logic (which
+/// is private and not accessible from the FFI crate) from
+/// `zeroclaw/src/channels/mod.rs` lines 2683-2967. All constructor
+/// calls match upstream's usage exactly.
+///
+/// Feature-gated channels (Matrix, Lark/Feishu) are skipped with a
+/// `tracing::warn!` since this build uses `default-features = false`.
+/// Nostr is excluded because its constructor is async; the caller
+/// handles it separately in the async block.
+#[allow(clippy::too_many_lines)] // Repetitive per-channel constructor calls; matches upstream structure
+fn collect_channels(config: &Config) -> Vec<(&'static str, Arc<dyn zeroclaw::channels::Channel>)> {
+    // Verified constructor signatures against upstream v0.1.7:
+    //   TelegramChannel::new(bot_token, allowed_users, mention_only) -> Self
+    //   DiscordChannel::new(bot_token, guild_id, allowed_users, listen_to_bots, mention_only) -> Self
+    //   SlackChannel::new(bot_token, channel_id, allowed_users) -> Self
+    //   MattermostChannel::new(base_url, bot_token, channel_id, allowed_users, thread_replies, mention_only) -> Self
+    //   IMessageChannel::new(allowed_contacts) -> Self
+    //   SignalChannel::new(http_url, account, group_id, allowed_from, ignore_attachments, ignore_stories) -> Self
+    //   WhatsAppChannel::new(access_token, endpoint_id, verify_token, allowed_numbers) -> Self
+    //   LinqChannel::new(api_token, from_phone, allowed_senders) -> Self
+    //   WatiChannel::new(api_token, api_url, tenant_id, allowed_numbers) -> Self
+    //   NextcloudTalkChannel::new(base_url, app_token, allowed_users) -> Self
+    //   EmailChannel::new(config: EmailConfig) -> Self
+    //   IrcChannel::new(cfg: IrcChannelConfig) -> Self
+    //   DingTalkChannel::new(client_id, client_secret, allowed_users) -> Self
+    //   QQChannel::new(app_id, app_secret, allowed_users) -> Self
+    //   ClawdTalkChannel::new(config: ClawdTalkConfig) -> Self
+    //   NostrChannel::new(private_key, relays, allowed_pubkeys) -> Result<Self> [ASYNC, handled by caller]
+    use zeroclaw::channels::{
+        ClawdTalkChannel, DingTalkChannel, DiscordChannel, EmailChannel, IMessageChannel,
+        IrcChannel, LinqChannel, MattermostChannel, NextcloudTalkChannel, QQChannel, SignalChannel,
+        SlackChannel, TelegramChannel, WatiChannel, WhatsAppChannel,
+    };
+
+    let mut channels: Vec<(&'static str, Arc<dyn zeroclaw::channels::Channel>)> = Vec::new();
+
+    if let Some(ref tg) = config.channels_config.telegram {
+        channels.push((
+            "Telegram",
+            Arc::new(TelegramChannel::new(
+                tg.bot_token.clone(),
+                tg.allowed_users.clone(),
+                tg.mention_only,
+            )),
+        ));
+    }
+
+    if let Some(ref dc) = config.channels_config.discord {
+        channels.push((
+            "Discord",
+            Arc::new(DiscordChannel::new(
+                dc.bot_token.clone(),
+                dc.guild_id.clone(),
+                dc.allowed_users.clone(),
+                dc.listen_to_bots,
+                dc.mention_only,
+            )),
+        ));
+    }
+
+    if let Some(ref sl) = config.channels_config.slack {
+        channels.push((
+            "Slack",
+            Arc::new(SlackChannel::new(
+                sl.bot_token.clone(),
+                sl.channel_id.clone(),
+                sl.allowed_users.clone(),
+            )),
+        ));
+    }
+
+    if let Some(ref mm) = config.channels_config.mattermost {
+        channels.push((
+            "Mattermost",
+            Arc::new(MattermostChannel::new(
+                mm.url.clone(),
+                mm.bot_token.clone(),
+                mm.channel_id.clone(),
+                mm.allowed_users.clone(),
+                mm.thread_replies.unwrap_or(true),
+                mm.mention_only.unwrap_or(false),
+            )),
+        ));
+    }
+
+    if let Some(ref im) = config.channels_config.imessage {
+        channels.push((
+            "iMessage",
+            Arc::new(IMessageChannel::new(im.allowed_contacts.clone())),
+        ));
+    }
+
+    if config.channels_config.matrix.is_some() {
+        tracing::warn!(
+            "Matrix channel is configured but this build was compiled \
+             without `channel-matrix`; skipping Matrix health check."
+        );
+    }
+
+    if let Some(ref sig) = config.channels_config.signal {
+        channels.push((
+            "Signal",
+            Arc::new(SignalChannel::new(
+                sig.http_url.clone(),
+                sig.account.clone(),
+                sig.group_id.clone(),
+                sig.allowed_from.clone(),
+                sig.ignore_attachments,
+                sig.ignore_stories,
+            )),
+        ));
+    }
+
+    if let Some(ref wa) = config.channels_config.whatsapp {
+        match wa.backend_type() {
+            "cloud" => {
+                if wa.is_cloud_config() {
+                    channels.push((
+                        "WhatsApp",
+                        Arc::new(WhatsAppChannel::new(
+                            wa.access_token.clone().unwrap_or_default(),
+                            wa.phone_number_id.clone().unwrap_or_default(),
+                            wa.verify_token.clone().unwrap_or_default(),
+                            wa.allowed_numbers.clone(),
+                        )),
+                    ));
+                } else {
+                    tracing::warn!(
+                        "WhatsApp Cloud API configured but missing required \
+                         fields (phone_number_id, access_token, verify_token)"
+                    );
+                }
+            }
+            "web" => {
+                tracing::warn!(
+                    "WhatsApp Web backend requires the `whatsapp-web` feature \
+                     which is not enabled in this build; skipping health check."
+                );
+            }
+            _ => {
+                tracing::warn!(
+                    "WhatsApp config invalid: neither phone_number_id \
+                     (Cloud API) nor session_path (Web) is set"
+                );
+            }
+        }
+    }
+
+    if let Some(ref lq) = config.channels_config.linq {
+        channels.push((
+            "Linq",
+            Arc::new(LinqChannel::new(
+                lq.api_token.clone(),
+                lq.from_phone.clone(),
+                lq.allowed_senders.clone(),
+            )),
+        ));
+    }
+
+    if let Some(ref wati_cfg) = config.channels_config.wati {
+        channels.push((
+            "WATI",
+            Arc::new(WatiChannel::new(
+                wati_cfg.api_token.clone(),
+                wati_cfg.api_url.clone(),
+                wati_cfg.tenant_id.clone(),
+                wati_cfg.allowed_numbers.clone(),
+            )),
+        ));
+    }
+
+    if let Some(ref nc) = config.channels_config.nextcloud_talk {
+        channels.push((
+            "Nextcloud Talk",
+            Arc::new(NextcloudTalkChannel::new(
+                nc.base_url.clone(),
+                nc.app_token.clone(),
+                nc.allowed_users.clone(),
+            )),
+        ));
+    }
+
+    if let Some(ref email_cfg) = config.channels_config.email {
+        channels.push(("Email", Arc::new(EmailChannel::new(email_cfg.clone()))));
+    }
+
+    if let Some(ref irc_cfg) = config.channels_config.irc {
+        channels.push((
+            "IRC",
+            Arc::new(IrcChannel::new(zeroclaw::channels::irc::IrcChannelConfig {
+                server: irc_cfg.server.clone(),
+                port: irc_cfg.port,
+                nickname: irc_cfg.nickname.clone(),
+                username: irc_cfg.username.clone(),
+                channels: irc_cfg.channels.clone(),
+                allowed_users: irc_cfg.allowed_users.clone(),
+                server_password: irc_cfg.server_password.clone(),
+                nickserv_password: irc_cfg.nickserv_password.clone(),
+                sasl_password: irc_cfg.sasl_password.clone(),
+                verify_tls: irc_cfg.verify_tls.unwrap_or(true),
+            })),
+        ));
+    }
+
+    if config.channels_config.lark.is_some() || config.channels_config.feishu.is_some() {
+        tracing::warn!(
+            "Lark/Feishu channel is configured but this build was compiled \
+             without `channel-lark`; skipping health check."
+        );
+    }
+
+    if let Some(ref dt) = config.channels_config.dingtalk {
+        channels.push((
+            "DingTalk",
+            Arc::new(DingTalkChannel::new(
+                dt.client_id.clone(),
+                dt.client_secret.clone(),
+                dt.allowed_users.clone(),
+            )),
+        ));
+    }
+
+    if let Some(ref qq) = config.channels_config.qq {
+        channels.push((
+            "QQ",
+            Arc::new(QQChannel::new(
+                qq.app_id.clone(),
+                qq.app_secret.clone(),
+                qq.allowed_users.clone(),
+            )),
+        ));
+    }
+
+    if let Some(ref ct) = config.channels_config.clawdtalk {
+        channels.push(("ClawdTalk", Arc::new(ClawdTalkChannel::new(ct.clone()))));
+    }
+
+    channels
 }
 
 /// Returns `true` if any real-time channel is configured and needs supervision.
@@ -1195,5 +1495,91 @@ mod tests {
             }
             other => panic!("expected StateError, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn test_collect_channels_empty_config() {
+        let config: Config = toml::from_str("default_temperature = 0.7").unwrap();
+        let channels = collect_channels(&config);
+        assert!(
+            channels.is_empty(),
+            "expected no channels from default config, got {}",
+            channels.len()
+        );
+    }
+
+    #[test]
+    fn test_collect_channels_with_telegram() {
+        let toml_str = r#"
+default_temperature = 0.7
+
+[channels_config]
+cli = true
+
+[channels_config.telegram]
+bot_token = "fake:token"
+allowed_users = ["123"]
+mention_only = false
+"#;
+        let config: Config = toml::from_str(toml_str).unwrap();
+        let channels = collect_channels(&config);
+        assert_eq!(channels.len(), 1);
+        assert_eq!(channels[0].0, "Telegram");
+    }
+
+    #[test]
+    fn test_collect_channels_multiple() {
+        let toml_str = r#"
+default_temperature = 0.7
+
+[channels_config]
+cli = true
+
+[channels_config.telegram]
+bot_token = "fake:token"
+allowed_users = []
+mention_only = false
+
+[channels_config.discord]
+bot_token = "fake_discord_token"
+allowed_users = []
+listen_to_bots = false
+mention_only = false
+
+[channels_config.slack]
+bot_token = "xoxb-fake"
+allowed_users = []
+"#;
+        let config: Config = toml::from_str(toml_str).unwrap();
+        let channels = collect_channels(&config);
+        assert_eq!(channels.len(), 3);
+        let names: Vec<&str> = channels.iter().map(|(n, _)| *n).collect();
+        assert!(names.contains(&"Telegram"));
+        assert!(names.contains(&"Discord"));
+        assert!(names.contains(&"Slack"));
+    }
+
+    #[test]
+    fn test_doctor_channels_no_daemon_empty_toml() {
+        let result = doctor_channels_inner(String::new(), "/tmp/test".into());
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            FfiError::StateError { detail } => {
+                assert!(detail.contains("not running"));
+            }
+            other => panic!("expected StateError, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_doctor_channels_no_channels_configured() {
+        let toml_str = "default_temperature = 0.7\n";
+        let result = doctor_channels_inner(toml_str.to_string(), "/tmp/test".into());
+        let json_str = result.unwrap();
+        let arr: Vec<serde_json::Value> = serde_json::from_str(&json_str).unwrap();
+        assert_eq!(arr.len(), 1);
+        assert_eq!(arr[0]["name"], "channels");
+        assert_eq!(arr[0]["status"], "healthy");
+        assert_eq!(arr[0]["detail"], "No channels configured");
     }
 }
